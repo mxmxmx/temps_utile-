@@ -7,7 +7,6 @@ ICs/semis:
 - NPN transistors (MMBT3904, SOT-23) 2x
 - 1N5817 (diode, DO-41): 2x
 - BAT54S (Schottky (dual/series) SOT-23): 4x
-- BAT42  (Schottky (minimelf)): 2x
 - LM4040-2.5 (SOT-23) : 1x (optional**)
 
 misc *through-hole*:
@@ -51,7 +50,7 @@ SMD resistors (0805):
 - 3k9  :         2x
 - 10k  :         6x
 - 20k  :         6x (*) 
-- 33k :          4x
+- 33k :          6x (*****) 
 - 49k9:          4x
 - 100k :         10x
 
@@ -80,6 +79,9 @@ notes:
 
 ****
 - connecting to those pins isn't very elegant, partly owing to the fact this module is entirely derivative from the DAC one. there's two GPIO pins (28 and 29) on the bottom side of the controller that need to be connected - these are available as SMD pads only; i figure the best way to do it would be to solder a 2-pin SMD pin header to those pins and use corresponding sockets on the board. i just used two standard/through hole angled (90 degr.) pins, removed them from the plastic frame and soldered them directly to the board.
+
+*****
+
 
 
 
