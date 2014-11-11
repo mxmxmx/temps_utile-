@@ -226,7 +226,8 @@
        vector-effect="non-scaling-stroke"
        stroke="#000000"
        stroke-width="0.100mm"
-       id="rect42" />
+       id="rect42"
+       style="fill:#1a1a1a" />
     <circle
        cx="8.500"
        cy="23.000"
