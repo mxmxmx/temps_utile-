@@ -3,6 +3,7 @@ temps_utile-
 
 teensy 3.1 trigger generator w/ 128x64 oled display.
 
+
 i/o:
 
 clock input
@@ -28,3 +29,6 @@ reset input
 - (DAC bonus modes on channel #4 (+/- 5 volts))
 
 25 mm Depth
+
+
+![My image](https://farm4.staticflickr.com/3948/15552392087_8fb300d861_z.jpg)
