@@ -6,13 +6,13 @@ teensy 3.1 trigger generator w/ 128x64 oled display.
 
 i/o:
 
-**1 clock input; 1 reset input**
+**- 2 clock inputs (ext. clock; reset)**
 
-**4 CV inputs (bipolar, assignable to any parameter)**
+**- 4 CV inputs (bipolar, assignable to any parameter)**
 
-**6 clock outputs (5 digital, 1 DAC (12 bit))**
+**- 6 clock outputs (5 digital, 1 DAC (12 bit))**
 
-**5 modes, selectable per channel (params / channel):** 
+**- 5 modes, selectable per channel (params / channel):** 
 
 - clock division (pulse-width, divisor, inverted)
 
@@ -24,7 +24,7 @@ i/o:
 
 - logic (pulse-width, mode (AND, OR, XOR, NAND, NOR), op1, op2)
 
-- (DAC mode; channel #4 only: random, 'binary sequencer' (+/- 5 volts))
+- DAC (channel #4 only): random, binary (+/- 5 volts))
 
 25 mm Depth
 
