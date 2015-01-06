@@ -5,6 +5,10 @@ teensy 3.1 trigger generator w/ 128x64 oled display.
 
 - build guide: https://github.com/mxmxmx/temps_utile-/wiki/Temps-Utile
 
+
+![My image](https://farm4.staticflickr.com/3948/15552392087_8fb300d861_z.jpg)
+
+
 i/o:
 
 **- 2 clock inputs (ext. clock; reset)**
@@ -28,8 +32,5 @@ i/o:
 - DAC (channel #4 only): random, binary (+/- 5 volts))
 
 25 mm Depth
-
-
-![My image](https://farm4.staticflickr.com/3948/15552392087_8fb300d861_z.jpg)
 
 
