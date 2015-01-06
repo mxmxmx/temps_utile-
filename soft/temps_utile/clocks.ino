@@ -142,16 +142,16 @@ uint8_t do_clock(struct params* _p, uint8_t _ch)   {
 void all_clocks() {
    
   /* output them first     */
-  if (allChannels[DAC_CHANNEL].mode == DAC) outputDAC(&allChannels[DAC_CHANNEL]); 
-  else if (CLOCKS_STATE & 0x8)   analogWrite(A14, 4000); 
-   
   digitalWriteFast(CLK1, CLOCKS_STATE & 0x1);
   digitalWriteFast(CLK2, CLOCKS_STATE & 0x2);
   digitalWriteFast(CLK3, CLOCKS_STATE & 0x4);
-  //  digitalWriteFast(CLK4, CLOCKS_STATE & 0x8); // see above
+  //  digitalWriteFast(CLK4, CLOCKS_STATE & 0x8); // see below
   digitalWriteFast(CLK5, CLOCKS_STATE & 0x10);
   digitalWriteFast(CLK6, CLOCKS_STATE & 0x20);
-  
+  /*  now the DAC: */
+  if (allChannels[DAC_CHANNEL].mode == DAC) outputDAC(&allChannels[DAC_CHANNEL]); 
+  else if (CLOCKS_STATE & 0x8)   analogWrite(A14, 4000); 
+   
   /* keep track of things: */
   PW = LAST_TRIG;
   LAST_TRIG = millis();
@@ -480,9 +480,10 @@ uint8_t limits(int16_t _param_val, uint8_t _param, uint8_t _mode) {
 void clocksoff() {
   
     uint8_t _tmp = CLOCKS_OFF_CNT;
-    uint8_t _mode = allChannels[_tmp].mode;
-    uint8_t _pw = allChannels[_tmp].param[_mode][PULSE_WIDTH]; 
-
+  //uint8_t _mode = allChannels[_tmp].mode;
+  //uint8_t _pw = allChannels[_tmp].param[_mode][PULSE_WIDTH]; 
+    uint8_t _pw = allChannels[_tmp]._pw;
+    
     if (millis() - LAST_TRIG > _pw) {
       
         /* turn clock off */
@@ -505,9 +506,9 @@ void clocksoff() {
               }      
          }
     }
-    _tmp++;  
-    _tmp = _tmp > 5 ? 0 : _tmp; 
+    _tmp = _tmp++ > 0x4 ? 0 : _tmp; // reset counter
     CLOCKS_OFF_CNT = _tmp;   
+    
 } 
  
  

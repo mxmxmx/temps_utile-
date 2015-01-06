@@ -1,11 +1,14 @@
 /* 
 *
 *  temps_utile. teensy 3.1 6x CLOCK generator / distributor 
-*
+*  run at 120 MHz
 *
 */
 
-// TD: interacting parameter limits
+// TD: 
+// - parameter limits
+// - test sync();
+// - clear();
 
 #include <spi4teensy3_14.h>
 #include <u8g_teensy_14.h>
@@ -84,7 +87,7 @@ void clk_ISR1() {  _bpm = true; }
 /*       ---------------------------------------------------------         */
 
 IntervalTimer adc_timer;
-#define ADC_RATE   50000   // CV
+#define ADC_RATE   10000   // CV
 volatile uint8_t _adc; 
 void adc_timerCallback() { _adc = true; }  
 const uint8_t numADC = 4;
