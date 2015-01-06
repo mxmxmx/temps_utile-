@@ -189,34 +189,32 @@ uint8_t _lfsr(struct params* _p) {
   uint8_t _mode, _tap1, _tap2, _len, _out;
   int16_t _cv1, _cv2, _cv3;
   uint32_t _data;
-  
-  _cv1 = _p->cvmod[2]; // len CV
-  _cv2 = _p->cvmod[3]; // tap1 CV
-  _cv3 = _p->cvmod[4]; // tap2 CV
-  
   _mode = LFSR;
-    
+  
+  _cv1 = _p->cvmod[2];         // len CV
+  _cv2 = _p->cvmod[3];         // tap1 CV
+  _cv3 = _p->cvmod[4];         // tap2 CV
+  _len  = _p->param[_mode][1]; // len param
+  _tap1 = _p->param[_mode][2]; // tap1 param
+  _tap2 = _p->param[_mode][3]; // tap2 param
+
+  /* cv mod ? */  
   if (_cv1) { // len
     
         _cv1 = (HALFSCALE - CV[_cv1]) >> 4;
-        _len = limits(_p->param[_mode][1] + _cv1, 1, _mode);
-        
+        _len = limits(_p, 1, _cv1 + _len);   
   }
-  else _len  = _p->param[_mode][1];
   if (_cv2) { // tap1
     
         _cv2 = (HALFSCALE - CV[_cv2]) >> 5;
-        _tap1 = limits(_p->param[_mode][2] + _cv2, 2, _mode);
-        
+        _tap1 = limits(_p, 2, _cv2 + _tap1);    
   }
-  else _tap1 = _p->param[_mode][2];
   if (_cv3) { // tap2
     
         _cv3 = (HALFSCALE - CV[_cv3]) >> 5;
-        _tap2 = limits(_p->param[_mode][3] + _cv3, 3, _mode);
-        
+        _tap2 = limits(_p, 3, _cv3 + _tap2);
   }
-  else _tap2 = _p->param[_mode][3];
+
   _data = _p->lfsr;
   _out = _data & 1u; 
   
@@ -224,8 +222,7 @@ uint8_t _lfsr(struct params* _p) {
   _tap2 = (_data >> _tap2) & 1u; // bit at tap2 
   _p->lfsr = (_data >> 1) | ((_out ^ _tap1 ^ _tap2) << (_len - 1)); // update lfsr
   if (_data == 0x0 || _data == 0xFFFFFFFF) _p->lfsr = random(0xFFFFFFFF); // let's not get stuck (entirely)
-  return _out;
-  
+  return _out;  
 }  
 
 // 2 : random
@@ -234,29 +231,27 @@ uint8_t _rand(struct params* _p) {
   
   uint8_t _mode, _n, _dir, _out; 
   int16_t _cv1, _cv2;
+  _mode = RANDOM;
   
   _cv1 = _p->cvmod[2]; // RND-N CV
   _cv2 = _p->cvmod[3]; // DIR CV
+  _n   = _p->param[_mode][1]; // RND-N param
+  _dir = _p->param[_mode][2]; // DIR param
   
-  _mode = RANDOM;
-  
+  /* cv mod ? */
   if (_cv1) {
         _cv1 = (HALFSCALE - CV[_cv1]) >> 5;
-        _n = limits(_p->param[_mode][1] + _cv1, 1, _mode);
+        _n = limits(_p, 1, _cv1 + _n);
   }
-  else _n   = _p->param[_mode][1];
   if (_cv2)  { // direction : 
         _cv2 = CV[_cv2];
-        _dir = _p->param[_mode][2];
         if (_cv2 < THRESHOLD) _dir =  ~_dir & 1u;
-        //_dir = limits(_p->param[_mode][2] + _cv2, 2, _mode);
   }  
-  else _dir = _p->param[_mode][2];
+   
   _out = random(_n+1);
   _out &= 1u;             // 0 or 1
   if (_dir) _out = ~_out; //  if inverted: 'yes' ( >= 1)  
-  return _out&1u;
-  
+  return _out&1u;  
 }
 
 // 3 : clock div 
@@ -268,22 +263,20 @@ uint8_t _plainclock(struct params* _p) {
   _mode = DIV;
   
   _cv1 = _p->cvmod[2]; // div CV
-  _cv2 = _p->cvmod[3]; // dir CV
- 
-  /* cv mod? */ 
+  _cv2 = _p->cvmod[3]; // dir CV 
+  _div = _p->param[_mode][1]; // div param
+  _dir = _p->param[_mode][2]; // dir param
+  
+  /* cv mod? */
   if (_cv1)  { // division: 
-        _cv1 = (HALFSCALE - CV[_cv1]) >> 5;
-        _div = limits(_p->param[_mode][1] + _cv1, 1, _mode);
+        _cv1 = (HALFSCALE - CV[_cv1]) >> 4;
+        _div = limits(_p, 1, _cv1 + _div);
   }
-  else _div = _p->param[_mode][1];
   
   if (_cv2)  { // direction : 
         _cv2 = CV[_cv2];
-        _dir = _p->param[_mode][2];
         if (_cv2 < THRESHOLD) _dir =  ~_dir & 1u;
-        //_dir = limits(_p->param[_mode][2] + _cv2, 2, _mode);
   }  
-  else _dir = _p->param[_mode][2]; 
   
   /* clk counter: */
   _n   = _p->param[_mode][3];
@@ -292,7 +285,7 @@ uint8_t _plainclock(struct params* _p) {
   else _out = 0; 
   
   _p->param[_mode][3]++;
-  if (_n >= _div) { _p->param[_mode][3] = 0;}
+  if (_n >= _div)  _p->param[_mode][3] = 0;
   
   if (_dir) _out = ~_out;  // invert?  
   return _out&1u;
@@ -303,30 +296,28 @@ uint8_t _plainclock(struct params* _p) {
 uint8_t _euclid(struct params* _p) {
   
   uint8_t _mode, _n, _k, _offset, _out;
-  
   int16_t _cv1, _cv2, _cv3;
-  
-  _cv1 = _p->cvmod[2]; // n CV
-  _cv2 = _p->cvmod[3]; // k CV
-  _cv3 = _p->cvmod[4]; // offset CV
-  
   _mode = EUCLID;
+  
+  _cv1 = _p->cvmod[2];           // n CV
+  _cv2 = _p->cvmod[3];           // k CV
+  _cv3 = _p->cvmod[4];           // offset CV
+  _n = _p->param[_mode][1];      // n param 
+  _k = _p->param[_mode][2];      // k param
+  _offset = _p->param[_mode][3]; // _offset param
   
   if (_cv1)  { // N
         _cv1 = (HALFSCALE - CV[_cv1]) >> 5;
-        _n = limits(_p->param[_mode][1] + _cv1, 1, _mode);
+        _n = limits(_p, 1, _cv1 + _n);
   }
-  else _n = _p->param[_mode][1];
   if (_cv2) { // K
         _cv2 = (HALFSCALE - CV[_cv2]) >> 5;
-        _k = limits(_p->param[_mode][2] + _cv2, 2, _mode);
+        _k = limits(_p, 2, _cv2 + _k);
   }
-  else _k = _p->param[_mode][2];
   if (_cv3) { // offset
         _cv3 = (HALFSCALE - CV[_cv3]) >> 5;
-        _offset = _k = limits(_p->param[_mode][3] + _cv3, 3, _mode);
+        _offset = limits(_p, 3, _cv3 + _offset);
   }
-  else _offset = _p->param[_mode][3];
 
   if (_k >= _n ) _k = _n - 1;
   _out = ((TRIG_COUNTER + _offset) * _k) % _n;
@@ -340,29 +331,29 @@ uint8_t _euclid(struct params* _p) {
 uint8_t _logic(struct params* _p) {
   
   uint8_t _mode, _type, _op1, _op2, _out;
-  
   int16_t _cv1, _cv2, _cv3;
-  
-  _cv1 = _p->cvmod[2]; // type CV
-  _cv2 = _p->cvmod[3]; // op1 CV
-  _cv3 = _p->cvmod[4]; // op2 CV
-  
   _mode = LOGIC;
+    
+  _cv1 = _p->cvmod[2];            // type CV
+  _cv2 = _p->cvmod[3];            // op1 CV
+  _cv3 = _p->cvmod[4];            // op2 CV
+  _type  = _p->param[_mode][1];   // type param
+  _op1   = _p->param[_mode][2]-1; // op1 param
+  _op2   = _p->param[_mode][3]-1; // op2 param
+
+  /* cv mod ?*/
   if (_cv1) {
         _cv1 = (HALFSCALE - CV[_cv1]) >> 6;
-        _type = limits(_p->param[_mode][1] + _cv1, 1, _mode);
+        _type = limits(_p, 1, _cv1 + _type);
   }
-  else _type  = _p->param[_mode][1];
   if (_cv2) { 
         _cv2 = (HALFSCALE - CV[_cv2]) >> 6;
-        _op1 = limits(_p->param[_mode][2] + _cv2, 2, _mode)-1;
+        _op1 = limits(_p, 2, _cv2 + _op1)-1;
   }
-  else _op1   = _p->param[_mode][2]-1;
   if (_cv3) {
         _cv3 = (HALFSCALE - CV[_cv3]) >> 6;
-        _op2 = limits(_p->param[_mode][3]+ _cv3, 3, _mode)-1;
+        _op2 = limits(_p, 3, _cv3 + _op2)-1;
   }
-  else _op2   = _p->param[_mode][3]-1;
   
   _op1 = (CLOCKS_STATE >> _op1) & 1u;
   _op2 = (CLOCKS_STATE >> _op2) & 1u;
@@ -411,38 +402,37 @@ void outputDAC(struct params* _p) {
   
    int8_t _type, _scale, _mode; 
    int16_t _cv1, _cv2;
-  
-    _cv1 = _p->cvmod[1]; // type CV
-    _cv2 = _p->cvmod[2]; // scale CV
-    _type = _p->param[DAC][0];
-    _mode = DAC;
-    
+   _mode = DAC;
+   
+   _cv1   = _p->cvmod[1];        // type CV
+   _cv2   = _p->cvmod[2];        // scale CV
+   _type  = _p->param[_mode][0]; // type param
+   _scale = _p->param[_mode][1]; // scale param
+   
     if (_cv1) {
         _cv1 = CV[_cv1];
         if (_cv1 < THRESHOLD) _type =  ~_type & 1u;
     } 
     if (_cv2) {
         _cv2 = (HALFSCALE - CV[_cv2]) >> 5;
-        _scale = 1 + limits(_p->param[_mode][1]+ _cv2, 1, _mode); 
+        _scale = limits(_p, 1, _scale + _cv2); 
     }
-    else _scale = 1 + allChannels[DAC_CHANNEL].param[_mode][1];
-  
-    if (_type) analogWrite(A14, random(132*_scale) +  _ZERO);   // RND
-    
-    else       analogWrite(A14, _binary(CLOCKS_STATE, _scale)); // BIN 
+
+    if (_type) analogWrite(A14, random(132*(_scale+1)) +  _ZERO);   // RND
+    else       analogWrite(A14, _binary(CLOCKS_STATE, _scale+1)); // BIN 
 }  
 
 uint16_t _binary(uint8_t state, uint8_t _scale) {
    
    uint16_t tmp, _state = state;
   
-   tmp  = (_state & 1u)<<10;
-   tmp += ((_state>>1) & 1u)<<9;
-   tmp += ((_state>>2) & 1u)<<8;
-   tmp += ((_state>>4) & 1u)<<7;
-   tmp += ((_state>>5) & 1u)<<6;
+   tmp  = (_state & 1u)<<10;       // ch 1
+   tmp += ((_state>>1) & 1u)<<9;   // ch 2
+   tmp += ((_state>>2) & 1u)<<8;   // ch 3
+   tmp += ((_state>>4) & 1u)<<7;   // ch 5
+   tmp += ((_state>>5) & 1u)<<6;   // ch 6
    
-   tmp = (1+_scale)*(tmp/32.0f) + _ZERO;
+   tmp = _scale*(tmp/32) + _ZERO;
    return tmp;   
 }
 
@@ -451,28 +441,29 @@ uint16_t _binary(uint8_t state, uint8_t _scale) {
 void update_pw(struct params* _p) {
   
          int16_t _cv, _pw, _mode;
-         _cv = _p->cvmod[1]; // pw CV
          _mode = _p->mode;
+         _cv = _p->cvmod[1];                  // pw CV
          _pw = _p->param[_mode][PULSE_WIDTH]; // manual pw
-         if (_cv) { // limit pulse_width
+         
+         if (_cv) {                           // limit pulse_width
                _cv = (HALFSCALE - CV[_cv]) >> 3;
-               _cv += _pw;  
-               _p->_pw = limits(_cv, PULSE_WIDTH, DIV); 
+               _p->_pw = limits(_p, PULSE_WIDTH, _cv + _pw); 
          }
          else _p->_pw = _pw;
 }
 
 /* ------------------------------------------------------------------   */
 
-uint8_t limits(int16_t _param_val, uint8_t _param, uint8_t _mode) {
+uint8_t limits(struct params* _p, uint8_t _param, int16_t _CV) {
   
-      int8_t _x;
-      uint16_t _min = _CHANNEL_PARAMS_MIN[_mode][_param];
-      uint16_t _max = _CHANNEL_PARAMS_MAX[_mode][_param];
-      if (_param_val < _min) _x = _min;
-      else if (_param_val > _max) _x = _max;
-      else _x = _param_val;
-      return _x;
+      int16_t  _param_val = _CV;
+      uint16_t _min = _p->param_min[_param];
+      uint16_t _max = _p->param_max[_param];
+      
+      if (_param_val < _min) _param_val = _min;
+      else if (_param_val > _max) _param_val = _max;
+      else _param_val = _param_val;
+      return _param_val;
 } 
 
 /* ------------------------------------------------------------------   */
