@@ -23,7 +23,7 @@
 - 2x5 pin header, 2.54mm : 1x (euro power connector)
 - 1x7 pin header, 2.54mm : 1x (for oled)
 - 1x7 socket, 2.54mm (low profile) : 1x (for oled)
-- 1x14 sockets + matching pin headers  : 2x (2.54mm - for teensy 3.1; best to use "machine pin" ones, the pcb holes are smallish)
+- 2x single row precision ("machined" / "round") pin header and sockets for teensy 3.1: RM 2.54mm
 - 1x5 sockets + matching pin headers  : 1x (ditto)
 - 1x2 male header *SMD* (2.54mm for the GPIO pins on the bottom side of the teensy) (****)
 - 1x2 pin header, 2.54mm : 1x
