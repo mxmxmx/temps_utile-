@@ -130,7 +130,9 @@ void setup(){
   /* timers */
   adc_timer.begin(adc_timerCallback, ADC_RATE);
   UI_timer.begin(UI_timerCallback, UI_RATE);
-  randomSeed(analogRead(CV1)+analogRead(CV2)+analogRead(CV3)+analogRead(CV4));
+  randomSeed(analogRead(A15)+analogRead(A16)+analogRead(A19)+analogRead(A20));
+  /* calibrate ? */
+  if (!digitalRead(butL))  calibrate_main();
   /* init */
   init_clocks();
   init_menu();  

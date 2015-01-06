@@ -24,12 +24,14 @@ uint8_t CV_DEST_CHANNEL[MAIN_ITEMS] = {0, 0, 0, 0, 0};
 int16_t CV_DEST_PARAM[MAIN_ITEMS];
 
 const uint8_t X_OFF = 110; // x offset
+uint8_t CALIB_MENU = 0, CALIB_CLK; // for calibration/testing
 
 enum MENU_ {
   _SCREENSAVER,
   _MAIN,
   _BPM,
-  _CV
+  _CV,
+  _CALIBRATE
 };
 
 enum MODE_ {
@@ -39,6 +41,13 @@ enum MODE_ {
   _EUCLID,
   _LOGIC,
   _DAC 
+};
+
+enum CALIB_ {
+  
+  _CHECK_CV,
+  _CHECK_CLK
+
 };
 
 /* ----------- menu strings ---------------- */
@@ -281,6 +290,10 @@ void draw(void) {
             }
                
      }   
+  }
+  else if (UI_MODE == _CALIBRATE) {
+             
+               calibrate();
   }  
 } 
 
@@ -324,9 +337,7 @@ String makedisplay(uint8_t _channel, uint8_t _mode, uint8_t _param_slot) {
          } // dac
 
      }
-     
      return displaystring;
-  
 }  
 
 /* ----------------- splash ---------------- */
@@ -345,3 +356,68 @@ void hello() {
     
         } while( u8g.nextPage() ); 
 }  
+
+/* ----------- calibration stuff ----------- */
+
+void calibrate_main() {
+  
+        UI_MODE = _CALIBRATE;
+        MENU_REDRAW = 1;
+        
+        u8g.setFont(u8g_font_6x12);
+        u8g.setColorIndex(1);
+        u8g.setFontRefHeightText();
+        u8g.setFontPosTop();
+       
+        while(UI_MODE == _CALIBRATE) {
+         
+             UI();
+             delay(20);
+             
+             CV[1] = analogRead(CV4); 
+             CV[2] = analogRead(CV3); 
+             CV[3] = analogRead(CV1); 
+             CV[4] = analogRead(CV2);
+             CALIB_CLK = digitalRead(TR2);
+             
+             MENU_REDRAW = 1;
+             
+             if (millis() - LAST_BUT > DEBOUNCE && !digitalReadFast(butR)) {
+               
+                 if (CALIB_MENU == _CHECK_CV) {
+                     CALIB_MENU++;
+                     LAST_BUT = millis();
+                 }
+                 else {        
+                     UI_MODE = _SCREENSAVER;
+                     LAST_BUT = millis();
+                 }
+             }
+             
+        }
+}
+
+void calibrate(){
+     
+  if (CALIB_MENU == _CHECK_CV) {
+    
+       u8g.drawStr(10, 10, "CV1 -- >");
+       u8g.setPrintPos(80,10);
+       u8g.print(CV[1]);
+       u8g.drawStr(10, 25, "CV2 -- >");
+       u8g.setPrintPos(80,25);
+       u8g.print(CV[2]);
+       u8g.drawStr(10, 40, "CV3 -- >");
+       u8g.setPrintPos(80,40);
+       u8g.print(CV[3]);
+       u8g.drawStr(10, 55, "CV4 -- >");
+       u8g.setPrintPos(80,55);
+       u8g.print(CV[4]);    
+  }    
+  else if (CALIB_MENU == _CHECK_CLK) {
+    
+       u8g.drawStr(10, 25, "CLK2 -- >");
+       if (CALIB_CLK)  u8g.drawStr(80, 25, "OFF");
+       else  u8g.drawStr(80, 25, "CLK");
+  }  
+}
