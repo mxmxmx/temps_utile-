@@ -9,6 +9,7 @@
 // - parameter limits
 // - test sync();
 // - clear();
+// - global CV: pw; channel select;
 
 #include <spi4teensy3_14.h>
 #include <u8g_teensy_14.h>
@@ -144,57 +145,48 @@ void setup(){
 
 void loop(){
   
-  coretimer();
-  if (_bpm) {   _bpm = 0; all_clocks();} 
+  while(1) {
   
-  UI();
+    coretimer();
+    if (_bpm) {   _bpm = 0; all_clocks();} 
+    /* update UI ?*/
+    UI();
   
-  coretimer();
-  if (_bpm) {   _bpm = 0;  all_clocks(); } 
- 
-  if (millis() - LAST_BUT > DEBOUNCE) update_ENC();
+    coretimer();
+    if (_bpm) {   _bpm = 0;  all_clocks(); } 
+    /* update encoders ?*/
+    if (millis() - LAST_BUT > DEBOUNCE) update_ENC();
   
-  coretimer();
-  if (_bpm) {   _bpm = 0; all_clocks(); }  
+    coretimer();
+    if (_bpm) {   _bpm = 0; all_clocks(); }  
+    /* update CV ?*/
+    if (_adc) { _adc = 0; CV[1] = analogRead(CV4); CV[2] = analogRead(CV3); CV[3] = analogRead(CV1); CV[4] = analogRead(CV2);} 
   
-  coretimer();
-  if (_bpm) {   _bpm = 0; all_clocks(); } 
-  
-  if (_adc) { _adc = 0; CV[1] = analogRead(CV4); CV[2] = analogRead(CV3); CV[3] = analogRead(CV1); CV[4] = analogRead(CV2);} 
-  
-  coretimer();  
-  if (_bpm) {   _bpm = 0; all_clocks(); }  
- 
-  if (_UI) { leftButton(); rightButton(); topButton(); lowerButton(); _UI = false; }
+    coretimer();  
+    if (_bpm) {   _bpm = 0; all_clocks(); }  
+    /* buttons ?*/
+    if (_UI) { leftButton(); rightButton(); topButton(); lowerButton(); _UI = false; }
 
-  coretimer();
-  if (_bpm) {   _bpm = 0; all_clocks(); }  
-  
-  coretimer();
-  if (_bpm) {   _bpm = 0; all_clocks(); }  
-         
-  coretimer();
-  if (_bpm) {   _bpm = 0; all_clocks(); }  
+    coretimer();
+    if (_bpm) {   _bpm = 0; all_clocks(); }  
+    /* timeout ?*/
+    if (UI_MODE && (millis() - LAST_UI > TIMEOUT)) time_out(); // timeout UI
  
-  coretimer();
-  if (_bpm) {   _bpm = 0; all_clocks(); } 
+    coretimer();
+    if (_bpm) {   _bpm = 0; all_clocks(); }  
+    /* clocks off ?*/
+    if (display_clock) clocksoff();
   
-  if (UI_MODE && (millis() - LAST_UI > TIMEOUT)) time_out(); // timeout UI
- 
-  coretimer();
-  if (_bpm) {   _bpm = 0; all_clocks(); }  
+    coretimer();
+    if (_bpm) {   _bpm = 0; all_clocks(); } 
+    /* do something ?*/
+    if (b_state[BOTTOM]) checkbuttons(BOTTOM);
   
-  if (display_clock) clocksoff();
-  
-  coretimer();
-  if (_bpm) {   _bpm = 0; all_clocks(); } 
-  
-  if (b_state[BOTTOM]) checkbuttons(BOTTOM);
-  
-  coretimer();
-  if (_bpm) {   _bpm = 0; all_clocks(); } 
-  
-  if (b_state[TOP]) checkbuttons(TOP);
+    coretimer();
+    if (_bpm) {   _bpm = 0; all_clocks(); } 
+    /* do something ?*/
+    if (b_state[TOP]) checkbuttons(TOP);
+  }
 }
 
 
