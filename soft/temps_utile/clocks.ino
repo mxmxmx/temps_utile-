@@ -133,8 +133,8 @@ uint8_t do_clock(struct params* _p, uint8_t _ch)   {
      case 3: return _euclid(_p);
      case 4: return (CLOCKS_STATE>>_ch)&1u; // logic: return prev.
      case 5: return _dac(_p);
- 
- } 
+     default: return 0xFF;
+    } 
 }  
 
 /* ------------------------------------------------------------------   */

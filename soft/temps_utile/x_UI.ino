@@ -270,8 +270,9 @@ void checkbuttons(uint8_t _button) {
                 UI_MODE = _BPM;
                 encoder[RIGHT].setPos(BPM);
           }
-          else { 
+          else {  
                 UI_MODE = _CV;
+                //Serial.println("ok");
                 uint8_t _tmp = CV_MENU_ITEM;
                 encoder[RIGHT].setPos(CV_DEST_PARAM[_tmp]);
                 encoder[LEFT].setPos(CV_DEST_CHANNEL[_tmp]);

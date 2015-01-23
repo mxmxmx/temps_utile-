@@ -62,7 +62,9 @@ char *menu_strings[MENU_ITEMS*CHANNELS] = {
 "", "", "mode: ", "multiply:", "",""
 
 };
+
 const String display_mode[MODES] = {
+
       "LFSR", 
       "RANDOM", 
       "CLOCK/DIV", 
@@ -159,7 +161,7 @@ void draw(void) {
   else if (UI_MODE==_MAIN) { // menu
     
       uint8_t i, h, ch;
-      u8g_uint_t w, d, items;
+      u8g_uint_t w, items;
       u8g.setFontRefHeightText();
       u8g.setFontPosTop();
       h = u8g.getFontAscent()-u8g.getFontDescent()+1;
@@ -175,7 +177,7 @@ void draw(void) {
                
       // display mode + channel
       u8g.setPrintPos(10, 0);
-      if (MODE_SELECTOR == ACTIVE_MODE)   u8g.print(display_mode[allChannels[ch].mode]+"\xb7"); 
+      if (MODE_SELECTOR == ACTIVE_MODE)  u8g.print(display_mode[allChannels[ch].mode]+'\xb7'); 
       else u8g.print(display_mode[MODE_SELECTOR]);           
       
       u8g.setPrintPos(80, 0); 
@@ -202,13 +204,13 @@ void draw(void) {
 
   else if (UI_MODE==_BPM) {
   
-      uint8_t ch;
+      //uint8_t ch;
       //u8g_uint_t items;
       u8g.setFontRefHeightText();
       u8g.setFontPosTop();
       //h = u8g.getFontAscent()-u8g.getFontDescent()+1;
       //w = 128; // u8g.getWidth();
-      ch = ACTIVE_CHANNEL;
+      //ch = ACTIVE_CHANNEL;
       //items = allChannels[ch].mode_param_numbers+3; // offset by 3 lines
     
       // display mode + channel
@@ -251,7 +253,7 @@ void draw(void) {
       h = u8g.getFontAscent()-u8g.getFontDescent()+4;
       w = 128; 
       items = MAIN_ITEMS;
-            
+          
       for(i = 0; i < items; i++ ) {                // draw user menu
      
             u8g.setDefaultForegroundColor();
@@ -260,19 +262,20 @@ void draw(void) {
                 u8g.drawBox(0, i*h, w, h-2);            
                 u8g.setDefaultBackgroundColor();
             }
-            /* print src / menu items */
+            
+            // print src / menu items 
             u8g.setPrintPos(10,i*h);
             u8g.print(display_CV_menu[i]);
             
-            /* print dest: channel */
+            // print dest: channel 
             if (i < 4 ) {
-                uint8_t _tmp, _c;
+                uint8_t _tmp, _c = 0;
                 _tmp = CV_DEST_CHANNEL[i];
                  
                 u8g.setPrintPos(82,i*h);
                 if (_tmp) { u8g.print(_tmp); _c = allChannels[_tmp-1].mode; }
                 else u8g.print("-");
-                /* print dest: param  */
+                // print dest: param 
                 _tmp = CV_DEST_PARAM[i];
                 u8g.setPrintPos(X_OFF,i*h);
                 //if (_tmp) 
@@ -280,15 +283,15 @@ void draw(void) {
                 //else u8g.print("-");
                 u8g.setDefaultForegroundColor(); 
             }
-    
+          
             else if (i == 4) {
-                 /* print  clock source */
+                 // print  clock source
                 u8g.setPrintPos(X_OFF,i*h);
                 u8g.print(clock_mode[CV_DEST_CHANNEL[4]]);
                 u8g.setDefaultForegroundColor(); 
            
             }
-               
+              
      }   
   }
   else if (UI_MODE == _CALIBRATE) {
