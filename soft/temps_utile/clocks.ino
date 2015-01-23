@@ -33,7 +33,7 @@ uint32_t CORE_TIMER;
 uint8_t init_mode = 2; // initial mode: 2 => mult/div
 uint8_t CLOCKS_OFF_CNT;
 
-const uint16_t _ZERO = 1800; // DAC 0.0V
+const uint16_t _ZERO[2] = {1800, 0}; // DAC 0.0V
 const uint8_t DAC_CHANNEL = 3;
 const uint8_t PULSE_WIDTH = 0;
 
@@ -53,9 +53,25 @@ struct params {
 };
 
 const uint8_t  _CHANNEL_MODES[]  = {5, 5, 5, 6, 5, 5}; // modes per channel; ch 4 = 6, ie. 5 + DAC
-const uint8_t  _CHANNEL_PARAMS[] = {3, 2, 2, 3, 3, 1}; // [len, tap1, tap2]; [rand(N), direction]; [div, direction]; [N, K, offset]; [type, op1, *op2]; [type, scale]
-const uint16_t _CHANNEL_PARAMS_MIN[MODES][4] = {{5,4,0,0}, {5,1,0,0}, {5,0,0,0}, {5,2,1,0}, {5,0,1,1}, {0,0,0,0}}; // pw, p0, p1, p3
-const uint16_t _CHANNEL_PARAMS_MAX[MODES][4] = {{150,31,31,31}, {150,31,1,0}, {150,31,1,0}, {150,31,31,15}, {150,4,6,6}, {1,31,0,0}}; // pw, p0, p1, p3
+const uint8_t  _CHANNEL_PARAMS[] = {3, 2, 2, 3, 3, 2}; // [len, tap1, tap2]; [rand(N), direction]; [div, direction]; [N, K, offset]; [type, op1, *op2]; [scale, polarity]
+const uint16_t _CHANNEL_PARAMS_MIN[MODES][4] = {
+// pw, p0, p1, p3
+  {5,4,0,0},  // lfsr
+  {5,1,0,0},  // rnd
+  {5,0,0,0},  // div
+  {5,2,1,0},  // euclid
+  {5,0,1,1},  // logic
+  {0,0,0,0}   // dac
+}; 
+const uint16_t _CHANNEL_PARAMS_MAX[MODES][4] = {
+// pw, p0, p1, p3
+  {150,31,31,31}, 
+  {150,31,1,0}, 
+  {150,31,1,0}, 
+  {150,31,31,15}, 
+  {150,4,6,6}, 
+  {1,31,1,0}
+}; 
 
 params *channel1, *channel2, *channel3, *channel4, *channel5, *channel6;
 
@@ -400,14 +416,16 @@ uint8_t _dac(struct params* _p) {
 
 void outputDAC(struct params* _p) {
   
-   int8_t _type, _scale, _mode; 
-   int16_t _cv1, _cv2;
+   int8_t _type, _scale, _polar, _mode; 
+   int16_t _cv1, _cv2, _cv3;
    _mode = DAC;
    
    _cv1   = _p->cvmod[1];        // type CV
    _cv2   = _p->cvmod[2];        // scale CV
+   _cv3   = _p->cvmod[3];        // polar.CV
    _type  = _p->param[_mode][0]; // type param
    _scale = _p->param[_mode][1]; // scale param
+   _polar = _p->param[_mode][2]; // polar param
    
     if (_cv1) {
         _cv1 = CV[_cv1];
@@ -417,12 +435,16 @@ void outputDAC(struct params* _p) {
         _cv2 = (HALFSCALE - CV[_cv2]) >> 5;
         _scale = limits(_p, 1, _scale + _cv2); 
     }
-
-    if (_type) analogWrite(A14, random(132*(_scale+1)) +  _ZERO);   // RND
-    else       analogWrite(A14, _binary(CLOCKS_STATE, _scale+1)); // BIN 
+    if (_cv3) {
+        _cv3 = CV[_cv3];
+        if (_cv3 < THRESHOLD) _polar =  ~_polar & 1u;
+    } 
+    
+    if (_type) analogWrite(A14, random(132*(_scale+1)) +  _ZERO[_polar]);   // RND
+    else       analogWrite(A14, _binary(CLOCKS_STATE, _scale+1, _polar)); // BIN 
 }  
 
-uint16_t _binary(uint8_t state, uint8_t _scale) {
+uint16_t _binary(uint8_t state, uint8_t _scale, uint8_t _pol) {
    
    uint16_t tmp, _state = state;
   
@@ -432,7 +454,7 @@ uint16_t _binary(uint8_t state, uint8_t _scale) {
    tmp += ((_state>>4) & 1u)<<7;   // ch 5
    tmp += ((_state>>5) & 1u)<<6;   // ch 6
    
-   tmp = _scale*(tmp/32) + _ZERO;
+   tmp = _scale*(tmp>>5) + _ZERO[_pol];
    return tmp;   
 }
 
@@ -490,7 +512,7 @@ void clocksoff() {
         MENU_REDRAW = 1;
         /* DAC needs special treatment */
         if (_tmp == DAC_CHANNEL) { 
-              if (allChannels[DAC_CHANNEL].mode < DAC) analogWrite(A14, _ZERO);     
+              if (allChannels[DAC_CHANNEL].mode < DAC) analogWrite(A14, _ZERO[0]);     
               else { 
                   display_clock |=  (1 << _tmp);  
                   MENU_REDRAW = 0; 

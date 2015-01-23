@@ -59,7 +59,7 @@ char *menu_strings[MENU_ITEMS*CHANNELS] = {
 "", "", "pulse_w", "div.", "inv.", "",
 "", "", "pulse_w", "N:", "K (fill):", "offset:",
 "", "", "pulse_w", "type: ", "op1: ", "op2: ",
-"", "", "mode: ", "multiply:", "",""
+"", "", "mode: ", "multiply:", "polarity:",""
 
 };
 
@@ -98,9 +98,11 @@ char *operators[5] = {
        "~&",
        "NOR"
 };
-char *DACmodes[2] = {
+char *DACmodes[4] = {
        "BIN",
-       "RND"
+       "RND",
+       "UNI",
+       "*BI"
 };
 char *clock_mode[4] = {
        "EXT",
@@ -115,7 +117,7 @@ char *cv_display[] = {
        "-", "p_w", "div", "inv", "",
        "-", "p_w",  "_N_", "_K_", "off",
        "-", "p_w", "_op", "op1", "op2", 
-       "-", "dac", "mlt", "",""
+       "-", "dac", "mlt", "pol",""
 };
 
 /* --------------------------------------------------- */
@@ -331,11 +333,15 @@ String makedisplay(uint8_t _channel, uint8_t _mode, uint8_t _param_slot) {
          } // logic
          case _DAC: { 
             
-            if (!_param_slot) {
-                  if (paramval > 1) { paramval = 1; encoder[RIGHT].setPos(1);} 
-                  displaystring = String(DACmodes[paramval]); 
+            //if (!_param_slot) {
+            //      if (paramval > 1) { paramval = 1; encoder[RIGHT].setPos(1);} 
+            //      displaystring = String(DACmodes[paramval]); 
+            //}
+            if (_param_slot==1) displaystring = String(paramval);
+            else {
+                if (paramval > 1) { paramval = 1; encoder[RIGHT].setPos(1);} 
+                displaystring = String(DACmodes[paramval+_param_slot]); 
             }
-            else if (_param_slot==1) displaystring = String(paramval);
             break;
          } // dac
 
