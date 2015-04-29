@@ -28,7 +28,7 @@
 - 1x2 male header *SMD* (2.54mm for the GPIO pins on the bottom side of the teensy) (***)
 - 1x2 pin header, 2.54mm : 1x
 - 1x3 pin header, 2.54mm : 1x (†)
-- jumpers, 2.54mm : 2x
+- jumpers, 2.54mm : 2x (or hardwire)
 - tact switches (multimecs 5E/5G): 2x (mouser #: 642-5GTH935 or 642-5ETH935)
 - + caps (multimecs 1SS09-15.0 or -16.0): 2x (mouser #: 642-1SS09-15.0, or -16.0) (††)
 - teensy3.x : 1x (cut the usb/power trace)
