@@ -14,7 +14,7 @@
 - 22uF  (electrolytic) : 2x
 - 100nf (film/ceramic, RM2.5) : 1x
 - 100nF (film/ceramic, RM5)   : 1x
-- 7805 5v regulator: 1x (TO 220)
+- 7805 5v regulator: 1x (TO 220) ; 78L05 (T092) will work as well 
 - 79L05 -5v regulator: 1x (TO 92)
 - 78L33 3v3 regulator: 1x (TO 92)
 - trimpot 100k (inline / 9.5mm): 1x
