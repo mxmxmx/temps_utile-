@@ -85,10 +85,10 @@ params allChannels[6] {
 
 void coretimer() {
   
- if (micros() - CORE_TIMER > BPM_MICROSEC) {  // BPM, 32th
+ if (CLK_SRC && micros() - CORE_TIMER > BPM_MICROSEC) {  // BPM, 32th
   
         CORE_TIMER = micros();  
-        if (CLK_SRC) _bpm++; 
+        _bpm++; 
   } 
 }
 
@@ -337,9 +337,8 @@ uint8_t _euclid(struct params* _p) {
 
   if (_k >= _n ) _k = _n - 1;
   _out = ((TRIG_COUNTER + _offset) * _k) % _n;
-  if (_out < _k) _out = 1;
-  else   _out = 0;
-  return _out;
+  return (_out < _k) ? 1 : 0;
+  //return _out;
 }
 
 // 5: logic

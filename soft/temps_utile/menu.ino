@@ -52,7 +52,7 @@ enum CALIB_ {
 
 /* ----------- menu strings ---------------- */
 
-char *menu_strings[MENU_ITEMS*CHANNELS] = {
+const char *menu_strings[MENU_ITEMS*CHANNELS] = {
 
 "", "", "pulse_w", "length: ", "tap1: ", "tap2: ", 
 "", "", "pulse_w", "rand(N)", "inv.", "", 
@@ -87,31 +87,31 @@ const String display_CV_menu[MAIN_ITEMS] = {
       "cv#4  -->", 
       "clk source:",
 };
-char *yesno[2] = {
+const char *yesno[2] = {
        "no", 
        "yes"
 };
-char *operators[5] = {
+const char *operators[5] = {
        "AND",
        "OR",
        "XOR",
        "~&",
        "NOR"
 };
-char *DACmodes[4] = {
+const char *DACmodes[4] = {
        "BIN",
        "RND",
        "UNI",
        "*BI"
 };
-char *clock_mode[4] = {
+const char *clock_mode[4] = {
        "EXT",
        "EXT",
        "INT",
        "INT"
 };
 
-char *cv_display[] = {
+const char *cv_display[] = {
        "-", "p_w", "len", "t_1", "t_2",
        "-", "p_w", "RND", "inv", "",
        "-", "p_w", "div", "inv", "",

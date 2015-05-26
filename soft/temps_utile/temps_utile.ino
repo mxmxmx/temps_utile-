@@ -7,9 +7,9 @@
 
 // TD: 
 // - parameter limits
-// - test sync();
+// - test: sync();
 // - clear();
-// - global CV: pw; channel select;
+// - global CV: pw, channel scan.
 
 #include <spi4teensy3_14.h>
 #include <u8g_teensy_14.h>
