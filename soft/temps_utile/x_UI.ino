@@ -5,15 +5,12 @@
 *
 */
 
-uint32_t LAST_UI; 
-  
-void left_encoder_ISR() {
-  encoder[LEFT].process();
-}
+uint32_t LAST_UI;     // timestamp/timeout for screen saver
 
-void right_encoder_ISR() {
-  encoder[RIGHT].process();
-}
+// buttons:
+uint32_t button_timestamp; 
+uint16_t button_states[] = {0,0}, button_events[] ={0,0};
+const uint16_t LONGPRESSED = 800;
 
 enum _button_states {
   
@@ -25,10 +22,15 @@ enum _button_states {
   
 };
 
-uint32_t buttonevent;
-uint8_t b_state[] = {0,0}, b_event[] ={0,0};
+// encoders:
 
-const uint16_t LONGPRESSED = 800;
+void left_encoder_ISR() {
+  encoder[LEFT].process();
+}
+
+void right_encoder_ISR() {
+  encoder[RIGHT].process();
+}
 
 /* ----------------------------------------------------------------  */
 
@@ -55,8 +57,8 @@ void update_ENC()  {
     
           if (encoder[RIGHT].change())  {
                 
-             uint8_t _channel = ACTIVE_CHANNEL;
-             uint8_t _menu_item = ACTIVE_MENU_ITEM-2;  // offset menu
+             uint16_t _channel = ACTIVE_CHANNEL;
+             uint16_t _menu_item = ACTIVE_MENU_ITEM-2;  // offset menu
              int16_t right_encoder_data = encoder[RIGHT].pos();   
              LAST_UI = millis();
       
@@ -85,7 +87,7 @@ void update_ENC()  {
          
               if (left_encoder_data!= allChannels[_channel].mode) {
                   
-                  uint8_t mode_limit = allChannels[_channel].channel_modes-1;   
+                  uint16_t mode_limit = allChannels[_channel].channel_modes-1;   
                   if      (left_encoder_data > mode_limit)  { MODE_SELECTOR = 0; encoder[LEFT].setPos(0);}
                   else if (left_encoder_data < 0) { MODE_SELECTOR = mode_limit;  encoder[LEFT].setPos(mode_limit);} 
                   else  { MODE_SELECTOR = left_encoder_data;}
@@ -97,7 +99,7 @@ void update_ENC()  {
   
   else if (UI_MODE == _CV) {
     
-         uint8_t _sel  = CV_MENU_ITEM;
+         uint16_t _sel  = CV_MENU_ITEM;
          
          if (encoder[RIGHT].change()) { // select dest. param
           
@@ -105,16 +107,16 @@ void update_ENC()  {
                  
                  if (_sel < numADC) {
                    
-                           uint8_t _channel = CV_DEST_CHANNEL[_sel];
-                           uint8_t _prev_dest = CV_DEST_PARAM[_sel];
+                           uint16_t _channel = CV_DEST_CHANNEL[_sel];
+                           uint16_t _prev_dest = CV_DEST_PARAM[_sel];
                            if (_channel) {  // channel selected ?
-                                      uint8_t _limit   = allChannels[_channel-1].mode_param_numbers + 1; // + 1 because we need ' - '
+                                      uint16_t _limit   = allChannels[_channel-1].mode_param_numbers + 1; // + 1 because we need ' - '
                                       if  (right_encoder_data > _limit)  { right_encoder_data = 0; encoder[RIGHT].setPos(0);}
                                       else if (right_encoder_data < 0) { right_encoder_data = _limit;  encoder[RIGHT].setPos(_limit);}
                                       
                                       CV_DEST_PARAM[_sel] = right_encoder_data;                   // update display: selected param
                                       
-                                      uint8_t free_param_slot;
+                                      uint16_t free_param_slot;
                                       if (right_encoder_data > _prev_dest) free_param_slot = find_slot(&allChannels[_channel-1], right_encoder_data, _limit);
                                       else free_param_slot = find_prev_slot(&allChannels[_channel-1], right_encoder_data, _limit);
                                       if (free_param_slot) { 
@@ -145,8 +147,8 @@ void update_ENC()  {
          if (_sel < numADC && encoder[LEFT].change()) { // select dest. channel
          
                  int16_t left_encoder_data = encoder[LEFT].pos();
-                 uint8_t _param_val = CV_DEST_PARAM[_sel];  // 0,1,2,3,4
-                 uint8_t _prev_dest = CV_DEST_CHANNEL[_sel];
+                 uint16_t _param_val = CV_DEST_PARAM[_sel];  // 0,1,2,3,4
+                 uint16_t _prev_dest = CV_DEST_CHANNEL[_sel];
                  
                  if  (left_encoder_data > CHANNELS)  { left_encoder_data = 0; encoder[LEFT].setPos(0);}
                  else if (left_encoder_data < 0) { left_encoder_data = CHANNELS;  encoder[LEFT].setPos(CHANNELS);} 
@@ -190,10 +192,8 @@ void update_ENC()  {
 void rightButton() { // set parameter: 
    
   if (!digitalReadFast(butR) && millis() - LAST_BUT > DEBOUNCE) {
-    
-    
-      if (UI_MODE==_MAIN) update_channel_params();
-      
+     
+      if (UI_MODE==_MAIN) update_channel_params();  
       else if (UI_MODE==_BPM || UI_MODE==_SCREENSAVER) {   // show menu 
       
          ACTIVE_MODE = allChannels[ACTIVE_CHANNEL].mode;
@@ -229,10 +229,10 @@ void topButton()   {
   
      if (!digitalReadFast(but_top) && millis() - LAST_BUT > DEBOUNCE) {
  
-         if (!b_state[TOP]) { 
+         if (!button_states[TOP]) { // ready ?
            
-              b_state[TOP] = PRESSED;
-              buttonevent = millis(); 
+              button_states[TOP] = PRESSED;
+              button_timestamp = millis(); 
          }
     }  
 }
@@ -241,50 +241,54 @@ void lowerButton() {
 
       if (!digitalReadFast(but_bot) && millis() - LAST_BUT > DEBOUNCE) {
         
-          if (!b_state[BOTTOM]) { 
+          if (!button_states[BOTTOM]) { // ready ?
           
-              b_state[BOTTOM] = PRESSED;
-              buttonevent = millis(); 
+              button_states[BOTTOM] = PRESSED;
+              button_timestamp = millis(); 
           }
      }  
 }
 
-void checkbuttons(uint8_t _button) {
+void checkbuttons(uint16_t _button) {
        
-     if (b_state[_button] == PRESSED && digitalRead(0x5-_button)) b_event[_button] = SHORT;
-     else if (b_state[_button] == PRESSED && millis() - buttonevent > LONGPRESSED)   b_event[_button] = HOLD;
-     else if (b_event[_button] == DONE && digitalRead(0x5-_button))  b_state[_button] = READY;
+     uint16_t _b, _pin_state, _b_state, _b_event;
+     _b  = _button; 
+     _b_state = button_states[_b];
+     _b_event = button_events[_b]; 
+     _pin_state = _b ? digitalReadFast(but_bot) : digitalReadFast (but_top);
      
-     if (b_event[_button] == SHORT) {
+     if (_pin_state && _b_state == PRESSED)   button_events[_b] = SHORT; // button released
+     else if (_pin_state && _b_event == DONE) button_states[_b] = READY; // button released 
+     else if (_b_state == PRESSED && millis() - button_timestamp > LONGPRESSED)   button_events[_b] = HOLD;    
+     
+     if (_b_event == SHORT) {
   
-          if (_button) channel_select(BOTTOM);
-          else channel_select(TOP);
+          _b ? channel_select(BOTTOM) : channel_select(TOP);
           LAST_BUT = LAST_UI = millis();
-          b_event[_button] = b_state[_button] = DONE;
+          button_events[_b] = button_states[_b] = DONE;
           MENU_REDRAW = 1;
      }
      
-     else if (b_event[_button] == HOLD) {
+     else if (_b_event == HOLD) {
           
-          if (_button)  { // bottom button 
+          if (_b)  { // bottom button -> BPM page
                 UI_MODE = _BPM;
                 encoder[RIGHT].setPos(BPM);
           }
-          else {  
+          else {    // top button -> CV page
                 UI_MODE = _CV;
-                //Serial.println("ok");
-                uint8_t _tmp = CV_MENU_ITEM;
+                uint16_t _tmp = CV_MENU_ITEM;
                 encoder[RIGHT].setPos(CV_DEST_PARAM[_tmp]);
                 encoder[LEFT].setPos(CV_DEST_CHANNEL[_tmp]);
                 
           }  
           MENU_REDRAW = 1;
           LAST_BUT = LAST_UI = millis();
-          b_event[_button] = b_state[_button] = DONE;     
+          button_events[_b] = button_states[_b] = DONE;     
      }  
 }
 
-void channel_select(uint8_t _select) {
+void channel_select(uint16_t _select) {
   
    if (UI_MODE==_MAIN) { 
      
@@ -315,9 +319,9 @@ void channel_select(uint8_t _select) {
  
 /* -----------------------------------------------------  */   
 
-uint8_t find_slot(struct params* _p, uint8_t _param, uint8_t _limit) {
+uint8_t find_slot(struct params* _p, uint16_t _param, uint16_t _limit) {
     
-        int8_t _slot, _x = _param;
+        int16_t _slot, _x = _param;
         _x = (_x > _p->mode_param_numbers+1) ? 0 : _x;
         if (!_x) _slot = 0;
         else if (!_limit) _slot = 0;                   // nope
@@ -327,9 +331,9 @@ uint8_t find_slot(struct params* _p, uint8_t _param, uint8_t _limit) {
         return _slot;
 }  
 
-uint8_t find_prev_slot(struct params* _p, int8_t _param, uint8_t _limit) {
+uint8_t find_prev_slot(struct params* _p, int16_t _param, uint16_t _limit) {
     
-        int8_t _slot, _x = _param;
+        int16_t _slot, _x = _param;
         _x = (_x < 0 ) ? _p->mode_param_numbers+1 : _x;
         if (!_x) _slot = 0;
         else if (!_limit) _slot = 0;                   // nope
@@ -343,8 +347,8 @@ void init_menu(void) {
   
       encoder[RIGHT].setPos(allChannels[ACTIVE_CHANNEL].param[ACTIVE_MODE][ACTIVE_MENU_ITEM-2]);
       MENU_REDRAW = 1;  
-      MODE_SELECTOR = init_mode; 
-      encoder[LEFT].setPos(init_mode);      
+      MODE_SELECTOR = INIT_MODE; 
+      encoder[LEFT].setPos(INIT_MODE);      
 }
 
 void update_channel_params(void) {
@@ -358,7 +362,7 @@ void update_channel_params(void) {
       MENU_REDRAW = 1;      
 }
 
-void update_channel_mode(struct params* _p, uint8_t _mode) {
+void update_channel_mode(struct params* _p, uint16_t _mode) {
   
       _p->mode = _mode;
       _p->mode_param_numbers   = _CHANNEL_PARAMS[_mode];
@@ -375,7 +379,7 @@ void update_channel_mode(struct params* _p, uint8_t _mode) {
       _p->cvmod[2] = 0;
       _p->cvmod[3] = 0;
       _p->cvmod[4] = 0;
-      uint8_t _channel = ACTIVE_CHANNEL+1;
+      uint16_t _channel = ACTIVE_CHANNEL+1;
       if (CV_DEST_CHANNEL[0] == _channel) { CV_DEST_CHANNEL[0] = CV_DEST_PARAM[0] = 0; }
       if (CV_DEST_CHANNEL[1] == _channel) { CV_DEST_CHANNEL[1] = CV_DEST_PARAM[1] = 0; }
       if (CV_DEST_CHANNEL[2] == _channel) { CV_DEST_CHANNEL[2] = CV_DEST_PARAM[2] = 0; }

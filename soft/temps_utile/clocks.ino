@@ -22,22 +22,23 @@ const int8_t CHANNELS = 6; // # channels
 uint8_t  CLOCKS_STATE;     // output state: XX654321
 uint32_t TRIG_COUNTER;     // count clocks
 uint32_t LAST_TRIG = 0;    // clock timestamp
+uint32_t TIME_STAMP = 0;   // "
 uint32_t PW;               // ext. clock interval
-uint8_t CLK_SRC = 0;       // clock source: ext/int
+volatile uint16_t CLK_SRC = 0;       // clock source: ext/int
 const float BPM_CONST = 29970000.0f; // 8th ?
 uint16_t BPM = 100;        // int. clock
 const uint8_t  BPM_MIN = 8; 
 const uint16_t BPM_MAX = 320;
-uint32_t BPM_MICROSEC=BPM_CONST/BPM;
+uint32_t BPM_MICROSEC = BPM_CONST/BPM;
 uint32_t CORE_TIMER;
-uint8_t init_mode = 2; // initial mode: 2 => mult/div
+uint8_t INIT_MODE = 2; // initial mode: 2 => mult/div
 uint8_t CLOCKS_OFF_CNT;
 
 const uint16_t _ZERO[2] = {1800, 0}; // DAC 0.0V
 const uint8_t DAC_CHANNEL = 3;
 const uint8_t PULSE_WIDTH = 0;
 
-extern uint8_t MENU_REDRAW;
+extern uint16_t MENU_REDRAW;
 
 struct params {
   
@@ -87,7 +88,8 @@ void coretimer() {
   
  if (CLK_SRC && micros() - CORE_TIMER > BPM_MICROSEC) {  // BPM, 32th
   
-        CORE_TIMER = micros();  
+        CORE_TIMER = micros(); 
+        output_clocks(); 
         _bpm++; 
   } 
 }
@@ -101,11 +103,11 @@ void make_channel(struct params* _p) {
 
 void init_channel(struct params* _p, uint8_t _channel) {
  
-      _p->mode = init_mode; 
+      _p->mode = INIT_MODE; 
       _p->channel_modes = _CHANNEL_MODES[_channel];
-      _p->mode_param_numbers = _CHANNEL_PARAMS[init_mode];
-      const uint16_t *_min_ptr = _CHANNEL_PARAMS_MIN[init_mode];
-      const uint16_t *_max_ptr = _CHANNEL_PARAMS_MAX[init_mode];
+      _p->mode_param_numbers = _CHANNEL_PARAMS[INIT_MODE];
+      const uint16_t *_min_ptr = _CHANNEL_PARAMS_MIN[INIT_MODE];
+      const uint16_t *_max_ptr = _CHANNEL_PARAMS_MAX[INIT_MODE];
       memcpy(_p->param_min, _min_ptr, sizeof(_p->param_min));
       memcpy(_p->param_max, _max_ptr, sizeof(_p->param_max));
       _p->lfsr = random(0xFFFFFFFF);
@@ -139,7 +141,7 @@ void init_clocks(){
 
 /* ------------------------------------------------------------------   */
 
-uint8_t do_clock(struct params* _p, uint8_t _ch)   {
+uint8_t gen_next_clock(struct params* _p, uint8_t _ch)   {
   
  switch (_p->mode) {
   
@@ -155,43 +157,50 @@ uint8_t do_clock(struct params* _p, uint8_t _ch)   {
 
 /* ------------------------------------------------------------------   */
 
-void all_clocks() {
-   
-  /* output them first     */
+void FASTRUN output_clocks() {
+  
+  // update clock outputs - atm, this is called either by the ISR or coretimer()
   digitalWriteFast(CLK1, CLOCKS_STATE & 0x1);
   digitalWriteFast(CLK2, CLOCKS_STATE & 0x2);
   digitalWriteFast(CLK3, CLOCKS_STATE & 0x4);
   //  digitalWriteFast(CLK4, CLOCKS_STATE & 0x8); // see below
   digitalWriteFast(CLK5, CLOCKS_STATE & 0x10);
   digitalWriteFast(CLK6, CLOCKS_STATE & 0x20);
-  /*  now the DAC: */
+  //  now the DAC:
   if (allChannels[DAC_CHANNEL].mode == DAC) outputDAC(&allChannels[DAC_CHANNEL]); 
   else if (CLOCKS_STATE & 0x8)   analogWrite(A14, 4000); 
    
-  /* keep track of things: */
+  // keep track of things:
   PW = LAST_TRIG;
   LAST_TRIG = millis();
+  //TIME_STAMP = ARM_DWT_CYCCNT;
   PW = LAST_TRIG - PW;
+  
+}
+
+void next_clocks() {
+   
+  // output_clocks();
   TRIG_COUNTER++;
   display_clock = CLOCKS_STATE; // = true
   MENU_REDRAW = 1;
-  /* reset ?              */
+  // reset ?:            
   if(!digitalReadFast(TR2)) sync(); 
-  /* update clocks        */
+  // update clocks       
   for (int i  = 0; i < CHANNELS; i++) {
         
-        uint8_t tmp = do_clock(&allChannels[i], i); 
+        uint16_t tmp = gen_next_clock(&allChannels[i], i); 
         if (tmp)  CLOCKS_STATE |=  (1 << i);    // set clock
         else      CLOCKS_STATE &= ~(1 << i);    // clear clock
         update_pw(&allChannels[i]);             // update pw
-  }       
-   /* apply logic           */
+   }   
+   // apply logic:     
    for (int i  = 0; i < CHANNELS; i++) {
-     
-        if (allChannels[i].mode == LOGIC)  {
-            uint8_t tmp = _logic(&allChannels[i]);
-            if (tmp)  CLOCKS_STATE |=  (1 << i); // set clock 
-            else      CLOCKS_STATE &= ~(1 << i); // clear clock
+       
+         if (allChannels[i].mode == LOGIC)  {
+                uint16_t tmp = _logic(&allChannels[i]);
+                if (tmp)  CLOCKS_STATE |=  (1 << i); // set clock 
+                else      CLOCKS_STATE &= ~(1 << i); // clear clock
         }
    }
 }  

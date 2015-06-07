@@ -1,15 +1,19 @@
 /* 
 *
 *  temps_utile. teensy 3.1 6x CLOCK generator / distributor 
-*  run at 120 MHz
+*  compile with "120 MHz optimized (overclock)"
 *
 */
 
-// TD: 
-// - parameter limits
-// - test: sync();
+// TD:
+// - makedisplay - > *char / drawStr()
+// - internal timer / multiply (?)
+// - parameter limits (when changing mode)
+// - sync();
 // - clear();
-// - global CV: pw, channel scan.
+// - global CV: pulsewidth, channel "scan".
+
+// - test: changes made to spi4teensy / 30Mhz; clock_out moved to ISR; NVIC priority changed; check_buttons();
 
 #include <spi4teensy3_14.h>
 #include <u8g_teensy_14.h>
@@ -54,8 +58,8 @@ Rotary encoder[2] = {
 }; 
 
 /*  menu variables */
-volatile uint8_t display_clock;
-extern uint8_t UI_MODE;
+volatile uint16_t display_clock;
+extern uint16_t UI_MODE;
 extern uint32_t LAST_UI;
 
 #define TIMEOUT 6000 // screen saver
@@ -65,7 +69,7 @@ extern uint32_t LAST_UI;
 /*       triggers + buttons ISRs    */
 
 uint32_t LAST_BUT = 0;
-const uint8_t DEBOUNCE = 200; 
+const uint16_t DEBOUNCE = 200; 
 
 enum _buttons {
   
@@ -76,14 +80,23 @@ enum _buttons {
 
 IntervalTimer UI_timer;
 #define UI_RATE   10000
-volatile uint8_t _UI; 
-void UI_timerCallback() { _UI = true; }  
-uint8_t volatile _bpm;
-uint8_t volatile _reset;
-extern uint8_t b_state[];
+uint16_t volatile _UI; 
+uint16_t volatile _bpm;
+uint16_t volatile _reset;
+extern uint16_t button_states[];
+extern volatile uint16_t CLK_SRC; // internal / external 
 
-void clk_ISR1() {  _bpm = true; } 
-//void clk_ISR2() {  _reset = true; }
+void UI_timerCallback() 
+{ 
+  _UI = true; 
+}  
+
+void clk_ISR() 
+{  
+  if (!CLK_SRC) output_clocks();
+  _bpm = true; 
+} 
+
 
 /*       ---------------------------------------------------------         */
 
@@ -100,9 +113,11 @@ const uint16_t THRESHOLD = 400;
 
 void setup(){
 
+  NVIC_SET_PRIORITY(IRQ_PORTB, 0); // TR1 = 0 = PTB16
   spi4teensy3::init();
   analogWriteResolution(12);
   
+  // w/ external pullups; otherwise use INPUT_PULLUP
   pinMode(butL, INPUT);
   pinMode(butR, INPUT);
   pinMode(but_top, INPUT);
@@ -118,8 +133,7 @@ void setup(){
   pinMode(CLK5, OUTPUT);
   pinMode(CLK6, OUTPUT);
   /* ext clock ISR */
-  attachInterrupt(TR1, clk_ISR1, FALLING);
-  //attachInterrupt(TR2, clk_ISR2, FALLING);
+  attachInterrupt(TR1, clk_ISR, FALLING);
    /* encoder ISR */
   attachInterrupt(encL1, left_encoder_ISR, CHANGE);
   attachInterrupt(encL2, left_encoder_ISR, CHANGE);
@@ -149,44 +163,44 @@ void loop()
   while(1) {
   
     coretimer();
-    if (_bpm) {   _bpm = 0; all_clocks();} 
+    if (_bpm) {   _bpm = 0; next_clocks();} 
     /* update UI ?*/
     UI();
   
     coretimer();
-    if (_bpm) {   _bpm = 0;  all_clocks(); } 
+    if (_bpm) {   _bpm = 0;  next_clocks(); } 
     /* update encoders ?*/
     if (millis() - LAST_BUT > DEBOUNCE) update_ENC();
   
     coretimer();
-    if (_bpm) {   _bpm = 0; all_clocks(); }  
+    if (_bpm) {   _bpm = 0; next_clocks(); }  
     /* update CV ?*/
     if (_adc) { _adc = 0; CV[1] = analogRead(CV4); CV[2] = analogRead(CV3); CV[3] = analogRead(CV1); CV[4] = analogRead(CV2);} 
   
     coretimer();  
-    if (_bpm) {   _bpm = 0; all_clocks(); }  
+    if (_bpm) {   _bpm = 0; next_clocks(); }  
     /* buttons ?*/
     if (_UI) { leftButton(); rightButton(); topButton(); lowerButton(); _UI = false; }
 
     coretimer();
-    if (_bpm) {   _bpm = 0; all_clocks(); }  
+    if (_bpm) {   _bpm = 0; next_clocks(); }  
     /* timeout ?*/
     if (UI_MODE && (millis() - LAST_UI > TIMEOUT)) time_out(); // timeout UI
  
     coretimer();
-    if (_bpm) {   _bpm = 0; all_clocks(); }  
+    if (_bpm) {   _bpm = 0; next_clocks(); }  
     /* clocks off ?*/
     if (display_clock) clocksoff();
   
     coretimer();
-    if (_bpm) {   _bpm = 0; all_clocks(); } 
+    if (_bpm) {   _bpm = 0; next_clocks(); } 
     /* do something ?*/
-    if (b_state[BOTTOM]) checkbuttons(BOTTOM);
+    if (button_states[BOTTOM]) checkbuttons(BOTTOM);
   
     coretimer();
-    if (_bpm) {   _bpm = 0; all_clocks(); } 
+    if (_bpm) {   _bpm = 0; next_clocks(); } 
     /* do something ?*/
-    if (b_state[TOP]) checkbuttons(TOP);
+    if (button_states[TOP]) checkbuttons(TOP);
   }
 }
 
