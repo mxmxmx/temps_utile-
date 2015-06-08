@@ -5,6 +5,8 @@
 *
 */
 
+extern const uint32_t BPM_microseconds_16th[]; 
+
 uint32_t LAST_UI;     // timestamp/timeout for screen saver
 
 // buttons:
@@ -47,7 +49,8 @@ void update_ENC()  {
           else if (right_encoder_data > BPM_MAX)    BPM = BPM_MAX;  
           else                                      BPM = right_encoder_data; 
      
-          BPM_MICROSEC = BPM_CONST/(float)BPM;
+          //BPM_MICROSEC = BPM_CONST/(float)BPM;
+          BPM_MICROSEC = BPM_microseconds_16th[BPM-BPM_MIN];
           MENU_REDRAW = 1;   
           LAST_UI = millis();    
     }
