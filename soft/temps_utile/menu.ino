@@ -8,23 +8,23 @@
 
 // td: CV_DEST_CHANNEL = - , 1, 2, 3, 4, 5, 6
 
-uint8_t ACTIVE_MENU_ITEM = init_mode; 
-int8_t CV_MENU_ITEM;
-uint8_t ACTIVE_MODE = init_mode;
-int8_t  ACTIVE_CHANNEL = 0;
-uint8_t UI_MODE = 0;
-int8_t  MODE_SELECTOR = 0;
-int8_t  MAIN_MENU_ITEM = 0;
-uint8_t MENU_REDRAW = 0;
+uint16_t ACTIVE_MENU_ITEM = INIT_MODE; 
+int16_t CV_MENU_ITEM;
+uint16_t ACTIVE_MODE = INIT_MODE;
+int16_t  ACTIVE_CHANNEL = 0;
+uint16_t UI_MODE = 0;
+int16_t  MODE_SELECTOR = 0;
+int16_t  MAIN_MENU_ITEM = 0;
+uint16_t MENU_REDRAW = 0;
 
-const int8_t MAIN_ITEMS = 5;
-const int8_t MENU_ITEMS = 6;
+const int16_t MAIN_ITEMS = 5;
+const int16_t MENU_ITEMS = 6;
 
-uint8_t CV_DEST_CHANNEL[MAIN_ITEMS] = {0, 0, 0, 0, 0};
+uint16_t CV_DEST_CHANNEL[MAIN_ITEMS] = {0, 0, 0, 0, 0};
 int16_t CV_DEST_PARAM[MAIN_ITEMS];
 
-const uint8_t X_OFF = 110; // x offset
-uint8_t CALIB_MENU = 0, CALIB_CLK; // for calibration/testing
+const uint16_t X_OFF = 110; // x offset
+uint16_t CALIB_MENU = 0, CALIB_CLK; // for calibration/testing
 
 enum MENU_ {
   _SCREENSAVER,
@@ -162,7 +162,7 @@ void draw(void) {
   
   else if (UI_MODE==_MAIN) { // menu
     
-      uint8_t i, h, ch;
+      uint16_t i, h, ch;
       u8g_uint_t w, items;
       u8g.setFontRefHeightText();
       u8g.setFontPosTop();
@@ -186,7 +186,7 @@ void draw(void) {
       u8g.print(display_channel[ch]); 
             
     
-      for( i = 2; i < items; i++ ) {                // draw user menu
+      for( i = 2; i < items; i++ ) {                // draw user menu, offset by 2
      
             u8g.setDefaultForegroundColor();
             
@@ -206,14 +206,8 @@ void draw(void) {
 
   else if (UI_MODE==_BPM) {
   
-      //uint8_t ch;
-      //u8g_uint_t items;
       u8g.setFontRefHeightText();
       u8g.setFontPosTop();
-      //h = u8g.getFontAscent()-u8g.getFontDescent()+1;
-      //w = 128; // u8g.getWidth();
-      //ch = ACTIVE_CHANNEL;
-      //items = allChannels[ch].mode_param_numbers+3; // offset by 3 lines
     
       // display mode + channel
       if (CLK_SRC) {
@@ -248,7 +242,7 @@ void draw(void) {
   }
   else if (UI_MODE==_CV) {
     
-      uint8_t i, h;
+      uint16_t i, h;
       u8g_uint_t items, w;
       u8g.setFontRefHeightText();
       u8g.setFontPosTop();
@@ -271,7 +265,7 @@ void draw(void) {
             
             // print dest: channel 
             if (i < 4 ) {
-                uint8_t _tmp, _c = 0;
+                uint16_t _tmp, _c = 0;
                 _tmp = CV_DEST_CHANNEL[i];
                  
                 u8g.setPrintPos(82,i*h);
@@ -302,9 +296,9 @@ void draw(void) {
   }  
 } 
 
-String makedisplay(uint8_t _channel, uint8_t _mode, uint8_t _param_slot) {
+String makedisplay(uint16_t _channel, uint16_t _mode, uint16_t _param_slot) {
   
-     uint8_t paramval = allChannels[_channel].param[_mode][_param_slot];  
+     uint16_t paramval = allChannels[_channel].param[_mode][_param_slot];  
      String displaystring;
      switch (_mode) {
        
