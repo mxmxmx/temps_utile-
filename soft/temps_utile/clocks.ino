@@ -21,9 +21,9 @@ enum CLOCKMODES {
 const int8_t CHANNELS = 6; // # channels
 uint8_t  CLOCKS_STATE;     // output state: XX654321
 uint32_t TRIG_COUNTER;     // count clocks
-uint32_t LAST_TRIG = 0;    // clock timestamp
-uint32_t TIME_STAMP = 0;   // "
-uint32_t PW;               // ext. clock interval
+volatile uint32_t LAST_TRIG = 0;    // clock timestamp
+// uint32_t TIME_STAMP = 0;   // "
+volatile uint32_t PW;               // ext. clock interval
 volatile uint16_t CLK_SRC = 0;       // clock source: ext/int
 const float BPM_CONST = 29970000.0f; // 8th ?
 uint16_t BPM = 100;        // int. clock
@@ -173,15 +173,14 @@ void FASTRUN output_clocks() {
   // keep track of things:
   PW = LAST_TRIG;
   LAST_TRIG = millis();
-  //TIME_STAMP = ARM_DWT_CYCCNT;
-  PW = LAST_TRIG - PW;
-  
+  //TIME_STAMP = ARM_DWT_CYCCNT;  
 }
 
 void next_clocks() {
    
   // output_clocks();
-  TRIG_COUNTER++;
+  TRIG_COUNTER++; // count 
+  PW = LAST_TRIG - PW; // interval
   display_clock = CLOCKS_STATE; // = true
   MENU_REDRAW = 1;
   // reset ?:            

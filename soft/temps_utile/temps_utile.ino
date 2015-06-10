@@ -93,8 +93,10 @@ void UI_timerCallback()
 
 void clk_ISR() 
 {  
-  if (!CLK_SRC) output_clocks();
-  _bpm = true; 
+  if (!CLK_SRC) {
+       output_clocks();
+      _bpm = true; 
+  }
 } 
 
 
