@@ -5,8 +5,6 @@
 *
 */
 
-extern const uint32_t BPM_microseconds_4th[]; 
-
 uint32_t LAST_UI;     // timestamp/timeout for screen saver
 
 // buttons:

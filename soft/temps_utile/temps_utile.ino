@@ -64,6 +64,8 @@ extern uint32_t LAST_UI;
 
 #define TIMEOUT 6000 // screen saver
 
+const uint32_t _FCPU = F_CPU/1000;
+
 /*  -------------------------------------------------------------   */
 
 /*       triggers + buttons ISRs    */
@@ -116,6 +118,8 @@ const uint16_t THRESHOLD = 400;
 void setup(){
 
   NVIC_SET_PRIORITY(IRQ_PORTB, 0); // TR1 = 0 = PTB16
+  ARM_DEMCR |= ARM_DEMCR_TRCENA;  // systick
+  ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
   spi4teensy3::init();
   analogWriteResolution(12);
   
