@@ -10,10 +10,8 @@
 // - internal timer / multiply (?)
 // - parameter limits (when changing mode)
 // - sync();
-// - clear();
+// - clear(); (?)
 // - global CV: pulsewidth, channel "scan".
-
-// - test: changes made to spi4teensy / 30Mhz; clock_out moved to ISR; NVIC priority changed; check_buttons();
 
 #include <spi4teensy3_14.h>
 #include <u8g_teensy_14.h>

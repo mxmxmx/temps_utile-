@@ -22,6 +22,14 @@ enum _button_states {
   
 };
 
+enum _BPM_SEL {
+  
+  _4TH, 
+  _8TH,
+  _16TH
+  
+};
+
 // encoders:
 
 void left_encoder_ISR() {
@@ -39,19 +47,42 @@ void update_ENC()  {
  
   if (UI_MODE == _BPM) {
     
-      if (encoder[RIGHT].change())  { 
+    if (encoder[RIGHT].change())  { 
         
           int16_t right_encoder_data = encoder[RIGHT].pos();
       
-          if      (right_encoder_data < BPM_MIN)    BPM = BPM_MIN; 
-          else if (right_encoder_data > BPM_MAX)    BPM = BPM_MAX;  
+          if      (right_encoder_data < BPM_MIN)    { BPM = BPM_MIN;  encoder[RIGHT].setPos(BPM_MIN); }
+          else if (right_encoder_data > BPM_MAX)    { BPM = BPM_MAX;  encoder[RIGHT].setPos(BPM_MAX); }
           else                                      BPM = right_encoder_data; 
-     
-          //BPM_MICROSEC = BPM_CONST/(float)BPM;
-          BPM_MICROSEC = BPM_microseconds_4th[BPM-BPM_MIN];
+          
+          switch (BPM_SEL) {
+            
+              case _4TH:  BPM_MICROSEC =  BPM_microseconds_4th[BPM-BPM_MIN]; break;
+              case _8TH:  BPM_MICROSEC =  BPM_microseconds_8th[BPM-BPM_MIN]; break;
+              case _16TH: BPM_MICROSEC = BPM_microseconds_16th[BPM-BPM_MIN]; break;
+              default: break;
+          }
           MENU_REDRAW = 1;   
           LAST_UI = millis();    
     }
+    
+    if (encoder[LEFT].change()) {
+              
+           int16_t left_encoder_data = encoder[LEFT].pos();
+           if (left_encoder_data > _16TH)      { BPM_SEL = _16TH; encoder[LEFT].setPos(BPM_SEL); }
+           else if (left_encoder_data < _4TH)  { BPM_SEL = _4TH;  encoder[LEFT].setPos(BPM_SEL); } 
+           else BPM_SEL = left_encoder_data;
+           
+           switch (BPM_SEL) {
+            
+              case _4TH:  BPM_MICROSEC =  BPM_microseconds_4th[BPM-BPM_MIN]; break;
+              case _8TH:  BPM_MICROSEC =  BPM_microseconds_8th[BPM-BPM_MIN]; break;
+              case _16TH: BPM_MICROSEC = BPM_microseconds_16th[BPM-BPM_MIN]; break;
+              default: break;
+           }
+           MENU_REDRAW = 1;   
+           LAST_UI = millis(); 
+    }  
   } 
   
   else if (UI_MODE == _MAIN) {

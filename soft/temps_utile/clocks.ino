@@ -19,6 +19,8 @@ enum CLOCKMODES {
 };
 
 extern const uint32_t BPM_microseconds_4th[];
+extern const uint32_t BPM_microseconds_8th[];
+extern const uint32_t BPM_microseconds_16th[];
 
 const int8_t CHANNELS = 6; // # channels
 uint8_t  CLOCKS_STATE;     // output state: XX654321
@@ -35,6 +37,7 @@ uint32_t LAST_TRIG = 0;        // clocks_off timestamp (ms)
 
 volatile uint16_t CLK_SRC = 0; // clock source: ext/int
 uint16_t BPM = 100;            // int. clock
+uint16_t BPM_SEL = 0;          // 1/4, 1/8, 1/16
 const uint8_t  BPM_MIN = 8;
 const uint16_t BPM_MAX = 320;
 uint32_t BPM_MICROSEC = BPM_microseconds_4th[BPM - BPM_MIN]; ; // BPM_CONST/BPM;
@@ -156,13 +159,13 @@ uint8_t gen_next_clock(struct params* _p, uint8_t _ch)   {
 
   switch (_p->mode) {
 
-    case 0: return _lfsr(_p);
-    case 1: return _rand(_p);
-    case 2: return _plainclock(_p);
-    case 3: return _euclid(_p);
-    case 4: return (CLOCKS_STATE >> _ch) & 1u; // logic: return prev.
-    case 5: return _dac(_p);
-    default: return 0xFF;
+    case LFSR:   return _lfsr(_p); break;
+    case RANDOM: return _rand(_p); break;
+    case DIV:    return _plainclock(_p); break;
+    case EUCLID: return _euclid(_p); break;
+    case LOGIC:  return (CLOCKS_STATE >> _ch) & 1u; break; // logic: return prev.
+    case DAC:    return _dac(_p); break;
+    default:     return 0xFF;
   }
 }
 

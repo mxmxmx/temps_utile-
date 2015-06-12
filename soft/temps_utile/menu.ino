@@ -120,6 +120,12 @@ const char *cv_display[] = {
        "-", "dac", "mlt", "pol",""
 };
 
+const char *bpm_sel[] = {
+       "1/4",
+       "1/8",
+       "1/16"
+};
+
 /* --------------------------------------------------- */
 
 void UI() {
@@ -211,6 +217,8 @@ void draw(void) {
     
       // display mode + channel
       if (CLK_SRC) {
+            u8g.setPrintPos(0, 50); 
+            u8g.print(bpm_sel[BPM_SEL]); 
             if (BPM < 100) u8g.setPrintPos(84, 50); 
             else u8g.setPrintPos(78, 50);
             u8g.print(BPM); 
@@ -218,9 +226,12 @@ void draw(void) {
             u8g.print("(bpm)"); 
       }
       else {
-            u8g.setPrintPos(70, 50);
+            if (PW < 100)        u8g.setPrintPos(88, 50);
+            else if (PW < 1000)  u8g.setPrintPos(82, 50);
+            else if (PW < 10000) u8g.setPrintPos(76, 50);
+            else u8g.setPrintPos(70, 50);
             u8g.print(PW);
-            u8g.setPrintPos(98, 50); 
+            u8g.setPrintPos(102, 50); 
             u8g.print("(ms)"); 
       }
       
