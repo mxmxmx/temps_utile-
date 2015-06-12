@@ -93,7 +93,7 @@ void UI_timerCallback()
   _UI = true; 
 }  
 
-void clk_ISR() 
+void FASTRUN clk_ISR() 
 {  
   if (!CLK_SRC) {
        output_clocks();

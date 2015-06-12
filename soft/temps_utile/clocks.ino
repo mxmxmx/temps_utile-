@@ -168,7 +168,7 @@ uint8_t gen_next_clock(struct params* _p, uint8_t _ch)   {
 
 /* ------------------------------------------------------------------   */
 
-void FASTRUN output_clocks() {
+void output_clocks() {
 
   TIME_STAMP = ARM_DWT_CYCCNT;
   // update clock outputs - atm, this is called either by the ISR or coretimer()
@@ -360,7 +360,6 @@ uint8_t _euclid(struct params* _p) {
   if (_k >= _n ) _k = _n - 1;
   _out = ((CLOCK_CNT + _offset) * _k) % _n;
   return (_out < _k) ? 1 : 0;
-  //return _out;
 }
 
 // 5: logic
@@ -469,14 +468,14 @@ uint16_t _binary(uint8_t state, uint8_t _scale, uint8_t _pol) {
 
   uint16_t tmp, _state = state;
 
-  tmp  = (_state & 1u) << 10;     // ch 1
+  tmp  = (_state & 1u) << 10;       // ch 1
   tmp += ((_state >> 1) & 1u) << 9; // ch 2
   tmp += ((_state >> 2) & 1u) << 8; // ch 3
   tmp += ((_state >> 4) & 1u) << 7; // ch 5
   tmp += ((_state >> 5) & 1u) << 6; // ch 6
-
-  tmp = _scale * (tmp >> 5) + _ZERO[_pol];
-  return tmp;
+  tmp = _scale * (tmp >> 5);
+  
+  return tmp*(_pol + 0x01) + _ZERO[_pol]; // uni/bi + offset
 }
 
 /* ------------------------------------------------------------------   */
