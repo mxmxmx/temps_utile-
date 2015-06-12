@@ -35,7 +35,9 @@ int32_t PREV_PW = 0; // ext. clock interval
 
 uint32_t LAST_TRIG = 0;        // clocks_off timestamp (ms)
 
-volatile uint16_t CLK_SRC = 0; // clock source: ext/int
+volatile uint16_t CLK_SRC = false; // clock source: ext/int
+volatile uint16_t _OK = true;      // ext. clock ok ?
+uint16_t CLK_LIMIT = 85;       // max speed (ms)
 uint16_t BPM = 100;            // int. clock
 uint16_t BPM_SEL = 0;          // 1/4, 1/8, 1/16
 const uint8_t  BPM_MIN = 8;
@@ -171,6 +173,16 @@ uint8_t gen_next_clock(struct params* _p, uint8_t _ch)   {
 
 /* ------------------------------------------------------------------   */
 
+void FASTRUN clk_ISR() 
+{  
+  if (!CLK_SRC && _OK) {
+       output_clocks();
+      _bpm = true; 
+  }
+} 
+
+/* ------------------------------------------------------------------   */
+
 void output_clocks() {  // update clock outputs - atm, this is called either by the ISR or coretimer()
   
   TIME_STAMP = ARM_DWT_CYCCNT;
@@ -193,6 +205,8 @@ void next_clocks() {
   if ((PW - PREV_PW > 1) || (PW - PREV_PW < -1)) PREV_PW = PW;
   else PW = PREV_PW; 
   PREV_TIME_STAMP = TIME_STAMP;
+  
+  _OK = PW < CLK_LIMIT ? 0 : 1; // ext clock > limit ?
 
   display_clock = CLOCKS_STATE; // = true
   MENU_REDRAW = 1;
@@ -546,5 +560,15 @@ void clocksoff() {
   CLOCKS_OFF_CNT = _tmp;
 
 }
+
+/* ------------------------------------------------------------------   */
+
+void _wait()
+{
+  
+  if (millis() - LAST_TRIG > CLK_LIMIT) _OK = true;
+  
+}
+
 
 

@@ -12,6 +12,7 @@
 // - sync();
 // - clear(); (?)
 // - global CV: pulsewidth, channel "scan".
+// - 85000 us limit
 
 #include <spi4teensy3_14.h>
 #include <u8g_teensy_14.h>
@@ -85,20 +86,12 @@ uint16_t volatile _bpm;
 uint16_t volatile _reset;
 extern uint16_t button_states[];
 extern volatile uint16_t CLK_SRC; // internal / external 
+extern volatile uint16_t _OK;     // ext. clock ok?
 
 void UI_timerCallback() 
 { 
   _UI = true; 
 }  
-
-void FASTRUN clk_ISR() 
-{  
-  if (!CLK_SRC) {
-       output_clocks();
-      _bpm = true; 
-  }
-} 
-
 
 /*       ---------------------------------------------------------         */
 
@@ -205,6 +198,11 @@ void loop()
     if (_bpm) {   _bpm = 0; next_clocks(); } 
     /* do something ?*/
     if (button_states[TOP]) checkbuttons(TOP);
+    
+    coretimer();
+    if (_bpm) {   _bpm = 0; next_clocks(); } 
+    /* do nothing? */
+    if (!_OK) _wait();
   }
 }
 
