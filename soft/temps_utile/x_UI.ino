@@ -50,15 +50,16 @@ void update_ENC()  {
     if (encoder[RIGHT].change())  { 
         
           int16_t right_encoder_data = encoder[RIGHT].pos();
-      
+          int16_t bpm_max = BPM_MAX[BPM_SEL];
+          
           if      (right_encoder_data < BPM_MIN)    { BPM = BPM_MIN;  encoder[RIGHT].setPos(BPM_MIN); }
-          else if (right_encoder_data > BPM_MAX)    { BPM = BPM_MAX;  encoder[RIGHT].setPos(BPM_MAX); }
-          else                                      BPM = right_encoder_data; 
+          else if (right_encoder_data > bpm_max)    { BPM = bpm_max;  encoder[RIGHT].setPos(bpm_max); }
+          else BPM = right_encoder_data; 
           
           switch (BPM_SEL) {
             
-              case _4TH:  BPM_MICROSEC =  BPM_microseconds_4th[BPM-BPM_MIN]; break;
-              case _8TH:  BPM_MICROSEC =  BPM_microseconds_8th[BPM-BPM_MIN]; break;
+              case _4TH:  BPM_MICROSEC = BPM_microseconds_4th[BPM-BPM_MIN];  break;
+              case _8TH:  BPM_MICROSEC = BPM_microseconds_8th[BPM-BPM_MIN];  break;
               case _16TH: BPM_MICROSEC = BPM_microseconds_16th[BPM-BPM_MIN]; break;
               default: break;
           }
@@ -69,9 +70,12 @@ void update_ENC()  {
     if (encoder[LEFT].change()) {
               
            int16_t left_encoder_data = encoder[LEFT].pos();
+      
            if (left_encoder_data > _16TH)      { BPM_SEL = _16TH; encoder[LEFT].setPos(BPM_SEL); }
            else if (left_encoder_data < _4TH)  { BPM_SEL = _4TH;  encoder[LEFT].setPos(BPM_SEL); } 
            else BPM_SEL = left_encoder_data;
+           
+           if (BPM > BPM_MAX[BPM_SEL]) BPM_SEL--; 
            
            switch (BPM_SEL) {
             

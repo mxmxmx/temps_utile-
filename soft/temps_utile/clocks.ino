@@ -39,7 +39,7 @@ volatile uint16_t CLK_SRC = 0; // clock source: ext/int
 uint16_t BPM = 100;            // int. clock
 uint16_t BPM_SEL = 0;          // 1/4, 1/8, 1/16
 const uint8_t  BPM_MIN = 8;
-const uint16_t BPM_MAX = 320;
+const uint16_t BPM_MAX[] = { 320, 320, 200};
 uint32_t BPM_MICROSEC = BPM_microseconds_4th[BPM - BPM_MIN]; ; // BPM_CONST/BPM;
 uint32_t CORE_TIMER;
 uint8_t INIT_MODE = 2; // initial mode: 2 => mult/div
@@ -159,26 +159,26 @@ uint8_t gen_next_clock(struct params* _p, uint8_t _ch)   {
 
   switch (_p->mode) {
 
-    case LFSR:   return _lfsr(_p); break;
-    case RANDOM: return _rand(_p); break;
-    case DIV:    return _plainclock(_p); break;
-    case EUCLID: return _euclid(_p); break;
-    case LOGIC:  return (CLOCKS_STATE >> _ch) & 1u; break; // logic: return prev.
-    case DAC:    return _dac(_p); break;
+    case LFSR:   return _lfsr(_p); 
+    case RANDOM: return _rand(_p); 
+    case DIV:    return _plainclock(_p); 
+    case EUCLID: return _euclid(_p); 
+    case LOGIC:  return (CLOCKS_STATE >> _ch) & 1u; // logic: return prev. value
+    case DAC:    return _dac(_p);
     default:     return 0xFF;
   }
 }
 
 /* ------------------------------------------------------------------   */
 
-void output_clocks() {
-
+void output_clocks() {  // update clock outputs - atm, this is called either by the ISR or coretimer()
+  
   TIME_STAMP = ARM_DWT_CYCCNT;
-  // update clock outputs - atm, this is called either by the ISR or coretimer()
+  
   digitalWriteFast(CLK1, CLOCKS_STATE & 0x1);
   digitalWriteFast(CLK2, CLOCKS_STATE & 0x2);
   digitalWriteFast(CLK3, CLOCKS_STATE & 0x4);
-  //  digitalWriteFast(CLK4, CLOCKS_STATE & 0x8); // --> DAC
+//digitalWriteFast(CLK4, CLOCKS_STATE & 0x8); // --> DAC
   digitalWriteFast(CLK5, CLOCKS_STATE & 0x10);
   digitalWriteFast(CLK6, CLOCKS_STATE & 0x20);
   analogWrite(A14, DAC_OUT);
