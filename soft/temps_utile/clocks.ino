@@ -90,13 +90,7 @@ const uint16_t _CHANNEL_PARAMS_MAX[MODES][4] = {
   {1, 31, 1, 0}
 };
 
-params *channel1, *channel2, *channel3, *channel4, *channel5, *channel6;
-
-params allChannels[6] {
-
-  *channel1, *channel2, *channel3, *channel4, *channel5, *channel6
-
-};
+static params allChannels[6];
 
 /*  -----------------  internal clock -------------------------------  */
 
@@ -111,11 +105,6 @@ void coretimer() {
 }
 
 /* ------------------------------------------------------------------   */
-
-void make_channel(struct params* _p) {
-
-  _p = (params*)malloc(sizeof(params));
-}
 
 void init_channel(struct params* _p, uint8_t _channel) {
 
@@ -150,7 +139,6 @@ void init_clocks() {
 
   for (int i  = 0; i < CHANNELS; i++) {
 
-    make_channel(&allChannels[i]);
     init_channel(&allChannels[i], i);
   }
 }
