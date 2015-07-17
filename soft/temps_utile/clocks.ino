@@ -232,7 +232,7 @@ void next_clocks() {
   }
   // next DAC code: 
   if (allChannels[DAC_CHANNEL].mode == DAC) outputDAC(&allChannels[DAC_CHANNEL]);
-  else DAC_OUT = (CLOCKS_STATE & 0x8) ?  DAC_OUT = _ON : DAC_OUT = _ZERO[0];
+  else DAC_OUT = (CLOCKS_STATE & 0x8) ? _ON : _ZERO[0];
 }
 
 /*  --------------------------- the clock modes --------------------------    */
