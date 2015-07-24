@@ -122,8 +122,8 @@ struct channel_settings {
 
 // Saved settings
 struct settings_data {
-  // If contents of this struct changes, modify ID 
-  static const uint32_t ID = FOURCC<'T','U',0,2>::value;
+  // If contents of this struct changes, modify this identifier
+  static const uint32_t FOURCC = FOURCC<'T','U',0,3>::value;
 
   uint16_t cv_dest_channel[5]; // See menu.ino
   int16_t cv_dest_param[5];
@@ -131,8 +131,27 @@ struct settings_data {
   channel_settings channels[6];
 };
 
+/* Define a storage implemenation using EEPROM */
+struct EEPROMStorage {
+  static const size_t LENGTH = 2048;
+
+  static void write(size_t addr, const void *data, size_t length) {
+    EEPtr e = addr;
+    const uint8_t *src = (const uint8_t*)data;
+    while (length--)
+      (*e++).update(*src++);
+  }
+
+  static void read(size_t addr, void *data, size_t length) {
+    EEPtr e = addr;
+    uint8_t *dst = (uint8_t*)data;
+    while (length--)
+      *dst++ = *e++;
+  }
+};
+
 static settings_data settings;
-static PageStorage<0x0, 2048, 128, struct settings_data> storage;
+static PageStorage<EEPROMStorage, 0x0, 128, struct settings_data> storage;
 // sizeof(settings_data) with overhead is just < 128 which gives 16 pages, which
 // increases write cycles x16. Save is triggered on TIMEOUT (6s) so this should be
 // Good Enough (tm)
@@ -141,12 +160,12 @@ static PageStorage<0x0, 2048, 128, struct settings_data> storage;
 void save_settings() {
 
   settings.clk_src = CLK_SRC;
-  memcpy( settings.cv_dest_channel, CV_DEST_CHANNEL, sizeof( settings.cv_dest_channel ) );
-  memcpy( settings.cv_dest_param, CV_DEST_PARAM, sizeof( settings.cv_dest_param ) );
+  memcpy(settings.cv_dest_channel, CV_DEST_CHANNEL, sizeof(settings.cv_dest_channel));
+  memcpy(settings.cv_dest_param, CV_DEST_PARAM, sizeof(settings.cv_dest_param));
 
-  clocks_store( &settings );
+  clocks_store(&settings);
 
-  if ( storage.save( settings ) ) {
+  if (storage.save( settings)) {
     Serial.print("Saved settings to page ");
     Serial.print(storage.page_index());
     Serial.println(" ");
@@ -155,16 +174,16 @@ void save_settings() {
 
 /* ------------------------------------------------------------------   */
 void load_settings() {
-  if ( storage.load( settings ) ) {
+  if (storage.load(settings)) {
 
     Serial.print("Restoring settings from page ");
     Serial.print(storage.page_index());
     Serial.println(" ");
 
     CLK_SRC = settings.clk_src;
-    memcpy( CV_DEST_CHANNEL, settings.cv_dest_channel, sizeof( settings.cv_dest_channel ) );
-    memcpy( CV_DEST_PARAM, settings.cv_dest_param, sizeof( settings.cv_dest_param ) );
-    clocks_restore( &settings );
+    memcpy(CV_DEST_CHANNEL, settings.cv_dest_channel, sizeof(settings.cv_dest_channel));
+    memcpy(CV_DEST_PARAM, settings.cv_dest_param, sizeof(settings.cv_dest_param));
+    clocks_restore(&settings);
   }
 }
 

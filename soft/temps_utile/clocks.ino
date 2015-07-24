@@ -93,32 +93,32 @@ const uint16_t _CHANNEL_PARAMS_MAX[MODES][4] = {
 params allChannels[6];
 
 /* ------------------------------------------------------------------   */
-static void clocks_restore_channel( struct params* _p, const struct channel_settings* _settings ) {
+static void clocks_restore_channel(struct params* _p, const struct channel_settings* _settings) {
   
   _p->mode = _settings->mode;
-  memcpy( _p->param[ _p->mode ], _settings->param, sizeof( _settings->param ) );
-  memcpy( _p->cvmod, _settings->cvmod, sizeof( _p->cvmod ) );
+  memcpy(_p->param[_p->mode], _settings->param, sizeof(_settings->param));
+  memcpy(_p->cvmod, _settings->cvmod, sizeof(_p->cvmod));
 }
 
 /* ------------------------------------------------------------------   */
-static void clocks_store_channel( const struct params* _p, struct channel_settings* _settings ) {
+static void clocks_store_channel(const struct params* _p, struct channel_settings* _settings) {
   
   _settings->mode = _p->mode;
-  memcpy( _settings->param, _p->param[ _p->mode ], sizeof( _settings->param ) );
-  memcpy( _settings->cvmod, _p->cvmod, sizeof( _p->cvmod ) );
+  memcpy(_settings->param, _p->param[_p->mode], sizeof(_settings->param));
+  memcpy(_settings->cvmod, _p->cvmod, sizeof(_p->cvmod));
 }
 
 /* ------------------------------------------------------------------   */
-void clocks_store( struct settings_data *_settings ) {
+void clocks_store(struct settings_data *_settings) {
   for (int i  = 0; i < 6; i++) {
-    clocks_store_channel( &allChannels[i], &_settings->channels[i] );
+    clocks_store_channel(&allChannels[i], &_settings->channels[i]);
   }
 }
 
 /* ------------------------------------------------------------------   */
-void clocks_restore( const struct settings_data *_settings ) {
+void clocks_restore(const struct settings_data *_settings) {
     for (int i  = 0; i < 6; i++) {
-      clocks_restore_channel( &allChannels[i], &_settings->channels[i] );
+      clocks_restore_channel(&allChannels[i], &_settings->channels[i]);
     }
 }
 
