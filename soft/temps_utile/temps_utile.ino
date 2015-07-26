@@ -123,13 +123,13 @@ struct channel_settings {
 // Saved settings
 struct settings_data {
   // If contents of this struct changes, modify this identifier
-  static const uint32_t FOURCC = FOURCC<'T','U',1,0>::value;
+  static const uint32_t FOURCC = FOURCC<'T','U',1,1>::value;
 
   uint16_t cv_dest_channel[5]; // See menu.ino
   int16_t cv_dest_param[5];
   uint8_t clk_src;
-  uint8_t bpm;
-  uint8_t bpm_sel;
+  uint16_t bpm;
+  uint8_t bpm_sel; // note: defined as uint16_t
 
   channel_settings channels[6];
 };

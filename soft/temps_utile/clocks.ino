@@ -141,9 +141,9 @@ static void clocks_store_channel(const struct params* p, struct channel_settings
 /* ------------------------------------------------------------------   */
 void clocks_store(struct settings_data *settings) {
 
-  settings->clk_src = CLK_SRC;
+  settings->clk_src = (uint8_t)CLK_SRC;
   settings->bpm = BPM;
-  settings->bpm_sel = BPM_SEL;
+  settings->bpm_sel = (uint8_t)BPM_SEL;
 
   for (int i  = 0; i < 6; i++) {
     clocks_store_channel(&allChannels[i], &settings->channels[i]);
