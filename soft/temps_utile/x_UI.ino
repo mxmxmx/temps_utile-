@@ -22,14 +22,6 @@ enum _button_states {
   
 };
 
-enum _BPM_SEL {
-  
-  _4TH, 
-  _8TH,
-  _16TH
-  
-};
-
 // encoders:
 
 void left_encoder_ISR() {
@@ -55,14 +47,9 @@ void update_ENC()  {
           if      (right_encoder_data < BPM_MIN)    { BPM = BPM_MIN;  encoder[RIGHT].setPos(BPM_MIN); }
           else if (right_encoder_data > bpm_max)    { BPM = bpm_max;  encoder[RIGHT].setPos(bpm_max); }
           else BPM = right_encoder_data; 
-          
-          switch (BPM_SEL) {
-            
-              case _4TH:  BPM_MICROSEC = BPM_microseconds_4th[BPM-BPM_MIN];  break;
-              case _8TH:  BPM_MICROSEC = BPM_microseconds_8th[BPM-BPM_MIN];  break;
-              case _16TH: BPM_MICROSEC = BPM_microseconds_16th[BPM-BPM_MIN]; break;
-              default: break;
-          }
+
+          bpm_set_microseconds();
+
           MENU_REDRAW = 1;   
           LAST_UI = millis();    
     }
@@ -75,15 +62,10 @@ void update_ENC()  {
            else if (left_encoder_data < _4TH)  { BPM_SEL = _4TH;  encoder[LEFT].setPos(BPM_SEL); } 
            else BPM_SEL = left_encoder_data;
            
-           if (BPM > BPM_MAX[BPM_SEL]) BPM_SEL--; 
+           if (BPM > BPM_MAX[BPM_SEL]) BPM_SEL--;
            
-           switch (BPM_SEL) {
-            
-              case _4TH:  BPM_MICROSEC =  BPM_microseconds_4th[BPM-BPM_MIN]; break;
-              case _8TH:  BPM_MICROSEC =  BPM_microseconds_8th[BPM-BPM_MIN]; break;
-              case _16TH: BPM_MICROSEC = BPM_microseconds_16th[BPM-BPM_MIN]; break;
-              default: break;
-           }
+           bpm_set_microseconds();
+
            MENU_REDRAW = 1;   
            LAST_UI = millis(); 
     }  

@@ -128,6 +128,9 @@ struct settings_data {
   uint16_t cv_dest_channel[5]; // See menu.ino
   int16_t cv_dest_param[5];
   uint8_t clk_src;
+  uint8_t bpm;
+  uint8_t bpm_sel;
+
   channel_settings channels[6];
 };
 
@@ -159,7 +162,6 @@ static PageStorage<EEPROMStorage, 0x0, 128, struct settings_data> storage;
 /* ------------------------------------------------------------------   */
 void save_settings() {
 
-  settings.clk_src = CLK_SRC;
   memcpy(settings.cv_dest_channel, CV_DEST_CHANNEL, sizeof(settings.cv_dest_channel));
   memcpy(settings.cv_dest_param, CV_DEST_PARAM, sizeof(settings.cv_dest_param));
 
