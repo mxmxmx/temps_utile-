@@ -112,9 +112,20 @@ void bpm_set_microseconds() {
 }
 
 /* ------------------------------------------------------------------   */
+void channel_set_mode(struct params* p, uint8_t mode) {
+  
+  p->mode = mode;
+  p->mode_param_numbers = _CHANNEL_PARAMS[mode];
+  const uint16_t *_min_ptr = _CHANNEL_PARAMS_MIN[mode];
+  const uint16_t *_max_ptr = _CHANNEL_PARAMS_MAX[mode];
+  memcpy(p->param_min, _min_ptr, sizeof(p->param_min));
+  memcpy(p->param_max, _max_ptr, sizeof(p->param_max));
+}
+
+/* ------------------------------------------------------------------   */
 static void clocks_restore_channel(struct params* p, const struct channel_settings* settings) {
   
-  p->mode = settings->mode;
+  channel_set_mode(p, settings->mode);
   memcpy(p->param[p->mode], settings->param, sizeof(settings->param));
   memcpy(p->cvmod, settings->cvmod, sizeof(p->cvmod));
 }
@@ -168,13 +179,8 @@ void coretimer() {
 
 void init_channel(struct params* _p, uint8_t _channel) {
 
-  _p->mode = INIT_MODE;
+  channel_set_mode(_p, INIT_MODE);
   _p->channel_modes = _CHANNEL_MODES[_channel];
-  _p->mode_param_numbers = _CHANNEL_PARAMS[INIT_MODE];
-  const uint16_t *_min_ptr = _CHANNEL_PARAMS_MIN[INIT_MODE];
-  const uint16_t *_max_ptr = _CHANNEL_PARAMS_MAX[INIT_MODE];
-  memcpy(_p->param_min, _min_ptr, sizeof(_p->param_min));
-  memcpy(_p->param_max, _max_ptr, sizeof(_p->param_max));
   _p->lfsr = random(0xFFFFFFFF);
 
   for (int i = 0; i < MODES; i++) {

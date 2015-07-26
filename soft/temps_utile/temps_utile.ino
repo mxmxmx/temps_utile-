@@ -123,7 +123,7 @@ struct channel_settings {
 // Saved settings
 struct settings_data {
   // If contents of this struct changes, modify this identifier
-  static const uint32_t FOURCC = FOURCC<'T','U',0,3>::value;
+  static const uint32_t FOURCC = FOURCC<'T','U',1,0>::value;
 
   uint16_t cv_dest_channel[5]; // See menu.ino
   int16_t cv_dest_param[5];
@@ -232,10 +232,10 @@ void setup(){
   if (!digitalRead(butL))  calibrate_main();
   /* init */
   init_clocks();
-  load_settings();
   init_menu();  
   //CORETIMER.priority(32);
   //CORETIMER.begin(BPM_ISR, BPM_MICROSEC); 
+  load_settings();
 }
 
 /*       ---------------------------------------------------------         */ 
