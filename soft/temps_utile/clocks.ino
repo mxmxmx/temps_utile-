@@ -18,6 +18,14 @@ enum CLOCKMODES {
 
 };
 
+enum _BPM_SEL {
+  
+  _4TH, 
+  _8TH,
+  _16TH
+  
+};
+
 extern const uint32_t BPM_microseconds_4th[];
 extern const uint32_t BPM_microseconds_8th[];
 extern const uint32_t BPM_microseconds_16th[];
@@ -90,13 +98,70 @@ const uint16_t _CHANNEL_PARAMS_MAX[MODES][4] = {
   {1, 31, 1, 0}
 };
 
-params *channel1, *channel2, *channel3, *channel4, *channel5, *channel6;
+params allChannels[6];
 
-params allChannels[6] {
+/* ------------------------------------------------------------------   */
+void bpm_set_microseconds() {
+  switch (BPM_SEL) {
 
-  *channel1, *channel2, *channel3, *channel4, *channel5, *channel6
+      case _4TH:  BPM_MICROSEC = BPM_microseconds_4th[BPM-BPM_MIN];  break;
+      case _8TH:  BPM_MICROSEC = BPM_microseconds_8th[BPM-BPM_MIN];  break;
+      case _16TH: BPM_MICROSEC = BPM_microseconds_16th[BPM-BPM_MIN]; break;
+      default: break;
+  }
+}
 
-};
+/* ------------------------------------------------------------------   */
+void channel_set_mode(struct params* p, uint8_t mode) {
+  
+  p->mode = mode;
+  p->mode_param_numbers = _CHANNEL_PARAMS[mode];
+  const uint16_t *_min_ptr = _CHANNEL_PARAMS_MIN[mode];
+  const uint16_t *_max_ptr = _CHANNEL_PARAMS_MAX[mode];
+  memcpy(p->param_min, _min_ptr, sizeof(p->param_min));
+  memcpy(p->param_max, _max_ptr, sizeof(p->param_max));
+}
+
+/* ------------------------------------------------------------------   */
+static void clocks_restore_channel(struct params* p, const struct channel_settings* settings) {
+  
+  channel_set_mode(p, settings->mode);
+  memcpy(p->param[p->mode], settings->param, sizeof(settings->param));
+  memcpy(p->cvmod, settings->cvmod, sizeof(p->cvmod));
+}
+
+/* ------------------------------------------------------------------   */
+static void clocks_store_channel(const struct params* p, struct channel_settings* settings) {
+  
+  settings->mode = p->mode;
+  memcpy(settings->param, p->param[p->mode], sizeof(settings->param));
+  memcpy(settings->cvmod, p->cvmod, sizeof(p->cvmod));
+}
+
+/* ------------------------------------------------------------------   */
+void clocks_store(struct settings_data *settings) {
+
+  settings->clk_src = (uint8_t)CLK_SRC;
+  settings->bpm = BPM;
+  settings->bpm_sel = (uint8_t)BPM_SEL;
+
+  for (int i  = 0; i < 6; i++) {
+    clocks_store_channel(&allChannels[i], &settings->channels[i]);
+  }
+}
+
+/* ------------------------------------------------------------------   */
+void clocks_restore(const struct settings_data *settings) {
+  
+  CLK_SRC = settings->clk_src;
+  BPM = settings->bpm;
+  BPM_SEL = settings->bpm_sel;
+  bpm_set_microseconds();
+
+  for (int i  = 0; i < 6; i++) {
+    clocks_restore_channel(&allChannels[i], &settings->channels[i]);
+  }
+}
 
 /*  -----------------  internal clock -------------------------------  */
 
@@ -112,20 +177,10 @@ void coretimer() {
 
 /* ------------------------------------------------------------------   */
 
-void make_channel(struct params* _p) {
-
-  _p = (params*)malloc(sizeof(params));
-}
-
 void init_channel(struct params* _p, uint8_t _channel) {
 
-  _p->mode = INIT_MODE;
+  channel_set_mode(_p, INIT_MODE);
   _p->channel_modes = _CHANNEL_MODES[_channel];
-  _p->mode_param_numbers = _CHANNEL_PARAMS[INIT_MODE];
-  const uint16_t *_min_ptr = _CHANNEL_PARAMS_MIN[INIT_MODE];
-  const uint16_t *_max_ptr = _CHANNEL_PARAMS_MAX[INIT_MODE];
-  memcpy(_p->param_min, _min_ptr, sizeof(_p->param_min));
-  memcpy(_p->param_max, _max_ptr, sizeof(_p->param_max));
   _p->lfsr = random(0xFFFFFFFF);
 
   for (int i = 0; i < MODES; i++) {
@@ -150,7 +205,6 @@ void init_clocks() {
 
   for (int i  = 0; i < CHANNELS; i++) {
 
-    make_channel(&allChannels[i]);
     init_channel(&allChannels[i], i);
   }
 }
@@ -232,7 +286,7 @@ void next_clocks() {
   }
   // next DAC code: 
   if (allChannels[DAC_CHANNEL].mode == DAC) outputDAC(&allChannels[DAC_CHANNEL]);
-  else DAC_OUT = (CLOCKS_STATE & 0x8) ?  DAC_OUT = _ON : DAC_OUT = _ZERO[0];
+  else DAC_OUT = (CLOCKS_STATE & 0x8) ? _ON : _ZERO[0];
 }
 
 /*  --------------------------- the clock modes --------------------------    */
@@ -569,6 +623,7 @@ void _wait()
   if (millis() - LAST_TRIG > CLK_LIMIT) _OK = true;
   
 }
+
 
 
 

@@ -322,9 +322,13 @@ String makedisplay(uint16_t _channel, uint16_t _mode, uint16_t _param_slot) {
             else displaystring = String(paramval); 
             break;
          } // random
-         case _CLOCK_DIV: { 
-            if (_param_slot == 2) displaystring = String(yesno[paramval]);
-            else displaystring = String(paramval); 
+         case _CLOCK_DIV: {
+            switch(_param_slot) {
+              case 1: displaystring = String(paramval+1); break;
+              case 2: displaystring = String(yesno[paramval]); break;
+              default:
+                displaystring = String(paramval);
+            }
             break;
          } // clock div
          case _EUCLID: { 

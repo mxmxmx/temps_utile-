@@ -17,6 +17,8 @@
 #include <spi4teensy3_14.h>
 #include <u8g_teensy_14.h>
 #include <rotaryplus.h>
+#include <EEPROM.h>
+#include "pagestorage.h"
 
 /* clock outputs */
 #define CLK1 29
@@ -87,6 +89,9 @@ uint16_t volatile _reset;
 extern uint16_t button_states[];
 extern volatile uint16_t CLK_SRC; // internal / external 
 extern volatile uint16_t _OK;     // ext. clock ok?
+// Used by settings
+extern uint16_t CV_DEST_CHANNEL[];
+extern int16_t CV_DEST_PARAM[];
 
 void UI_timerCallback() 
 { 
@@ -103,6 +108,86 @@ const uint8_t numADC = 4;
 const uint16_t HALFSCALE = 512;
 uint16_t CV[numADC+1];
 const uint16_t THRESHOLD = 400;
+
+
+/*       ---------------------------------------------------------         */
+
+// To save space (and increase the number of write cycles) this only stores
+// the current mode's parameters; the rest will be set to defaults on restart
+struct channel_settings {
+  uint8_t mode;
+  uint16_t param[4]; // match per-channel part of struct params::param
+  uint8_t cvmod[5]; // must match struct params::cvmod
+} __attribute__((packed)); // 1 + 8 + 5 = 14
+
+// Saved settings
+struct settings_data {
+  // If contents of this struct changes, modify this identifier
+  static const uint32_t FOURCC = FOURCC<'T','U',1,1>::value;
+
+  uint16_t cv_dest_channel[5]; // See menu.ino
+  int16_t cv_dest_param[5];
+  uint8_t clk_src;
+  uint16_t bpm;
+  uint8_t bpm_sel; // note: defined as uint16_t
+
+  channel_settings channels[6];
+};
+
+/* Define a storage implemenation using EEPROM */
+struct EEPROMStorage {
+  static const size_t LENGTH = 2048;
+
+  static void write(size_t addr, const void *data, size_t length) {
+    EEPtr e = addr;
+    const uint8_t *src = (const uint8_t*)data;
+    while (length--)
+      (*e++).update(*src++);
+  }
+
+  static void read(size_t addr, void *data, size_t length) {
+    EEPtr e = addr;
+    uint8_t *dst = (uint8_t*)data;
+    while (length--)
+      *dst++ = *e++;
+  }
+};
+
+static settings_data settings;
+static PageStorage<EEPROMStorage, 0, 128, struct settings_data> storage;
+// sizeof(settings_data) with overhead is just < 128 which gives 16 pages, which
+// effectively increases write cycles x16. Since the save is triggered on TIMEOUT
+// (6s) so this should be Good Enough (tm)
+
+/* ------------------------------------------------------------------   */
+void save_settings() {
+
+  memcpy(settings.cv_dest_channel, CV_DEST_CHANNEL, sizeof(settings.cv_dest_channel));
+  memcpy(settings.cv_dest_param, CV_DEST_PARAM, sizeof(settings.cv_dest_param));
+
+  clocks_store(&settings);
+
+  if (storage.save( settings)) {
+    Serial.print("Saved settings to page ");
+    Serial.print(storage.page_index());
+    Serial.println(" ");
+  }
+}
+
+/* ------------------------------------------------------------------   */
+void load_settings() {
+  if (storage.load(settings)) {
+
+    Serial.print("Restoring settings from page ");
+    Serial.print(storage.page_index());
+    Serial.println(" ");
+
+    CLK_SRC = settings.clk_src;
+    memcpy(CV_DEST_CHANNEL, settings.cv_dest_channel, sizeof(settings.cv_dest_channel));
+    memcpy(CV_DEST_PARAM, settings.cv_dest_param, sizeof(settings.cv_dest_param));
+    clocks_restore(&settings);
+  }
+}
 
 /*       ---------------------------------------------------------         */
 
@@ -150,6 +235,7 @@ void setup(){
   init_menu();  
   //CORETIMER.priority(32);
   //CORETIMER.begin(BPM_ISR, BPM_MICROSEC); 
+  load_settings();
 }
 
 /*       ---------------------------------------------------------         */ 
@@ -182,7 +268,10 @@ void loop()
     coretimer();
     if (_bpm) {   _bpm = 0; next_clocks(); }  
     /* timeout ?*/
-    if (UI_MODE && (millis() - LAST_UI > TIMEOUT)) time_out(); // timeout UI
+    if (UI_MODE && (millis() - LAST_UI > TIMEOUT)) {
+      save_settings();
+      time_out(); // timeout UI
+    }
  
     coretimer();
     if (_bpm) {   _bpm = 0; next_clocks(); }  

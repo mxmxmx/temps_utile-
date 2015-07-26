@@ -22,14 +22,6 @@ enum _button_states {
   
 };
 
-enum _BPM_SEL {
-  
-  _4TH, 
-  _8TH,
-  _16TH
-  
-};
-
 // encoders:
 
 void left_encoder_ISR() {
@@ -55,14 +47,9 @@ void update_ENC()  {
           if      (right_encoder_data < BPM_MIN)    { BPM = BPM_MIN;  encoder[RIGHT].setPos(BPM_MIN); }
           else if (right_encoder_data > bpm_max)    { BPM = bpm_max;  encoder[RIGHT].setPos(bpm_max); }
           else BPM = right_encoder_data; 
-          
-          switch (BPM_SEL) {
-            
-              case _4TH:  BPM_MICROSEC = BPM_microseconds_4th[BPM-BPM_MIN];  break;
-              case _8TH:  BPM_MICROSEC = BPM_microseconds_8th[BPM-BPM_MIN];  break;
-              case _16TH: BPM_MICROSEC = BPM_microseconds_16th[BPM-BPM_MIN]; break;
-              default: break;
-          }
+
+          bpm_set_microseconds();
+
           MENU_REDRAW = 1;   
           LAST_UI = millis();    
     }
@@ -75,15 +62,10 @@ void update_ENC()  {
            else if (left_encoder_data < _4TH)  { BPM_SEL = _4TH;  encoder[LEFT].setPos(BPM_SEL); } 
            else BPM_SEL = left_encoder_data;
            
-           if (BPM > BPM_MAX[BPM_SEL]) BPM_SEL--; 
+           if (BPM > BPM_MAX[BPM_SEL]) BPM_SEL--;
            
-           switch (BPM_SEL) {
-            
-              case _4TH:  BPM_MICROSEC =  BPM_microseconds_4th[BPM-BPM_MIN]; break;
-              case _8TH:  BPM_MICROSEC =  BPM_microseconds_8th[BPM-BPM_MIN]; break;
-              case _16TH: BPM_MICROSEC = BPM_microseconds_16th[BPM-BPM_MIN]; break;
-              default: break;
-           }
+           bpm_set_microseconds();
+
            MENU_REDRAW = 1;   
            LAST_UI = millis(); 
     }  
@@ -400,12 +382,7 @@ void update_channel_params(void) {
 
 void update_channel_mode(struct params* _p, uint16_t _mode) {
   
-      _p->mode = _mode;
-      _p->mode_param_numbers   = _CHANNEL_PARAMS[_mode];
-      const uint16_t *_min_ptr = _CHANNEL_PARAMS_MIN[_mode];
-      const uint16_t *_max_ptr = _CHANNEL_PARAMS_MAX[_mode];
-      memcpy(_p->param_min, _min_ptr, sizeof(_p->param_min));
-      memcpy(_p->param_max, _max_ptr, sizeof(_p->param_max));
+      channel_set_mode(_p,_mode);
       // update menu
       encoder[LEFT].setPos(_mode);
       encoder[RIGHT].setPos(_p->param[_mode][0]);
