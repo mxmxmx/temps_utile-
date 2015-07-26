@@ -154,10 +154,10 @@ struct EEPROMStorage {
 };
 
 static settings_data settings;
-static PageStorage<EEPROMStorage, 0x0, 128, struct settings_data> storage;
+static PageStorage<EEPROMStorage, 0, 128, struct settings_data> storage;
 // sizeof(settings_data) with overhead is just < 128 which gives 16 pages, which
-// increases write cycles x16. Save is triggered on TIMEOUT (6s) so this should be
-// Good Enough (tm)
+// effectively increases write cycles x16. Since the save is triggered on TIMEOUT
+// (6s) so this should be Good Enough (tm)
 
 /* ------------------------------------------------------------------   */
 void save_settings() {

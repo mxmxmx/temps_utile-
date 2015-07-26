@@ -1,3 +1,23 @@
+// Copyright (c) 2015 Patrick Dowling
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 #ifndef PAGESTORAGE_H_
 #define PAGESTORAGE_H_
 
@@ -15,8 +35,12 @@
  * CRC is used to check validity.
  *
  * Note that storage is uninitialized until ::load is called!
+ *
+ * The optional FASTSCAN parameter to can be used for force a scan of all pages
+ * during ::load. If it is false, the scan stops at the first non-good page,
+ * which is faster but might miss pages if a write is corrupted.
  */
-template <typename STORAGE, size_t BASE_ADDR, size_t PAGESIZE, typename DATA_TYPE>
+template <typename STORAGE, size_t BASE_ADDR, size_t PAGESIZE, typename DATA_TYPE, bool FASTSCAN=true>
 class PageStorage {
 protected:
  
@@ -33,11 +57,12 @@ protected:
   } __attribute__((aligned(2)));
 
 public:
-  static const size_t PAGES = STORAGE::LENGTH / PAGESIZE;
+  static const size_t PAGES = (STORAGE::LENGTH - BASE_ADDR) / PAGESIZE;
 
   // throw compiler error if page size is too small
   typedef bool CHECK_PAGESIZE[sizeof(page_data) > PAGESIZE ? -1 : 1];
-  typedef bool CHECK_BASEADDR[BASE_ADDR > STORAGE::LENGTH ? -1 : 1];
+  typedef bool CHECK_PAGES[PAGES > 0 ? 1 : -1 ];
+  typedef bool CHECK_BASEADDR[BASE_ADDR + PAGES * PAGESIZE > STORAGE::LENGTH ? -1 : 1];
 
   /**
    * @return index of page in storage; only valid after ::load
@@ -61,12 +86,14 @@ public:
       int next = (page_index_ + 1) % PAGES;
       STORAGE::read(BASE_ADDR + next * PAGESIZE, &next_page, sizeof(next_page));
 
-      if (DATA_TYPE::FOURCC != next_page.fourcc)
-        break;
-      if (next_page.checksum != checksum(next_page))
+      if ((DATA_TYPE::FOURCC != next_page.fourcc) ||
+          (next_page.checksum != checksum(next_page)) ||
+          (next_page.generation < page_.generation)) {
+        if ( FASTSCAN )
           break;
-      if (next_page.generation < page_.generation)
-        break;
+        else
+          continue;
+      }
 
       page_index_ = next;
       memcpy(&page_, &next_page, sizeof(page_));
@@ -84,7 +111,8 @@ public:
 
   /**
    * Save data to storage; assumes ::load has been called!
-   * @return true if actually stored
+   * @param data data to be stored
+   * @return true if data was written to storage
    */
   bool save(const DATA_TYPE &data) {
 
