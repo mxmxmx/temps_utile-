@@ -121,9 +121,12 @@ public:
     uint8_t *dst = (uint8_t*)&page_.data;
     size_t length = sizeof(DATA_TYPE);
     while (length--) {
-      if (*dst != *src)
+      if (*dst != *src) {
         dirty = true;
-      *dst++ = *src++;
+        *dst = *src;
+      }
+      ++dst;
+      ++src;
     }
 
     if (dirty) {
