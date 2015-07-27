@@ -178,11 +178,11 @@ void draw(void) {
       items = allChannels[ch].mode_param_numbers+3; // offset by 3 lines
     
       // display clock ?
+      
       if (display_clock) {                 
               u8g.setPrintPos(0,0);
               u8g.print("\xb7"); // clock
-      }
-               
+      }              
       // display mode + channel
       u8g.setPrintPos(10, 0);
       if (MODE_SELECTOR == ACTIVE_MODE)  u8g.print(display_mode[allChannels[ch].mode]+'\xb7'); 
@@ -234,7 +234,7 @@ void draw(void) {
             u8g.setPrintPos(102, 50); 
             u8g.print("(ms)"); 
       }
-      
+    
       if (! display_clock) {
             
           for(int i = 0; i < 6; i++ ) { 

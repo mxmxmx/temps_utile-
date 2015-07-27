@@ -84,13 +84,70 @@ void update_ENC()  {
              if (right_encoder_data!= allChannels[_channel].param[ACTIVE_MODE][_menu_item]) {
          
                    int16_t _min, _max; 
-                   _min = allChannels[_channel].param_min[_menu_item];
-                   _max = allChannels[_channel].param_max[_menu_item]; 
-       
+                   // param limits + deal with exceptions / interdependent parameters.
+                   switch(ACTIVE_MODE) {
+                     
+                       case LFSR: {
+                         
+                           switch(_menu_item) {
+                             
+                             case 0: { // pw 
+                               _min = allChannels[_channel].param_min[_menu_item];
+                               _max = allChannels[_channel].param_max[_menu_item]; 
+                               break;
+                             }
+                             case 1: { // length
+                               int16_t _min1, _min2;  
+                               _min1 = allChannels[_channel].param[ACTIVE_MODE][2]; // tap1
+                               _min2 = allChannels[_channel].param[ACTIVE_MODE][3]; // tap2
+                               _min = _min1 > _min2 ? _min1 : _min2; // LFSR length > tap1, tap2
+                               _max = allChannels[_channel].param_max[_menu_item]; 
+                               break;
+                             }
+                             default: { // taps 
+                                _min = allChannels[_channel].param_min[_menu_item];
+                                _max = allChannels[_channel].param[ACTIVE_MODE][1]; // tap < LFSR length
+                                break;  
+                             } 
+                          }
+                          break;
+                       }
+                       
+                       case EUCLID: {
+                         
+                          switch(_menu_item) {
+                             
+                             case 0: { // pw 
+                               _min = allChannels[_channel].param_min[_menu_item];
+                               _max = allChannels[_channel].param_max[_menu_item]; 
+                               break;
+                             }
+                             case 1: { // N
+                               _min = allChannels[_channel].param[ACTIVE_MODE][2]; // N > K
+                               _min = _min < 2 ? 2 : _min; // N > 2 
+                               _max = allChannels[_channel].param_max[_menu_item]; 
+                               break;
+                             }
+                             default: { // K, offset
+                                _min = allChannels[_channel].param_min[_menu_item];
+                                _max = allChannels[_channel].param[ACTIVE_MODE][1]; //  K < N 
+                                break;
+                             } 
+                          }
+                          break;
+                       }
+                       
+                       default:  
+                         _min = allChannels[_channel].param_min[_menu_item];
+                         _max = allChannels[_channel].param_max[_menu_item]; 
+                         break;
+                   }
+                   
                    // update params: 
                    if      (right_encoder_data < _min)  { allChannels[_channel].param[ACTIVE_MODE][_menu_item] = _min; encoder[RIGHT].setPos(_min);} 
                    else if (right_encoder_data > _max)  { allChannels[_channel].param[ACTIVE_MODE][_menu_item] = _max; encoder[RIGHT].setPos(_max); } 
                    else                                 { allChannels[_channel].param[ACTIVE_MODE][_menu_item] = right_encoder_data; } 
+                   
                    MENU_REDRAW = 1;
          
          }

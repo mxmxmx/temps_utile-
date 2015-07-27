@@ -8,11 +8,9 @@
 // TD:
 // - makedisplay - > *char / drawStr()
 // - internal timer / multiply (?)
-// - parameter limits (when changing mode)
 // - sync();
 // - clear(); (?)
 // - global CV: pulsewidth, channel "scan".
-// - 85000 us limit
 
 #include <spi4teensy3_14.h>
 #include <u8g_teensy_14.h>
@@ -168,9 +166,9 @@ void save_settings() {
   clocks_store(&settings);
 
   if (storage.save( settings)) {
-    Serial.print("Saved settings to page ");
-    Serial.print(storage.page_index());
-    Serial.println(" ");
+    //Serial.print("Saved settings to page ");
+    //Serial.print(storage.page_index());
+    //Serial.println(" ");
   }
 }
 
