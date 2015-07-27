@@ -230,8 +230,8 @@ uint8_t gen_next_clock(struct params* _p, uint8_t _ch)   {
 void FASTRUN clk_ISR() 
 {  
   // systick / pre-empt going too fast
-  TIME_STAMP = ARM_DWT_CYCCNT;     
-  PW = (TIME_STAMP - PREV_TIME_STAMP) / _FCPU; 
+  TIME_STAMP = millis(); // ARM_DWT_CYCCNT;     
+  PW = (TIME_STAMP - PREV_TIME_STAMP); /// _FCPU; 
   PREV_TIME_STAMP = TIME_STAMP;
   
   if (!CLK_SRC && _OK) {
@@ -258,11 +258,9 @@ void next_clocks() {
   CLOCK_CNT++;          // count clocks
   LAST_TRIG = millis(); // -> clocksoff()
 
-      
   _OK = PW < CLK_LIMIT ? 0 : 1; // ext clock > limit ?
-  if (_OK) MENU_REDRAW = 1;     // redraw menu
+  MENU_REDRAW = 1;     // redraw menu
   display_clock = CLOCKS_STATE; // = true
- 
   // update clocks:
   if (!digitalReadFast(TR2)) sync();
   
