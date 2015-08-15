@@ -6,7 +6,7 @@ teensy 3.1 trigger generator w/ 128x64 oled display.
 - build guide: https://github.com/mxmxmx/temps_utile-/wiki/Temps-Utile
 
 
-![My image](https://farm4.staticflickr.com/3948/15552392087_8fb300d861_z.jpg)
+![My image](https://farm1.staticflickr.com/628/20400765240_149a3ea220_b.jpg)
 
 
 i/o:
@@ -33,4 +33,5 @@ i/o:
 
 25 mm Depth
 
+![My image](https://farm1.staticflickr.com/654/20400744418_250ae63aeb_b.jpg)
 
