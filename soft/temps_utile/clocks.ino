@@ -7,8 +7,8 @@
 
 const int8_t MODES = 6;
 
-enum CLOCKMODES {
-
+enum CLOCKMODES 
+{
   LFSR,
   RANDOM,
   DIV,
@@ -18,8 +18,8 @@ enum CLOCKMODES {
 
 };
 
-enum _BPM_SEL {
-  
+enum _BPM_SEL 
+{  
   _4TH, 
   _8TH,
   _16TH
@@ -38,14 +38,15 @@ uint32_t CLOCKS_OFF_CNT;   //
 
 volatile uint32_t TIME_STAMP = 0;   // systick
 volatile uint32_t PREV_TIME_STAMP = 0;
-int32_t PW = 0;      // ext. clock interval
-int32_t PREV_PW = 0; // ext. clock interval
+uint32_t PW = 0;      // ext. clock interval
+uint32_t PREV_PW = 0; // ext. clock interval
 
 uint32_t LAST_TRIG = 0;        // clocks_off timestamp (ms)
 
 volatile uint16_t CLK_SRC = false; // clock source: ext/int
 volatile uint16_t _OK = true;      // ext. clock ok ?
-const uint16_t CLK_LIMIT = 25;     // max speed (ms)
+const uint16_t CLK_LIMIT_MS = 25; // max speed (ms)
+const uint32_t CLK_LIMIT = CLK_LIMIT_MS*_FCPU; // max speed (cycles/1000)
 uint16_t BPM = 100;            // int. clock
 uint16_t BPM_SEL = 0;          // 1/4, 1/8, 1/16
 const uint8_t  BPM_MIN = 8;
@@ -230,8 +231,8 @@ uint8_t gen_next_clock(struct params* _p, uint8_t _ch)   {
 void FASTRUN clk_ISR() 
 {  
   // systick / pre-empt going too fast
-  TIME_STAMP = millis(); // ARM_DWT_CYCCNT;     
-  PW = (TIME_STAMP - PREV_TIME_STAMP); /// _FCPU; 
+  TIME_STAMP = ARM_DWT_CYCCNT;     
+  PW = TIME_STAMP - PREV_TIME_STAMP; // / _FCPU; 
   PREV_TIME_STAMP = TIME_STAMP;
   
   if (!CLK_SRC && _OK) {
@@ -260,6 +261,7 @@ void next_clocks() {
 
   _OK = PW < CLK_LIMIT ? 0 : 1; // ext clock > limit ?
   MENU_REDRAW = 1;     // redraw menu
+  //Serial.println(_OK);
   display_clock = CLOCKS_STATE; // = true
   // update clocks:
   if (!digitalReadFast(TR2)) sync();
@@ -615,7 +617,7 @@ void clocksoff() {
 
 void _wait()
 {
-  if (millis() - LAST_TRIG > CLK_LIMIT)  _OK = true;
+  if (millis() - LAST_TRIG > CLK_LIMIT_MS)  _OK = true;
 }
 
 

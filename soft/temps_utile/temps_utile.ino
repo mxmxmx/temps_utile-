@@ -1,14 +1,13 @@
-/* 
+/*
 *
-*  temps_utile. teensy 3.1 6x CLOCK generator / distributor 
+*  temps_utile. teensy 3.1 6x CLOCK generator / distributor
 *  compile with "120 MHz optimized (overclock)"
 *
 */
 
 // TD:
-// - makedisplay - > *char / drawStr()
 // - internal timer / multiply (?)
-// - sync();
+// - expand sync();  (what should this even do, other than reset counter / DIV mode?)
 // - clear(); (?)
 // - global CV: pulsewidth, channel "scan".
 
@@ -18,13 +17,32 @@
 #include <EEPROM.h>
 #include "pagestorage.h"
 
-/* clock outputs */
-#define CLK1 29
-#define CLK2 28
-#define CLK3 10
-#define CLK4 A14
-#define CLK5 2
-#define CLK6 9
+#define _TEMPS_UTILE
+//#define _TEMPS_UTILE_REV
+
+/* clock outputs, buttons */
+#ifdef _TEMPS_UTILE_REV
+ #define CLK1 5
+ #define CLK2 6
+ #define CLK3 7
+ #define CLK4 A14 // alt = 29
+ #define CLK5 8
+ #define CLK6 2
+ #define but_top 3
+ #define but_bot 12
+ #define _PULL_UP 0x1
+#else
+ #define CLK1 29
+ #define CLK2 28
+ #define CLK3 10
+ #define CLK4 A14
+ #define CLK5 2
+ #define CLK6 9
+ #define but_top 5
+ #define but_bot 4
+ #define _PULL_UP 0x0
+#endif 
+
 /* CV inputs */
 #define CV1 A5
 #define CV2 A4
@@ -40,21 +58,21 @@
 #define encL1 22
 #define encL2 21
 #define butL 23
-/* aux buttons */
-#define but_top 5
-#define but_bot 4
+
 
 U8GLIB u8g(&u8g_dev_sh1106_128x64_2x_hw_spi, u8g_com_hw_spi_fn);
 
-enum encoders_ {
- LEFT,
- RIGHT 
+enum encoders_ 
+{
+  LEFT,
+  RIGHT
 };
 
-Rotary encoder[2] = {
-  {encL1, encL2}, 
+Rotary encoder[2] = 
+{
+  {encL1, encL2},
   {encR1, encR2}
-}; 
+};
 
 /*  menu variables */
 volatile uint16_t display_clock;
@@ -63,48 +81,49 @@ extern uint32_t LAST_UI;
 
 #define TIMEOUT 6000 // screen saver
 
-const uint32_t _FCPU = F_CPU/1000;
+const uint32_t _FCPU = F_CPU / 1000;
 
 /*  -------------------------------------------------------------   */
 
 /*       triggers + buttons ISRs    */
 
 uint32_t LAST_BUT = 0;
-const uint16_t DEBOUNCE = 200; 
+const uint16_t DEBOUNCE = 200;
 
-enum _buttons {
-  
+enum _buttons 
+{
   TOP,
   BOTTOM
-  
 };
 
 IntervalTimer UI_timer;
 #define UI_RATE   10000
-uint16_t volatile _UI; 
+uint16_t volatile _UI;
 uint16_t volatile _bpm;
 uint16_t volatile _reset;
 extern uint16_t button_states[];
-extern volatile uint16_t CLK_SRC; // internal / external 
+extern volatile uint16_t CLK_SRC; // internal / external
 extern volatile uint16_t _OK;     // ext. clock ok?
 // Used by settings
 extern uint16_t CV_DEST_CHANNEL[];
 extern int16_t CV_DEST_PARAM[];
 
-void UI_timerCallback() 
-{ 
-  _UI = true; 
-}  
+void UI_timerCallback()
+{
+  _UI = true;
+}
 
 /*       ---------------------------------------------------------         */
 
 IntervalTimer adc_timer;
 #define ADC_RATE   10000   // CV
-volatile uint8_t _adc; 
-void adc_timerCallback() { _adc = true; }  
+volatile uint8_t _adc;
+void adc_timerCallback() {
+  _adc = true;
+}
 const uint8_t numADC = 4;
 const uint16_t HALFSCALE = 512;
-uint16_t CV[numADC+1];
+uint16_t CV[numADC + 1];
 const uint16_t THRESHOLD = 400;
 
 
@@ -121,7 +140,7 @@ struct channel_settings {
 // Saved settings
 struct settings_data {
   // If contents of this struct changes, modify this identifier
-  static const uint32_t FOURCC = FOURCC<'T','U',1,1>::value;
+  static const uint32_t FOURCC = FOURCC<'T', 'U', 1, 1>::value;
 
   uint16_t cv_dest_channel[5]; // See menu.ino
   int16_t cv_dest_param[5];
@@ -189,107 +208,75 @@ void load_settings() {
 
 /*       ---------------------------------------------------------         */
 
-void setup(){
+void setup() {
 
-  NVIC_SET_PRIORITY(IRQ_PORTB, 0); // TR1 = 0 = PTB16
-  ARM_DEMCR |= ARM_DEMCR_TRCENA;  // systick
-  ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
-  spi4teensy3::init();
-  analogWriteResolution(12);
-  
-  // w/ external pullups; otherwise use INPUT_PULLUP
-  pinMode(butL, INPUT);
-  pinMode(butR, INPUT);
-  pinMode(but_top, INPUT);
-  pinMode(but_bot, INPUT);
- 
-  pinMode(TR1, INPUT);
-  pinMode(TR2, INPUT);
+  // display ... needs some time
+  delay(10);
+  // rev0 w/ external pullups; rev1 use INPUT_PULLUP
+  if (_PULL_UP) {
+    // buttons
+    pinMode(butL, INPUT_PULLUP);
+    pinMode(butR, INPUT_PULLUP);
+    pinMode(but_top, INPUT_PULLUP);
+    pinMode(but_bot, INPUT_PULLUP);
+    // clock inputs
+    pinMode(TR1, INPUT_PULLUP);
+    pinMode(TR2, INPUT_PULLUP);
+  }
+  else {
+    // buttons
+    pinMode(butL, INPUT);
+    pinMode(butR, INPUT);
+    pinMode(but_top, INPUT);
+    pinMode(but_bot, INPUT);
+    // clock inputs
+    pinMode(TR1, INPUT);
+    pinMode(TR2, INPUT);
+  };
   
   pinMode(CLK1, OUTPUT);
   pinMode(CLK2, OUTPUT);
   pinMode(CLK3, OUTPUT);
-  // CLK4 = A14 
+  // CLK4 = DAC/A14
   pinMode(CLK5, OUTPUT);
   pinMode(CLK6, OUTPUT);
-  /* ext clock ISR */
+  // ext clock ISR 
+  NVIC_SET_PRIORITY(IRQ_PORTB, 0); // TR1 = 0 = PTB16
   attachInterrupt(TR1, clk_ISR, FALLING);
-   /* encoder ISR */
+  // encoder ISRs 
   attachInterrupt(encL1, left_encoder_ISR, CHANGE);
   attachInterrupt(encL2, left_encoder_ISR, CHANGE);
   attachInterrupt(encR1, right_encoder_ISR, CHANGE);
   attachInterrupt(encR2, right_encoder_ISR, CHANGE);
-  /* splash */
-  hello();  
+  // ADC
+  analogWriteResolution(12);
+  // splash ... 
+  hello();
   delay(1250);
-  /* timers */
+   // systick
+  ARM_DEMCR |= ARM_DEMCR_TRCENA;  
+  ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
+  // timers
   adc_timer.begin(adc_timerCallback, ADC_RATE);
   UI_timer.begin(UI_timerCallback, UI_RATE);
-  randomSeed(analogRead(A15)+analogRead(A16)+analogRead(A19)+analogRead(A20));
-  /* calibrate ? */
+  randomSeed(analogRead(A15) + analogRead(A16) + analogRead(A19) + analogRead(A20));
+  // calibrate ? 
   if (!digitalRead(butL))  calibrate_main();
-  /* init */
+  // init 
   init_clocks();
-  init_menu();  
+  init_menu();
   //CORETIMER.priority(32);
-  //CORETIMER.begin(BPM_ISR, BPM_MICROSEC); 
+  //CORETIMER.begin(BPM_ISR, BPM_MICROSEC);
   load_settings();
 }
 
-/*       ---------------------------------------------------------         */ 
+/*       --------------------- main loop --------------------------         */
 
 void loop()
 {
-  
-  while(1) {
-  
-    coretimer();
-    if (_bpm) {   _bpm = 0; next_clocks();} 
-    /* update UI ?*/
-    UI();
-  
-    coretimer();
-    if (_bpm) {   _bpm = 0;  next_clocks(); } 
-    /* update encoders ?*/
-    if (millis() - LAST_BUT > DEBOUNCE) update_ENC();
-  
-    coretimer();
-    if (_bpm) {   _bpm = 0; next_clocks(); }  
-    /* update CV ?*/
-    if (_adc) { _adc = 0; CV[1] = analogRead(CV4); CV[2] = analogRead(CV3); CV[3] = analogRead(CV1); CV[4] = analogRead(CV2);} 
-  
-    coretimer();  
-    if (_bpm) {   _bpm = 0; next_clocks(); }  
-    /* buttons ?*/
-    if (_UI) { leftButton(); rightButton(); topButton(); lowerButton(); _UI = false; }
-
-    coretimer();
-    if (_bpm) {   _bpm = 0; next_clocks(); }  
-    /* timeout ?*/
-    if (UI_MODE && (millis() - LAST_UI > TIMEOUT)) {
-      save_settings();
-      time_out(); // timeout UI
-    }
- 
-    coretimer();
-    if (_bpm) {   _bpm = 0; next_clocks(); }  
-    /* clocks off ?*/
-    if (display_clock) clocksoff();
-  
-    coretimer();
-    if (_bpm) {   _bpm = 0; next_clocks(); } 
-    /* do something ?*/
-    if (button_states[BOTTOM]) checkbuttons(BOTTOM);
-  
-    coretimer();
-    if (_bpm) {   _bpm = 0; next_clocks(); } 
-    /* do something ?*/
-    if (button_states[TOP]) checkbuttons(TOP);
-    
-    coretimer();
-    if (_bpm) {   _bpm = 0; next_clocks(); } 
-    /* do nothing? */
-    if (!_OK) _wait();
+  while (1)
+  {  
+     _loop();
   }
 }
 

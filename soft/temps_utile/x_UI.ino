@@ -13,7 +13,6 @@ uint16_t button_states[] = {0,0}, button_events[] ={0,0};
 const uint16_t LONGPRESSED = 800;
 
 enum _button_states {
-  
   READY,
   PRESSED,
   SHORT,

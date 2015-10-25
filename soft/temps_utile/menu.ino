@@ -23,7 +23,9 @@ const int16_t MENU_ITEMS = 6;
 uint16_t CV_DEST_CHANNEL[MAIN_ITEMS] = {0, 0, 0, 0, 0};
 int16_t CV_DEST_PARAM[MAIN_ITEMS];
 
-const uint16_t X_OFF = 110; // x offset
+const uint16_t X_OFFSET = 110; // x offset
+const uint16_t Y_OFFSET = 0x0; // y offset
+
 uint16_t CALIB_MENU = 0, CALIB_CLK; // for calibration/testing
 
 enum MENU_ {
@@ -52,19 +54,18 @@ enum CALIB_ {
 
 /* ----------- menu strings ---------------- */
 
-const char *menu_strings[MENU_ITEMS*CHANNELS] = {
-
+const char *menu_strings[MENU_ITEMS*CHANNELS] = 
+{
 "", "", "pulse_w", "length: ", "tap1: ", "tap2: ", 
 "", "", "pulse_w", "rand(N)", "inv.", "", 
 "", "", "pulse_w", "div.", "inv.", "",
 "", "", "pulse_w", "N:", "K (fill):", "offset:",
 "", "", "pulse_w", "type: ", "op1: ", "op2: ",
 "", "", "mode: ", "multiply:", "polarity:",""
-
 };
 
-const String display_mode[MODES] = {
-
+const char *display_mode[MODES] = 
+{
       "LFSR", 
       "RANDOM", 
       "CLOCK/DIV", 
@@ -72,7 +73,9 @@ const String display_mode[MODES] = {
       "LOGIC", 
       "DAC"
 };
-const String display_channel[CHANNELS] = {
+
+const char *display_channel[CHANNELS] = 
+{
       "ch. # 1", 
       "ch. # 2",
       "ch. # 3",
@@ -80,38 +83,49 @@ const String display_channel[CHANNELS] = {
       "ch. # 5",
       "ch. # 6"
 };
-const String display_CV_menu[MAIN_ITEMS] = {
+
+const char *display_CV_menu[MAIN_ITEMS] = 
+{
       "cv#1  -->",
       "cv#2  -->",
       "cv#3  -->",
       "cv#4  -->", 
       "clk source:",
 };
-const char *yesno[2] = {
+
+const char *yesno[2] = 
+{
        "no", 
        "yes"
 };
-const char *operators[5] = {
+
+const char *operators[5] = 
+{
        "AND",
-       "OR",
+       "OR ",
        "XOR",
-       "~&",
+       "~& ",
        "NOR"
 };
-const char *DACmodes[4] = {
+
+const char *DACmodes[4] = 
+{
        "BIN",
        "RND",
        "UNI",
        "*BI"
 };
-const char *clock_mode[4] = {
+
+const char *clock_mode[4] = 
+{
        "EXT",
        "EXT",
        "INT",
        "INT"
 };
 
-const char *cv_display[] = {
+const char *cv_display[] = 
+{
        "-", "p_w", "len", "t_1", "t_2",
        "-", "p_w", "RND", "inv", "",
        "-", "p_w", "div", "inv", "",
@@ -120,7 +134,8 @@ const char *cv_display[] = {
        "-", "dac", "mlt", "pol",""
 };
 
-const char *bpm_sel[] = {
+const char *bpm_sel[] = 
+{
        "1/4",
        "1/8",
        "1/16"
@@ -168,53 +183,45 @@ void draw(void) {
   
   else if (UI_MODE==_MAIN) { // menu
     
-      uint16_t i, h, ch;
-      u8g_uint_t w, items;
-      u8g.setFontRefHeightText();
-      u8g.setFontPosTop();
-      h = u8g.getFontAscent()-u8g.getFontDescent()+1;
+      uint16_t h, w, x, y, ch, i, items;
+     
+      h = 11; // = u8g.getFontAscent()-u8g.getFontDescent()+2;
       w = 128;
+      x = X_OFFSET;
+      y = Y_OFFSET;
       ch = ACTIVE_CHANNEL;
-      items = allChannels[ch].mode_param_numbers+3; // offset by 3 lines
-    
-      // display clock ?
-      
-      if (display_clock) {                 
-              u8g.setPrintPos(0,0);
-              u8g.print("\xb7"); // clock
-      }              
+      items = allChannels[ch].mode_param_numbers + 0x3; // offset by 3 lines
+       
       // display mode + channel
-      u8g.setPrintPos(10, 0);
-      if (MODE_SELECTOR == ACTIVE_MODE)  u8g.print(display_mode[allChannels[ch].mode]+'\xb7'); 
-      else u8g.print(display_mode[MODE_SELECTOR]);           
+      if (MODE_SELECTOR == ACTIVE_MODE)  { 
+          u8g.setPrintPos(0x2,y);
+          u8g.print("\xb7");
+      }
+      u8g.drawStr(10, y, display_mode[MODE_SELECTOR]); 
+      u8g.drawStr(80, y, display_channel[ch]);       
       
-      u8g.setPrintPos(80, 0); 
-      u8g.print(display_channel[ch]); 
-            
+      u8g.drawLine(0, 13, 128, 13);
     
       for( i = 2; i < items; i++ ) {                // draw user menu, offset by 2
      
+            y = i*h; 
             u8g.setDefaultForegroundColor();
             
             if (i == ACTIVE_MENU_ITEM) {              
-                u8g.drawBox(0, i*h, w, h);          // cursor bar
+                u8g.drawBox(0, y, w, h);          // cursor bar
                 u8g.setDefaultBackgroundColor();
             }
             /* print param names */
-            u8g.drawStr(10, i*h, menu_strings[i+CHANNELS*allChannels[ch].mode]);
+            u8g.drawStr(10, y, menu_strings[i+CHANNELS*allChannels[ch].mode]);
     
             /* print param values */
-            u8g.setPrintPos(X_OFF,i*h);
-            u8g.print(makedisplay(ch, ACTIVE_MODE, i-2));
+            print_param_values(ch, ACTIVE_MODE, i-2, x, y);
             u8g.setDefaultForegroundColor();    
      }              
   }
 
   else if (UI_MODE==_BPM) {
   
-      u8g.setFontRefHeightText();
-      u8g.setFontPosTop();
-    
       // display mode + channel
       if (CLK_SRC) {
             u8g.setPrintPos(0, 50); 
@@ -225,12 +232,14 @@ void draw(void) {
             u8g.setPrintPos(98, 50); 
             u8g.print("(bpm)"); 
       }
-      else {
-            if (PW < 100)        u8g.setPrintPos(88, 50);
-            else if (PW < 1000)  u8g.setPrintPos(82, 50);
-            else if (PW < 10000) u8g.setPrintPos(76, 50);
+      else {  
+            uint16_t _ms = PW / _FCPU;
+            if (_ms < 10)         u8g.setPrintPos(94, 50);
+            else if (_ms < 100)   u8g.setPrintPos(88, 50);
+            else if (_ms < 1000)  u8g.setPrintPos(82, 50);
+            else if (_ms < 10000) u8g.setPrintPos(76, 50);
             else u8g.setPrintPos(70, 50);
-            u8g.print(PW);
+            u8g.print(_ms);
             u8g.setPrintPos(102, 50); 
             u8g.print("(ms)"); 
       }
@@ -253,47 +262,46 @@ void draw(void) {
   }
   else if (UI_MODE==_CV) {
     
-      uint16_t i, h;
-      u8g_uint_t items, w;
-      u8g.setFontRefHeightText();
-      u8g.setFontPosTop();
-      h = u8g.getFontAscent()-u8g.getFontDescent()+4;
-      w = 128; 
+      uint16_t h, w, i, x, y, items;
+      
+      h = 13; // = u8g.getFontAscent()-u8g.getFontDescent()+4
+      w = 128;
+      x = X_OFFSET; 
       items = MAIN_ITEMS;
           
       for(i = 0; i < items; i++ ) {                // draw user menu
      
             u8g.setDefaultForegroundColor();
+            y = i*h;
             
             if (i == CV_MENU_ITEM) {     // cursor bar    
-                u8g.drawBox(0, i*h, w, h-2);            
+                u8g.drawBox(0, y, w, h-2);            
                 u8g.setDefaultBackgroundColor();
             }
-            
             // print src / menu items 
-            u8g.setPrintPos(10,i*h);
-            u8g.print(display_CV_menu[i]);
+            u8g.drawStr(10, y, display_CV_menu[i]);
             
             // print dest: channel 
             if (i < 4 ) {
                 uint16_t _tmp, _c = 0;
                 _tmp = CV_DEST_CHANNEL[i];
                  
-                u8g.setPrintPos(82,i*h);
-                if (_tmp) { u8g.print(_tmp); _c = allChannels[_tmp-1].mode; }
+                u8g.setPrintPos(82,y);
+                if (_tmp) { 
+                    u8g.print(_tmp); 
+                    _c = allChannels[_tmp-1].mode; 
+                }
                 else u8g.print("-");
                 // print dest: param 
                 _tmp = CV_DEST_PARAM[i];
-                u8g.setPrintPos(X_OFF,i*h);
-                //if (_tmp) 
+                u8g.setPrintPos(x,y);
                 u8g.print(cv_display[_tmp+5*_c]);
-                //else u8g.print("-");
                 u8g.setDefaultForegroundColor(); 
             }
           
             else if (i == 4) {
-                 // print  clock source
-                u8g.setPrintPos(X_OFF,i*h);
+                // print  clock source
+                u8g.setPrintPos(x,y);
                 u8g.print(clock_mode[CV_DEST_CHANNEL[4]]);
                 u8g.setDefaultForegroundColor(); 
            
@@ -307,62 +315,70 @@ void draw(void) {
   }  
 } 
 
-String makedisplay(uint16_t _channel, uint16_t _mode, uint16_t _param_slot) {
+/* ----------------- deal with special needs ---------------- */
+
+void print_param_values(uint16_t _channel, uint16_t _mode, uint16_t _param_slot, uint16_t _x, uint16_t _y) {
   
-     uint16_t paramval = allChannels[_channel].param[_mode][_param_slot];  
-     String displaystring;
-     switch (_mode) {
+  uint16_t paramval = allChannels[_channel].param[_mode][_param_slot]; 
+ 
+  u8g.setPrintPos(_x,_y);
+  
+  switch (_mode) {
        
          case _LFSR: {
-           displaystring = String(paramval); 
-           break;
+              u8g.print(paramval);
+            break;
          } // lfsr
+         
          case _RANDOM: { 
-            if (_param_slot == 2) displaystring = String(yesno[paramval]);
-            else displaystring = String(paramval); 
+               if (_param_slot == 2) u8g.print(yesno[paramval]);
+               else u8g.print(paramval);
             break;
          } // random
+         
          case _CLOCK_DIV: {
-            switch(_param_slot) {
-              case 1: displaystring = String(paramval+1); break;
-              case 2: displaystring = String(yesno[paramval]); break;
-              default:
-                displaystring = String(paramval);
-            }
+               switch(_param_slot) {
+                  case 1: u8g.print(paramval+0x1); break; 
+                  case 2: u8g.print(yesno[paramval]); break;
+                  default:
+                    u8g.print(paramval); break;
+              }
             break;
          } // clock div
+         
          case _EUCLID: { 
-            displaystring = String(paramval); 
+              u8g.print(paramval);
             break;
          } //  euclid
+         
          case _LOGIC: { 
-            if (_param_slot==1) displaystring = String(operators[paramval]);
-            else displaystring = String(paramval); 
+              if (_param_slot==1) u8g.print(operators[paramval]);
+              u8g.print(paramval);
             break;
          } // logic
+         
          case _DAC: { 
-            
-            //if (!_param_slot) {
-            //      if (paramval > 1) { paramval = 1; encoder[RIGHT].setPos(1);} 
-            //      displaystring = String(DACmodes[paramval]); 
-            //}
-            if (_param_slot==1) displaystring = String(paramval);
-            else {
-                if (paramval > 1) { paramval = 1; encoder[RIGHT].setPos(1);} 
-                displaystring = String(DACmodes[paramval+_param_slot]); 
-            }
+              if (_param_slot==1) u8g.print(paramval);
+              else {
+                // this should be dealt with elsewhere
+                if (paramval > 1) { 
+                    paramval = 1; 
+                    encoder[RIGHT].setPos(1);
+                 } 
+                 u8g.print(DACmodes[paramval+_param_slot]);
+              }
             break;
          } // dac
-
-     }
-     return displaystring;
-}  
+  }
+};
 
 /* ----------------- splash ---------------- */
 
 void hello() {
   
   u8g.setFont(u8g_font_6x12);
+  u8g.setFontRefHeightText();
+  u8g.setFontPosTop();
   u8g.setColorIndex(1);
   u8g.firstPage();  
         do {
