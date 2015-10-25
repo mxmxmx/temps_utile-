@@ -34,6 +34,25 @@ namespace spi4teensy3 {
                 updatectars();
         }
 
+        void init_DOUT() {
+                SIM_SCGC6 |= SIM_SCGC6_SPI0;
+                CORE_PIN11_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2);
+                CORE_PIN14_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2);
+
+                ctar0 = SPI_CTAR_DBR; // default
+                #if   F_BUS == 60000000
+                    ctar0 = (SPI_CTAR_PBR(0) | SPI_CTAR_BR(0) | SPI_CTAR_DBR); //(60 / 2) * ((1+1)/2) = 30 MHz
+                #elif F_BUS == 48000000
+                    ctar0 = (SPI_CTAR_PBR(0) | SPI_CTAR_BR(0) | SPI_CTAR_DBR); //(48 / 2) * ((1+1)/2) = 24 MHz          
+                #endif
+                ctar1 = ctar0;
+                ctar0 |= SPI_CTAR_FMSZ(7);
+                ctar1 |= SPI_CTAR_FMSZ(15);
+                SPI0_MCR = SPI_MCR_MSTR | SPI_MCR_PCSIS(0x1F);
+                SPI0_MCR |= SPI_MCR_CLR_RXF | SPI_MCR_CLR_TXF;
+                updatectars();
+        }
+
         // init full speed, with cpol and cpha configurable.
 
         void init(uint8_t cpol, uint8_t cpha) {
