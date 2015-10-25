@@ -18,7 +18,7 @@
 - 78L33 3v3 regulator: 1x (TO 92)
 - trimpot 100k (inline / 9.5mm): 1x
 - jacks: 'thonkiconn' (or kobiconn): 12x
-- encoders (24 steps (ish)) with switch (e.g. PEC11R-4215K-S0024) : 2x (**)
+- encoders (24 steps (ish)) with switch (e.g. PEC11R-4215K-S0024) : 2x (‡‡)
 - 2x5 pin header, 2.54mm : 1x (euro power connector)
 - 1x7 socket, 2.54mm (low profile) : 1x (for oled)
 - 1x3 pin header, 2.54mm : 1x (†)
@@ -63,9 +63,7 @@
 
 (‡) the (digital) clock outputs are non-inverting op amps, the values on the pcb (20k feedback, 10k to ground) will result in 3x gain, or 9.9v on the outputs. adjust, if you like. for example, 15k would give you 3.3v * (20k/15k + 1) = 7.7, etc.
 
-(*) as the requirements in terms of A/D are minimal, the lm4040 is not needed at all (really) in this particular application; if installed this requires adjusting some values to get the ADC range approx. right (2v5 rather than 3v3); specifically, say 4x 49k9 - > 4x 62k; and 4x 100k -> 4x 130k (or 120k)
-
-(**) rotary encoder w/ switch: for instance: mouser # 652-PEC11R-4215F-S24 (15 mm, 'D' shaft); 652-PEC11R-4215K-S24 (15 mm shaft, knurled); 652-PEC11R-4220F-S24 (20 mm, 'D'), 652-PEC11R-4220K-S24 (20 mm, knurled), etc)
+(‡‡) rotary encoder w/ switch: for instance: mouser # 652-PEC11R-4215F-S24 (15 mm, 'D' shaft); 652-PEC11R-4215K-S24 (15 mm shaft, knurled); 652-PEC11R-4220F-S24 (20 mm, 'D'), 652-PEC11R-4220K-S24 (20 mm, knurled), etc)
 
 (†) it's possibly to switch the jack/output labelled "c4" between the DAC and a regular GPIO pin; that's what the one jumper is for. as typically you'd use the DAC (unless using a teensy 3.0), i'd probably just hard-wire it.
 
