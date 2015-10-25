@@ -2,9 +2,17 @@
 #include "u8glib.h"
 #include <spi4teensy3_14.h>
 
-#define _DC  6
-#define _RST 7
-#define _CS  8
+//#define _TEMPS_UTILE_REV
+
+#ifdef _TEMPS_UTILE_REV
+ #define _DC  9
+ #define _RST 4
+ #define _CS  10
+#else
+ #define _DC  6
+ #define _RST 7
+ #define _CS  8
+#endif
 
 uint8_t u8g_com_hw_spi_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_ptr)
 {
@@ -21,7 +29,7 @@ uint8_t u8g_com_hw_spi_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_pt
 		pinMode(_DC, OUTPUT);
 		//For hardware SPI
 		
-        spi4teensy3::init();
+        spi4teensy3::init_DOUT();
 		
 		digitalWrite(_RST, HIGH);
 		delay(1);
@@ -70,8 +78,6 @@ uint8_t u8g_com_hw_spi_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_pt
       uint8_t data[1];
       data[0] = arg_val;
       spi4teensy3::send(data, 1);	
-      // SPI.transfer(arg_val);
-
     break;
 
     case U8G_COM_MSG_WRITE_SEQ:
@@ -80,7 +86,6 @@ uint8_t u8g_com_hw_spi_fn(u8g_t *u8g, uint8_t msg, uint8_t arg_val, void *arg_pt
       //WRITE A SEQUENCE OF BYTES TO THE DEVICE
 	  register uint8_t *ptr = static_cast<uint8_t *>(arg_ptr);
 	  spi4teensy3::send(ptr, arg_val);
-		
 	 }
     break;
 
