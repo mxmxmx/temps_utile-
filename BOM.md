@@ -55,7 +55,7 @@
 - 3n3   : 1x (NP0/C0G)
 - 18n   : 1x (NP0/C0G)
 - 100nF : 15x  
-- 330nF : 5x 
+- 330nF : 3x 
 - 1uF   : 1x (may be 1206: **use where it says 0.33**)
 
 
