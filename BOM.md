@@ -42,11 +42,12 @@
 - 1k8  :         1x
 - 3k   :         2x
 - 3k9  :         2x
+- 6k8  :         1x
 - 10k  :         6x (‡)
 - 20k  :         6x  
 - 33k :          6x 
 - 49k9:          4x
-- 100k :         10x
+- 100k :         14x
 
 **SMD caps (0805):**
 
@@ -55,7 +56,7 @@
 - 18n   : 1x (NP0/C0G)
 - 100nF : 15x  
 - 330nF : 5x 
-- 1uF   : 1x (may be 1206)
+- 1uF   : 1x (may be 1206: **use where it says 0.33**)
 
 
 #notes (also see the build 'wiki'):
