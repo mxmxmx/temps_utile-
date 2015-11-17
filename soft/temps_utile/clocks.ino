@@ -124,7 +124,7 @@ void channel_set_mode(struct params* p, uint8_t mode) {
 }
 
 /* ------------------------------------------------------------------   */
-static void clocks_restore_channel(struct params* p, const struct channel_settings* settings) {
+void clocks_restore_channel(struct params* p, const struct channel_settings* settings) {
   
   channel_set_mode(p, settings->mode);
   memcpy(p->param[p->mode], settings->param, sizeof(settings->param));
@@ -132,7 +132,7 @@ static void clocks_restore_channel(struct params* p, const struct channel_settin
 }
 
 /* ------------------------------------------------------------------   */
-static void clocks_store_channel(const struct params* p, struct channel_settings* settings) {
+void clocks_store_channel(const struct params* p, struct channel_settings* settings) {
   
   settings->mode = p->mode;
   memcpy(settings->param, p->param[p->mode], sizeof(settings->param));
