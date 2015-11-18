@@ -17,7 +17,7 @@
 #include <EEPROM.h>
 #include "pagestorage.h"
 
-#define _TEMPS_UTILE
+//#define _TEMPS_UTILE
 //#define _TEMPS_UTILE_REV
 
 /* clock outputs, buttons */
@@ -217,8 +217,6 @@ void setup() {
     // buttons
     pinMode(butL, INPUT_PULLUP);
     pinMode(butR, INPUT_PULLUP);
-    pinMode(but_top, INPUT_PULLUP);
-    pinMode(but_bot, INPUT_PULLUP);
     // clock inputs
     pinMode(TR1, INPUT_PULLUP);
     pinMode(TR2, INPUT_PULLUP);
@@ -227,13 +225,13 @@ void setup() {
     // buttons
     pinMode(butL, INPUT);
     pinMode(butR, INPUT);
-    pinMode(but_top, INPUT);
-    pinMode(but_bot, INPUT);
     // clock inputs
     pinMode(TR1, INPUT);
     pinMode(TR2, INPUT);
   };
-  
+
+  pinMode(but_top, INPUT_PULLUP);
+  pinMode(but_bot, INPUT_PULLUP);
   pinMode(CLK1, OUTPUT);
   pinMode(CLK2, OUTPUT);
   pinMode(CLK3, OUTPUT);
