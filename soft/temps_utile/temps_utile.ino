@@ -113,6 +113,27 @@ void UI_timerCallback()
   _UI = true;
 }
 
+
+/* ------------------------------------------------------------------   */
+
+volatile uint32_t TIME_STAMP = 0;   // systick
+volatile uint32_t PREV_TIME_STAMP = 0;
+uint32_t PW = 0;      // ext. clock interval
+uint32_t PREV_PW = 0; // ext. clock interval
+
+void FASTRUN clk_ISR() 
+{  
+  // systick / pre-empt going too fast
+  TIME_STAMP = ARM_DWT_CYCCNT;     
+  PW = TIME_STAMP - PREV_TIME_STAMP; // / _FCPU; 
+  PREV_TIME_STAMP = TIME_STAMP;
+  
+  if (!CLK_SRC && _OK) {
+       output_clocks();
+      _bpm = true; 
+  }
+} 
+
 /*       ---------------------------------------------------------         */
 
 IntervalTimer adc_timer;

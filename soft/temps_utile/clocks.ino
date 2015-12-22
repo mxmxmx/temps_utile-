@@ -35,13 +35,7 @@ uint8_t  CLOCKS_STATE;     // output state: XX654321
 
 uint32_t CLOCK_CNT;        // count clocks
 uint32_t CLOCKS_OFF_CNT;   //
-
-volatile uint32_t TIME_STAMP = 0;   // systick
-volatile uint32_t PREV_TIME_STAMP = 0;
-uint32_t PW = 0;      // ext. clock interval
-uint32_t PREV_PW = 0; // ext. clock interval
-
-uint32_t LAST_TRIG = 0;        // clocks_off timestamp (ms)
+uint32_t LAST_TRIG = 0;    // clocks_off timestamp (ms)
 
 volatile uint16_t CLK_SRC = false; // clock source: ext/int
 volatile uint16_t _OK = true;      // ext. clock ok ?
@@ -226,20 +220,6 @@ uint8_t gen_next_clock(struct params* _p, uint8_t _ch)   {
   }
 }
 
-/* ------------------------------------------------------------------   */
-
-void FASTRUN clk_ISR() 
-{  
-  // systick / pre-empt going too fast
-  TIME_STAMP = ARM_DWT_CYCCNT;     
-  PW = TIME_STAMP - PREV_TIME_STAMP; // / _FCPU; 
-  PREV_TIME_STAMP = TIME_STAMP;
-  
-  if (!CLK_SRC && _OK) {
-       output_clocks();
-      _bpm = true; 
-  }
-} 
 
 /* ------------------------------------------------------------------   */
 
