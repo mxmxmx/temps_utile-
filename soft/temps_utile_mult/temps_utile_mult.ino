@@ -210,6 +210,27 @@ void load_settings() {
   }
 }
 
+/*  -----------------  ext. interupt --------------------------------  */
+
+volatile uint32_t TIME_STAMP = 0;    // ext clock
+volatile uint32_t tick = 0xFFFFFFFF; // tick
+volatile uint32_t subticks = 0;      // subtick
+
+void FASTRUN clk_ISR() 
+{  
+
+  TIME_STAMP = tick; 
+  _OK = 1;
+  // reset counters
+  tick = subticks = 0;   
+} 
+
+void FASTRUN core_ISR(void) {
+
+     subticks++; tick++; 
+}
+
+
 /*       ---------------------------------------------------------         */
 
 void setup() {

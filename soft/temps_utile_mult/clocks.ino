@@ -34,11 +34,7 @@ const uint8_t MULT_LIMIT = 4; // == *16, *8, *4, *2, *1
 const uint16_t tick_thresholds[MULT_LIMIT+1] = {0xFFFF, 8, 4, 2, 0}; 
 
 const int8_t CHANNELS = 6;     // # channels
-
-volatile uint32_t TIME_STAMP = 0;   // ext clock
-volatile uint32_t tick = 0;         // tick
-volatile uint32_t subticks = 0;     // subtick
-uint32_t SUB_PERIOD = 0xFFFFFFFF;   // mult.
+uint32_t SUB_PERIOD = 0xFFFFFFFF;    // mult.
 
 volatile uint16_t CLK_SRC = false; // clock source: ext/int
 volatile uint16_t _OK = 0x0;       // ext. clock flag
@@ -163,23 +159,6 @@ void clocks_restore(const struct settings_data *settings) {
   for (int i  = 0; i < 6; i++) {
     clocks_restore_channel(&allChannels[i], &settings->channels[i]);
   }
-}
-
-/*  -----------------  ext. interupt --------------------------------  */
-
-void FASTRUN clk_ISR() 
-{  
-
-  TIME_STAMP = tick; 
-  _OK = 1;
-  // reset counters
-  tick = subticks = 0;   
-} 
-
-
-void static inline core_ISR(void) {
-
-     subticks++; tick++; 
 }
 
 /* ------------------------------------------------------------------   */
