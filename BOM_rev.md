@@ -7,7 +7,7 @@
 - MCP6004 (SOIC) : 1x 
 - NPN transistors (MMBT3904, SOT-23): 2x
 - 1N5817 (diode, DO-41): 2x
-- LM1117-5v5 (5v0 LDO reg., SOT-223): 1x
+- LM1117-5v0 (5v0 LDO reg., SOT-223): 1x
 - LM4040-5.0 (SOT-23) : 1x 
 - 10uH fixed inductor (1206, > 25mA) : 1x
 
