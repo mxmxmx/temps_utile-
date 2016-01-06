@@ -42,15 +42,15 @@
 - 20k  :         6x  
 - 33k :          6x 
 - 49k9:          4x
-- 100k :         10x
+- 100k :         6x
 
 **SMD caps (0805):**
 
 - 1n    : 2x (NP0/C0G)
 - 3n3   : 1x (NP0/C0G)
 - 18n   : 1x (NP0/C0G)
-- 100nF : 15x  
-- 470nF : 5x 
+- 100nF : 9x  
+- 470nF : 5x (‡‡‡)
 - 1uF   : 2x
 - 10uF  : 1x (may be 1206)
 
@@ -64,6 +64,8 @@
 (‡) the (digital) clock outputs are non-inverting op amps, the values on the pcb (20k feedback, 10k to ground) will result in 3x gain, or 9.9v on the outputs. adjust, if you like. for example, 15k would give you 3.3v * (20k/15k + 1) = 7.7, etc.
 
 (‡‡) rotary encoder w/ switch: for instance: mouser # 652-PEC11R-4215F-S24 (15 mm, 'D' shaft); 652-PEC11R-4215K-S24 (15 mm shaft, knurled); 652-PEC11R-4220F-S24 (20 mm, 'D'), 652-PEC11R-4220K-S24 (20 mm, knurled), etc)
+
+(‡‡‡) use one in lieu of 330nF, adjacent to the 78L33 regulator.
 
 (†) it's possibly to switch the jack/output labelled "c4" between the DAC and a regular GPIO pin; that's what the one jumper is for. as typically you'd use the DAC (unless using a teensy 3.0), i'd probably just hard-wire it.
 
