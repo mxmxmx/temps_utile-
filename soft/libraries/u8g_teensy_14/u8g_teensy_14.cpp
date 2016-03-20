@@ -2,7 +2,7 @@
 #include "u8glib.h"
 #include <spi4teensy3_14.h>
 
-//#define _TEMPS_UTILE_REV
+#define _TEMPS_UTILE_REV
 
 #ifdef _TEMPS_UTILE_REV
  #define _DC  9
