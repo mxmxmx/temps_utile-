@@ -17,8 +17,8 @@
 #include <EEPROM.h>
 #include "pagestorage.h"
 
-//#define _TEMPS_UTILE
-//#define _TEMPS_UTILE_REV
+#define _TEMPS_UTILE_REV // uncomment for pre-rev 1 boards 
+#define _SH1106          // uncomment for use with SSD1306 / pixel offset issues
 
 /* clock outputs, buttons */
 #ifdef _TEMPS_UTILE_REV
@@ -60,7 +60,11 @@
 #define butL 23
 
 
-U8GLIB u8g(&u8g_dev_sh1106_128x64_2x_hw_spi, u8g_com_hw_spi_fn);
+#ifdef _SH1106
+  U8GLIB u8g(&u8g_dev_sh1106_128x64_2x_hw_spi, u8g_com_hw_spi_fn);
+#else
+  U8GLIB u8g(&u8g_dev_ssd1306_128x64_2x_hw_spi, u8g_com_hw_spi_fn);
+#endif
 
 enum encoders_ 
 {
