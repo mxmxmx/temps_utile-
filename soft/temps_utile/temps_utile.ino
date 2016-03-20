@@ -17,8 +17,8 @@
 #include <EEPROM.h>
 #include "pagestorage.h"
 
-#define _TEMPS_UTILE_REV // uncomment for pre-rev 1 boards 
-#define _SH1106          // uncomment for use with SSD1306 / pixel offset issues
+#define _TEMPS_UTILE_REV // comment out for pre-rev 1 boards 
+#define _SH1106          // comment out for use with SSD1306
 
 /* clock outputs, buttons */
 #ifdef _TEMPS_UTILE_REV
