@@ -46,17 +46,17 @@
 
 **SMD caps (0805):**
 
-- 1n    : 2x (NP0/C0G)
-- 3n3   : 1x (NP0/C0G)
-- 18n   : 1x (NP0/C0G)
-- 100nF : 9x  
-- 470nF : 5x (‡‡‡)
-- 1uF   : 2x
-- 10uF  : 1x (may be 1206)
+- 1n    : 2x (NP0/C0G) (50V)
+- 3n3   : 1x (NP0/C0G) (50V)
+- 18n   : 1x (NP0/C0G) (50V)
+- 100nF : 9x  (25V or better)
+- 470nF : 5x  (25V or better) (‡‡‡) 
+- 1uF   : 2x  (25V or better)
+- 10uF  : 1x (16V or better; may be 1206)
 
 **SMD caps (0603):**
 
-- 10n   : 4x 
+- 10n   : 4x (16V or better)
 
 
 #notes (also see the build 'wiki'):
