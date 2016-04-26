@@ -13,8 +13,8 @@
 
 **misc *through-hole*:**
 
-- 22uF  (electrolytic) : 2x
-- 470nf (film/ceramic, RM5) : 1x
+- 22uF  (electrolytic) : 2x (35V)
+- 470nf (film/ceramic, RM5) : 1x (35V)
 - 78L33 3v3 regulator: 1x (TO 92)
 - trimpot 100k (inline / 9.5mm): 1x
 - jacks: 'thonkiconn' (or kobiconn): 12x
