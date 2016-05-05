@@ -16,7 +16,7 @@
 ###misc *through-hole*:
 | what | package | # | note |
 | --- | --- | ---: | --- |
-| 22uF | 2.5mm | 2x |  electrolytic, 35V | 
+| 22uF | 2.5mm | 2x |  electrolytic, 35v | 
 | 470nf | 5mm |  1x | film/ceramic, 35v | 
 | 78L33 |  TO-92 | 1x | 3v3 regulator | 
 | trimpot 100k | 9.5mm |  1x | cermet, inline| 
@@ -24,8 +24,8 @@
 | encoder w/ switch | 9mm | 2x | 24 steps (e.g. PEC11R-4215K-S0024) **(‡)**  | 
 |  2x5 male header | 2.54mm |  1x |  (euro power connector) | 
 |  1x7 female socket |  2.54mm  |  1x |  low profile (for oled) | 
-|  1x3 make header |  2.54mm |  1x |  **(†)**  | 
-|  + jumper |  2.54mm |  1x |  or use a piece of wire |  
+|  1x3 make header |  2.54mm |  1x | or use a piece of wire **(†)**  | 
+|  + jumper |  2.54mm |  1x |  ditto |  
 |  (breakable) sockets / headers for teensy 3.x |  2.54mm | 2x | 1x14 + 1 **(††)** | 
 | tact switches | multimecs 5E/5G | 2x  | mouser #: 642-5GTH935 or 642-5ETH935 |
 | + caps | multimecs 5E/5G | 2x | mouser #: 642-1SS09-15.0, or -16.0| 
