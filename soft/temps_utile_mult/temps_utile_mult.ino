@@ -18,7 +18,7 @@
 #include "pagestorage.h"
 
 //#define _TEMPS_UTILE
-//#define _TEMPS_UTILE_REV
+#define _TEMPS_UTILE_REV
 
 /* clock outputs, buttons */
 #ifdef _TEMPS_UTILE_REV
