@@ -27,7 +27,9 @@
 - tact switches (multimecs 5E/5G): 2x (mouser #: 642-5GTH935 or 642-5ETH935)
 - + caps (multimecs 1SS09-15.0 or -16.0): 2x (mouser #: 642-1SS09-15.0, or -16.0) (†††)
 - teensy3.1 or 3.2 : 1x (cut the usb/power trace)
-- oled: i've used these: http://www.ebay.com/itm/New-Blue-1-3-IIC-I2C-Serial-128-x-64-OLED-LCD-LED-Display-Module-for-Arduino-/261465635352 [ the pinout should be: GND - VCC - D0 - D1 - RST - DC - CS. adafruit's 128x64 (http://www.adafruit.com/products/326) should work as well (in terms of the hardware), at least the corresponding pads are on the pcb as well (untested).
+- OLED: 1.3", SH1106, 128x64 (†††) 
+
+
 
 **SMD resistors (0805):**
 
@@ -61,7 +63,7 @@
 
 #notes (also see the build 'wiki'):
 
-(‡) the (digital) clock outputs are non-inverting op amps, the values on the pcb (20k feedback, 10k to ground) will result in 3x gain, or 9.9v on the outputs. adjust, if you like. for example, 15k would give you 3.3v * (20k/15k + 1) = 7.7, etc.
+(‡) the (digital) clock outputs are **non-inverting op amps**, the values on the pcb (20k feedback, 10k to ground) will result in 3x gain, or 9.9v on the outputs. adjust, if you like. for example, 15k would give you 3.3v * (20k/15k + 1) = 7.7, etc.
 
 (‡‡) rotary encoder w/ switch: for instance: mouser # 652-PEC11R-4215F-S24 (15 mm, 'D' shaft); 652-PEC11R-4215K-S24 (15 mm shaft, knurled); 652-PEC11R-4220F-S24 (20 mm, 'D'), 652-PEC11R-4220K-S24 (20 mm, knurled), etc)
 
@@ -69,9 +71,10 @@
 
 (†) it's possibly to switch the jack/output labelled "c4" between the DAC and a regular GPIO pin; that's what the one jumper is for. as typically you'd use the DAC (unless using a teensy 3.0), i'd probably just hard-wire it.
 
-(††) also see the build guide: we need 14 pins on either side plus the DAC pin, so best to simply use 14 on the one side, and 13 + 2 on the other.
+(††) see the build guide: we need 14 pins on either side plus the DAC pin, so best to simply use 14 on the one side, and 13 + 2 on the other.
 
-(†††) way cheaper than mouser is http://www.soselectronic.com/
+(†††) you can find these 1.3" displays on ebay or aliexpress for < 10$. as long as the description claims that they are `SH1106` or `SSD1306` and the pinout is: `GND - VCC - D0 - D1 - RST - DC - CS`, they should work (or `GND - VCC - CLK - MOSI - RES - DC - CS`, which is the same). **make sure you get the right size**: 1.3" (not 0.96")! 
+- alternatively, [here](https://github.com/mxmxmx/O_C/tree/master/hardware/gerbers/128x64_1_3_oled) are **.brd/.sch** files for a/the OLED carrier board. in that case, you'd need to get the **bare** OLED (and some passives). [for example here](http://www.buydisplay.com/default/serial-spi-1-3-inch-128x64-oled-display-module-ssd1306-white-on-black) (though there's cheaper options for getting bare OLEDs).
 
 
 
