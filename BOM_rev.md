@@ -21,16 +21,16 @@
 | 78L33 |  TO-92 | 1x | 3v3 regulator | 
 | trimpot 100k | 9.5mm |  1x | cermet, inline| 
 |  jacks | [PJ301M-12](https://www.thonk.co.uk/shop/3-5mm-jacks/) | 12x |  'thonkiconn' (or kobiconn) | 
-| encoder w/ switch | 9mm | 2x **(‡)** | 24 steps (e.g. PEC11R-4215K-S0024) | 
+| encoder w/ switch | 9mm | 2x | 24 steps (e.g. PEC11R-4215K-S0024) **(‡)**  | 
 |  2x5 male header | 2.54mm |  1x |  (euro power connector) | 
 |  1x7 female socket |  2.54mm  |  1x |  low profile (for oled) | 
-|  1x3 make header |  2.54mm |  1x **(†)** |  DAC/GPIO | 
-|  jumper |  2.54mm |  1x |  or use wire |  
-|  (breakable) socket / headers for teensy 3.x |  2.54mm | 2 x 14 + 1 **(††)**| 
+|  1x3 make header |  2.54mm |  1x |  **(†)**  | 
+|  + jumper |  2.54mm |  1x |  or use a piece of wire |  
+|  (breakable) sockets / headers for teensy 3.x |  2.54mm | 2x | 1x14 + 1 **(††)** | 
 | tact switches | multimecs 5E/5G | 2x  | mouser #: 642-5GTH935 or 642-5ETH935 |
-| + caps | multimecs 1SS09-15.0 or -16.0 | 2x | mouser #: 642-1SS09-15.0, or -16.0| 
-| teensy3.1, 3.2 | - | 1x | cut the usb/power trace! |
-| OLED 1.3" | - | 1x | SH1106, 128x64 **(†††)** |
+| + caps | multimecs 5E/5G | 2x | mouser #: 642-1SS09-15.0, or -16.0| 
+| teensy 3.x | - | 1x | cut the usb/power trace! |
+| OLED, 1.3" | 7 pin | 1x | SH1106, 128x64 **(†††)** |
 
 - (‡) rotary encoder w/ switch: for instance: mouser # 652-PEC11R-4215F-S24 (15 mm, 'D' shaft); 652-PEC11R-4215K-S24 (15 mm shaft, knurled); 652-PEC11R-4220F-S24 (20 mm, 'D'), 652-PEC11R-4220K-S24 (20 mm, knurled), etc)
 
@@ -38,7 +38,7 @@
 
 - (††) also see the build guide: we need 14 pins on either side plus the DAC pin, so best to simply use 14 on the one side, and 13 + 2 on the other.
 
-- (†††) 
+- (†††) OLEDs:
   - you can find these 1.3" displays on ebay or aliexpress for < 10$. as long as the description claims that they are `SH1106` or `SSD1306` and the pinout is: `GND - VCC - D0 - D1 - RST - DC - CS`, they should work (or `GND - VCC - CLK - MOSI - RES - DC - CS`, which is the same). **make sure you get the right size**: 1.3" (not 0.96")! 
   - alternatively, [here](https://github.com/mxmxmx/O_C/tree/master/hardware/gerbers/128x64_1_3_oled) are **.brd/.sch** files for a/the OLED carrier board. in that case, you'd need to get the **bare** OLED (and some passives). [for example here](http://www.buydisplay.com/default/serial-spi-1-3-inch-128x64-oled-display-module-ssd1306-white-on-black) (though there's cheaper options for getting bare OLEDs).
 
