@@ -18,16 +18,16 @@
 - 78L33 3v3 regulator: 1x (TO 92)
 - trimpot 100k (inline / 9.5mm): 1x
 - jacks: 'thonkiconn' (or kobiconn): 12x
-- encoders (24 steps (ish)) with switch (e.g. PEC11R-4215K-S0024) : 2x (‡‡)
+- encoders (24 steps (ish)) with switch (e.g. PEC11R-4215K-S0024) : 2x **(‡)**
 - 2x5 pin header, 2.54mm : 1x (euro power connector)
 - 1x7 socket, 2.54mm (low profile) : 1x (for oled)
-- 1x3 pin header, 2.54mm : 1x (†)
-- jumper, 2.54mm : 1x (or hardwire)
-- socket + pin headers for teensy 3.x, 2.54mm : all outer pins (28) are used + DAC (A14), so best to get breakable ones. (††)
+- 1x3 pin header, 2.54mm : 1x **(†)**
+- jumper, 2.54mm : 1x (or hardwire) 
+- socket + pin headers for teensy 3.x, 2.54mm : all outer pins (28) are used + DAC (A14), so best to get breakable ones. **(††)**
 - tact switches (multimecs 5E/5G): 2x (mouser #: 642-5GTH935 or 642-5ETH935)
-- + caps (multimecs 1SS09-15.0 or -16.0): 2x (mouser #: 642-1SS09-15.0, or -16.0) (†††)
+- + caps (multimecs 1SS09-15.0 or -16.0): 2x (mouser #: 642-1SS09-15.0, or -16.0) 
 - teensy3.1 or 3.2 : 1x (cut the usb/power trace)
-- OLED: 1.3", SH1106, 128x64 (†††) 
+- OLED: 1.3", SH1106, 128x64 **(†††)** 
 
 
 
@@ -40,7 +40,7 @@
 - 1k8  :         1x
 - 3k   :         2x
 - 3k9  :         2x
-- 10k  :         6x (‡)
+- 10k  :         6x **(‡‡)**
 - 20k  :         6x  
 - 33k :          6x 
 - 49k9:          4x
@@ -52,7 +52,7 @@
 - 3n3   : 1x (NP0/C0G) (50V)
 - 18n   : 1x (NP0/C0G) (50V)
 - 100nF : 9x  (25V or better)
-- 470nF : 5x  (25V or better) (‡‡‡) 
+- 470nF : 5x  (25V or better) **(‡‡‡)**
 - 1uF   : 2x  (25V or better)
 - 10uF  : 1x (16V or better; may be 1206)
 
@@ -63,17 +63,24 @@
 
 #notes (also see the build 'wiki'):
 
-(‡) the (digital) clock outputs are **non-inverting op amps**, the values on the pcb (20k feedback, 10k to ground) will result in 3x gain, or 9.9v on the outputs. adjust, if you like. for example, 15k would give you 3.3v * (20k/15k + 1) = 7.7, etc.
 
-(‡‡) rotary encoder w/ switch: for instance: mouser # 652-PEC11R-4215F-S24 (15 mm, 'D' shaft); 652-PEC11R-4215K-S24 (15 mm shaft, knurled); 652-PEC11R-4220F-S24 (20 mm, 'D'), 652-PEC11R-4220K-S24 (20 mm, knurled), etc)
+(‡) 
+- rotary encoder w/ switch: for instance: mouser # 652-PEC11R-4215F-S24 (15 mm, 'D' shaft); 652-PEC11R-4215K-S24 (15 mm shaft, knurled); 652-PEC11R-4220F-S24 (20 mm, 'D'), 652-PEC11R-4220K-S24 (20 mm, knurled), etc)
 
-(‡‡‡) use one in lieu of 330nF, adjacent to the 78L33 regulator.
+(‡‡) 
+- the (digital) clock outputs are **non-inverting op amps**, the values on the pcb (20k feedback, 10k to ground) will result in 3x gain, or 9.9v on the outputs. adjust, if you like. for example, 15k would give you 3.3v * (20k/15k + 1) = 7.7, etc.
 
-(†) it's possibly to switch the jack/output labelled "c4" between the DAC and a regular GPIO pin; that's what the one jumper is for. as typically you'd use the DAC (unless using a teensy 3.0), i'd probably just hard-wire it.
+(‡‡‡) 
+- use one in lieu of 330nF, adjacent to the 78L33 regulator.
 
-(††) see the build guide: we need 14 pins on either side plus the DAC pin, so best to simply use 14 on the one side, and 13 + 2 on the other.
+(†) 
+- it's possibly to switch the jack/output labelled `clk4` between the **DAC** and a regular **GPIO** pin; that's what the one jumper is for. as typically you'd use the DAC (unless using a teensy 3.0), i'd probably just hard-wire it.
 
-(†††) you can find these 1.3" displays on ebay or aliexpress for < 10$. as long as the description claims that they are `SH1106` or `SSD1306` and the pinout is: `GND - VCC - D0 - D1 - RST - DC - CS`, they should work (or `GND - VCC - CLK - MOSI - RES - DC - CS`, which is the same). **make sure you get the right size**: 1.3" (not 0.96")! 
+(††) 
+- see the build guide: we need 14 pins on either side plus the DAC pin, so best to simply use 14 on the one side, and 13 + 2 on the other.
+
+(†††) 
+- you can find these 1.3" displays on ebay or aliexpress for < 10$. as long as the description claims that they are `SH1106` or `SSD1306` and the pinout is: `GND - VCC - D0 - D1 - RST - DC - CS`, they should work (or `GND - VCC - CLK - MOSI - RES - DC - CS`, which is the same). **make sure you get the right size**: 1.3" (not 0.96")! 
 - alternatively, [here](https://github.com/mxmxmx/O_C/tree/master/hardware/gerbers/128x64_1_3_oled) are **.brd/.sch** files for a/the OLED carrier board. in that case, you'd need to get the **bare** OLED (and some passives). [for example here](http://www.buydisplay.com/default/serial-spi-1-3-inch-128x64-oled-display-module-ssd1306-white-on-black) (though there's cheaper options for getting bare OLEDs).
 
 
