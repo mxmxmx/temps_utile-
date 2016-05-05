@@ -1,6 +1,44 @@
 #/* BOM for temps utile (blue pcbs) */
 
 
+###SMD resistors (0805):
+
+| value | # | note |
+| ---: | ---: | --- |
+|100R |		 4x | - |
+| 510R |         2x | - |
+| 1k  |       7x | - |
+| 1k2  |         1x | - |
+| 1k8  |         1x | - |
+| 3k   |         2x | - |
+| 3k9  |        2x | - |
+| 10k  |         6x | **(‡)** |
+| 20k  |         6x  | - | 
+| 33k |          6x  | - |
+| 49k9 |          4x | - |
+| 100k |         6x | - |
+
+- (‡) the (digital) clock outputs are **non-inverting op amps**, the values on the pcb (20k feedback, 10k to ground) will result in 3x gain, or 9.9v on the outputs. adjust, if you like. for example, 15k would give you 3.3v * (20k/15k + 1) = 7.7, etc.
+
+###SMD caps (0805):
+
+| value | # | note |
+| ---: | ---: | --- |
+| 1n    | 2x  |(NP0/C0G) (50V)|
+|3n3   |1x |(NP0/C0G) (50V)|
+|18n   | 1x |(NP0/C0G) (50V)|
+|100nF | 9x | (25V or better)|
+|470nF | 5x | (25V or better) **(‡)**|
+| 1uF   | 2x | (25V or better)|
+|10uF  | 1x |(16V or better; may be 1206)|
+
+- (‡) use one in lieu of 330nF, adjacent to the 78L33 regulator.
+
+###SMD caps (0603):
+| value | # | note |
+| ---: | ---: | --- |
+|10n   | 4x | (NP0/C0G) (16V or better)|
+
 ###ICs/semis:
 
 | what | package | # | note |
@@ -41,46 +79,6 @@
 - (†††) OLEDs:
   - you can find these 1.3" displays on ebay or aliexpress for < 10$. as long as the description claims that they are `SH1106` or `SSD1306` and the pinout is: `GND - VCC - D0 - D1 - RST - DC - CS`, they should work (or `GND - VCC - CLK - MOSI - RES - DC - CS`, which is the same). **make sure you get the right size**: 1.3" (not 0.96")! 
   - alternatively, [here](https://github.com/mxmxmx/O_C/tree/master/hardware/gerbers/128x64_1_3_oled) are **.brd/.sch** files for a/the OLED carrier board. in that case, you'd need to get the **bare** OLED (and some passives). [for example here](http://www.buydisplay.com/default/serial-spi-1-3-inch-128x64-oled-display-module-ssd1306-white-on-black) (though there's cheaper options for getting bare OLEDs).
-
-
-
-###SMD resistors (0805):
-
-| value | # | note |
-| ---: | ---: | --- |
-|100R |		 4x | - |
-| 510R |         2x | - |
-| 1k  |       7x | - |
-| 1k2  |         1x | - |
-| 1k8  |         1x | - |
-| 3k   |         2x | - |
-| 3k9  |        2x | - |
-| 10k  |         6x | **(‡)** |
-| 20k  |         6x  | - | 
-| 33k |          6x  | - |
-| 49k9 |          4x | - |
-| 100k |         6x | - |
-
-- (‡) the (digital) clock outputs are **non-inverting op amps**, the values on the pcb (20k feedback, 10k to ground) will result in 3x gain, or 9.9v on the outputs. adjust, if you like. for example, 15k would give you 3.3v * (20k/15k + 1) = 7.7, etc.
-
-###SMD caps (0805):
-
-| value | # | note |
-| ---: | ---: | --- |
-| 1n    | 2x  |(NP0/C0G) (50V)|
-|3n3   |1x |(NP0/C0G) (50V)|
-|18n   | 1x |(NP0/C0G) (50V)|
-|100nF | 9x | (25V or better)|
-|470nF | 5x | (25V or better) **(‡)**|
-| 1uF   | 2x | (25V or better)|
-|10uF  | 1x |(16V or better; may be 1206)|
-
-- (‡) use one in lieu of 330nF, adjacent to the 78L33 regulator.
-
-###SMD caps (0603):
-| value | # | note |
-| ---: | ---: | --- |
-|10n   | 4x | (NP0/C0G) (16V or better)|
 
 
 
