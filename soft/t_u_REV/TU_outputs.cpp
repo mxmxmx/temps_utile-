@@ -33,42 +33,33 @@ volatile size_t OUTPUTS::history_tail_;
 }; // namespace TU
 
 void set_Output1(uint32_t data) {
-
-  
-
+  digitalWriteFast(CLK1, data & 1u);
 }
 
 void set_Output2(uint32_t data) {
-
-  
-
+  digitalWriteFast(CLK2, data & 1u);
 }
 
 void set_Output3(uint32_t data) {
-
-  
-
+  digitalWriteFast(CLK3, data & 1u);
 }
 
 
 void set_Output4(uint32_t data) {
 
+  uint16_t _data = data & 0xFFF;
   #if defined(__MK20DX256__)
     SIM_SCGC2 |= SIM_SCGC2_DAC0;
     DAC0_C0 = DAC_C0_DACEN | DAC_C0_DACRFS; // 3.3V VDDA = DACREF_2
-    *(int16_t *)&(DAC0_DAT0L) = data;
+    *(int16_t *)&(DAC0_DAT0L) = _data;
   #endif
 }
 
 void set_Output5(uint32_t data) {
-
-  
-
+  digitalWriteFast(CLK5, data & 1u);
 }
 
 void set_Output6(uint32_t data) {
-
-  
-
+  digitalWriteFast(CLK6, data & 1u);
 }
 
