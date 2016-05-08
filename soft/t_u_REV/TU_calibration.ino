@@ -10,7 +10,7 @@
 
 using TU::OUTPUTS;
 
-static constexpr uint16_t _DAC_OFFSET = 2200; // DAC offset, initial approx., ish --> 0V
+static constexpr uint16_t _DAC_OFFSET = 2200; // DAC offset, initial approx., ish --> 0v
 static constexpr uint16_t _ADC_OFFSET = (uint16_t)((float)pow(2,TU::ADC::kAdcResolution)*0.5f); // ADC offset
 
 namespace TU {
@@ -20,10 +20,11 @@ CalibrationData calibration_data;
 
 static constexpr unsigned kCalibrationAdcSmoothing = 4;
 
+
 const TU::CalibrationData kCalibrationDefaults = {
   // DAC
   { {
-    {1800},
+    {_DAC_OFFSET},
     },
   },
   // ADC
@@ -38,7 +39,8 @@ const TU::CalibrationData kCalibrationDefaults = {
 };
 
 void calibration_reset() {
- 
+  memcpy(&TU::calibration_data, &kCalibrationDefaults, sizeof(TU::calibration_data));
+  TU::calibration_data.dac.calibrated_Zero[0x0][0x0] = _DAC_OFFSET;
 }
 
 void calibration_load() {
@@ -47,7 +49,16 @@ void calibration_load() {
 
   calibration_reset();
   if (!TU::calibration_storage.Load(TU::calibration_data)) {
-    SERIAL_PRINTLN("Calibration not data loaded...");
+#ifdef CALIBRATION_LOAD_LEGACY
+    if (EEPROM.read(0x2) > 0) {
+      SERIAL_PRINTLN("Calibration not loaded, non-zero data found, trying to import...");
+      calibration_read_old();
+    } else {
+      SERIAL_PRINTLN("No calibration data found, using defaults");
+    }
+#else
+    SERIAL_PRINTLN("No calibration data found, using defaults");
+#endif
   } else {
     SERIAL_PRINTLN("Calibration data loaded...");
   }
@@ -61,7 +72,9 @@ void calibration_save() {
 enum CALIBRATION_STEP {  
   HELLO,
   CENTER_DISPLAY,
+
   DAC_ZERO,
+
   CV_OFFSET,
   CV_OFFSET_0, CV_OFFSET_1, CV_OFFSET_2, CV_OFFSET_3,
   CALIBRATION_EXIT,
@@ -100,6 +113,8 @@ struct CalibrationState {
   SmoothedValue<uint32_t, kCalibrationAdcSmoothing> adc_sum;
 };
 
+TU::DigitalInputDisplay digital_input_displays[2];
+
 // 128/6=21                  |                     |
 const char *start_footer   = "              [START]";
 const char *end_footer     = "[PREV]         [EXIT]";
@@ -108,17 +123,18 @@ const char *default_help_r = "[R] => Adjust";
 const char *select_help    = "[R] => Select";
 
 const CalibrationStep calibration_steps[CALIBRATION_STEP_LAST] = {
-  { HELLO, "T_U Calibration", "Use defaults? ", select_help, start_footer, CALIBRATE_NONE, 0, TU::Strings::no_yes, 0, 1 },
+  { HELLO, "O&C Calibration", "Use defaults? ", select_help, start_footer, CALIBRATE_NONE, 0, TU::Strings::no_yes, 0, 1 },
   { CENTER_DISPLAY, "Center Display", "Pixel offset ", default_help_r, default_footer, CALIBRATE_DISPLAY, 0, nullptr, 0, 2 },
 
-  { DAC_ZERO, "DAC 0.0 volts", "-> 0.0V ", default_help_r, default_footer, CALIBRATE_DAC_ZERO, 0, nullptr, 0, OUTPUTS::MAX_VALUE },
-
-  { CV_OFFSET, "CV offset", "", "Adjust CV trimpot", default_footer, CALIBRATE_ADC_TRIMMER, 0, nullptr, 0, 4095 },
-  { CV_OFFSET_0, "ADC CV1", "ADC value at 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_1, nullptr, 0, 4095 },
-  { CV_OFFSET_1, "ADC CV2", "ADC value at 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_2, nullptr, 0, 4095 },
-  { CV_OFFSET_2, "ADC CV3", "ADC value at 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_3, nullptr, 0, 4095 },
-  { CV_OFFSET_3, "ADC CV4", "ADC value at 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_4, nullptr, 0, 4095 },
+  { DAC_ZERO, "DAC 0.0 volts", "--> 0.0V ", default_help_r, default_footer, CALIBRATE_DAC_ZERO, 0, nullptr, 0, OUTPUTS::MAX_VALUE },
   
+  { CV_OFFSET, "CV offset", "", "Adjust CV trimpot", default_footer, CALIBRATE_ADC_TRIMMER, 0, nullptr, 0, 4095 },
+  
+  { CV_OFFSET_0, "ADC CV1", "--> 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_1, nullptr, 0, 4095 },
+  { CV_OFFSET_1, "ADC CV2", "--> 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_2, nullptr, 0, 4095 },
+  { CV_OFFSET_2, "ADC CV3", "--> 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_3, nullptr, 0, 4095 },
+  { CV_OFFSET_3, "ADC CV4", "--> 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_4, nullptr, 0, 4095 },
+
   { CALIBRATION_EXIT, "Calibration complete", "Save values? ", select_help, end_footer, CALIBRATE_NONE, 0, TU::Strings::no_yes, 0, 1 }
 };
 
@@ -135,6 +151,9 @@ void TU::Ui::Calibrate() {
   };
   calibration_state.adc_sum.set(_ADC_OFFSET);
 
+  for (auto &did : digital_input_displays)
+    did.Init();
+
   TickCount tick_count;
   tick_count.Init();
 
@@ -144,6 +163,8 @@ void TU::Ui::Calibrate() {
   while (!calibration_complete) {
 
     uint32_t ticks = tick_count.Update();
+    digital_input_displays[0].Update(ticks, DigitalInputs::read_immediate<DIGITAL_INPUT_1>());
+    digital_input_displays[1].Update(ticks, DigitalInputs::read_immediate<DIGITAL_INPUT_2>());
 
     while (event_queue_.available()) {
       const UI::Event event = event_queue_.PullEvent();
@@ -156,6 +177,12 @@ void TU::Ui::Calibrate() {
             calibration_state.step = static_cast<CALIBRATION_STEP>(calibration_state.step - 1);
           break;
         case CONTROL_BUTTON_R:
+          // Special case these values to read, before moving to next step
+          if (UI::EVENT_BUTTON_LONG_PRESS == event.type) {
+            switch (calibration_state.current_step->step) {
+              default: break;
+            }
+          }
           if (calibration_state.step < CALIBRATION_EXIT)
             calibration_state.step = static_cast<CALIBRATION_STEP>(calibration_state.step + 1);
           else
@@ -190,16 +217,15 @@ void TU::Ui::Calibrate() {
             calibration_reset();
           }
           break;
+        
         default: break;
       }
 
       // Setup next step
       switch (next_step->calibration_type) {
-
       case CALIBRATE_DAC_ZERO:
-        calibration_state.encoder_value =
-            TU::calibration_data.dac.calibrated_Zero[0x0][next_step->index];
-        break;  
+        calibration_state.encoder_value = TU::calibration_data.dac.calibrated_Zero[0x0][next_step->index];
+        break;
       case CALIBRATE_ADC_TRIMMER:
         calibration_state.adc_sum.set(adc_average());
         break;
@@ -209,6 +235,7 @@ void TU::Ui::Calibrate() {
       case CALIBRATE_DISPLAY:
         calibration_state.encoder_value = TU::calibration_data.display_offset;
         break;
+
       case CALIBRATE_NONE:
       default:
         if (CALIBRATION_EXIT != next_step->step)
@@ -244,14 +271,13 @@ void calibration_draw(const CalibrationState &state) {
 
   graphics.setPrintPos(menu::kIndentDx, y + 2);
   switch (step->calibration_type) {
-
     case CALIBRATE_DAC_ZERO:
       graphics.print(step->message);
       graphics.setPrintPos(kValueX, y + 2);
       graphics.print((int)state.encoder_value, 5);
       menu::DrawEditIcon(kValueX, y, state.encoder_value, step->min, step->max);
-     break;
-     
+      break;
+
     case CALIBRATE_ADC_TRIMMER:
       graphics.print(_ADC_OFFSET, 4);
       graphics.print(" == ");
@@ -272,7 +298,7 @@ void calibration_draw(const CalibrationState &state) {
       menu::DrawEditIcon(kValueX, y, state.encoder_value, step->min, step->max);
       graphics.drawFrame(0, 0, 128, 64);
       break;
-
+      
     case CALIBRATE_NONE:
     default:
       graphics.setPrintPos(menu::kIndentDx, y + 2);
@@ -289,6 +315,12 @@ void calibration_draw(const CalibrationState &state) {
 
   weegfx::coord_t x = menu::kDisplayWidth - 22;
   y = 2;
+  for (int input = TU::DIGITAL_INPUT_1; input < TU::DIGITAL_INPUT_LAST; ++input) {
+    uint8_t state = (digital_input_displays[input].getState() + 3) >> 2;
+    if (state)
+      graphics.drawBitmap8(x, y, 4, TU::bitmap_gate_indicators_8 + (state << 2));
+    x += 5;
+  }
 
   graphics.drawStr(1, menu::kDisplayHeight - menu::kFontHeight - 3, step->footer);
 
@@ -312,7 +344,7 @@ void calibration_update(CalibrationState &state) {
     case CALIBRATE_DAC_ZERO:
       TU::calibration_data.dac.calibrated_Zero[0x0][step->index] = state.encoder_value;
       OUTPUTS::set(CLOCK_CHANNEL_4, state.encoder_value);
-      break;  
+      break;
     case CALIBRATE_ADC_TRIMMER:
       state.adc_sum.push(adc_average());
       OUTPUTS::set_all(0);
