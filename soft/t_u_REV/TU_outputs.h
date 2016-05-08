@@ -7,12 +7,12 @@
 #include "util/util_math.h"
 #include "util/util_macros.h"
 
-extern void set_Output1(uint32_t data);
-extern void set_Output2(uint32_t data);
-extern void set_Output3(uint32_t data);
-extern void set_Output4(uint32_t data);
-extern void set_Output5(uint32_t data);
-extern void set_Output6(uint32_t data);
+extern void set_Output1(uint8_t data);
+extern void set_Output2(uint8_t data);
+extern void set_Output3(uint8_t data);
+extern void set_Output4(uint16_t data);
+extern void set_Output5(uint8_t data);
+extern void set_Output6(uint8_t data);
 
 extern const int8_t _DAC_CHANNEL;
 

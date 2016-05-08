@@ -21,7 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// Main startup/loop for O&C firmware
+// Main startup/loop for T_U firmware; adapted from o_C
 
 #include <ADC.h>
 #include <spi4teensy3_14.h>
