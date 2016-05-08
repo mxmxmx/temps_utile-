@@ -13,6 +13,18 @@ namespace menu = TU::menu; // Ugh. This works for all .ino files
 const int8_t MODES = 7;
 const int8_t CHANNELS = 6;
 const int8_t _DAC_CHANNEL = 3; // ie, counting from zero
+const float TICKS_TO_MS = 16.6667f; // 1 tick = 60 us;
+
+/*
+const char* const multipliers[] = {
+  "/8", "/7", "/6", "/5", "/4", "/3", "/2", "-", "x2", "x3", "x4", "x5", "x6", "x7", "x8"
+};
+*/
+
+const float multipliers_[] = {
+   8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.5f, 0.3333f, 0.25f, 0.2f, 0.16667f, 0.142857f, 0.125f
+};
+
 
 enum ChannelSetting {
   
@@ -197,8 +209,10 @@ public:
 
     force_update_ = true;
     trigger_delay_ = 0;
-    clocks_cnt_ = 0;
-
+    ticks_ = 0;
+    subticks_ = 0;
+    frequency_in_ticks_ = (float)get_pulsewidth() * TICKS_TO_MS; // init to something...
+    
     turing_machine_.Init();
     logistic_map_.Init();
     clock_display_.Init();
@@ -211,51 +225,46 @@ public:
 
   inline void Update(uint32_t triggers, CLOCK_CHANNEL clock_channel) {
 
-     
+
+     ticks_++; subticks_++;
+
+     // ext clock ? 
      ChannelTriggerSource trigger_source = get_trigger_source();
      bool continous = CHANNEL_TRIGGER_CONTINUOUS == trigger_source;
      bool triggered = !continous && (triggers & DIGITAL_INPUT_MASK(trigger_source - CHANNEL_TRIGGER_TR1));
-
-     uint16_t _out = 0x0;
-     ticks_cnt_++;
      
      if (triggered) {
+        // reset
+        frequency_in_ticks_ = ticks_;
+        ticks_ = 0;
+     }
+
+     // update?
+     
+     uint32_t tock = (float)frequency_in_ticks_*multipliers_[get_mult()];
+
+     uint8_t _update = subticks_ > tock ? true : false;
+
+     uint16_t _out = 0x0;
       
-       switch (get_mode()) {
-  
-           case MULT: {
-
-             uint32_t _n = clocks_cnt_++;
-             uint8_t _mult = get_mult();
-             uint8_t _invert = get_inverted();
-            
-
-             if (_n >= _mult) clocks_cnt_ = 0;
-             
-             if (!_n) _out = 0x1;
-             if (_invert) _out = (~_out & 1u);
-             clock_status_ = _out;
-            
-           }
-            break;
-           default:
-            break; 
-          
-       } // end switch
-       // reset PW counter:
-       ticks_cnt_ = 0; 
+     if (_update) {    
+       
+       // reset 
+       subticks_ = 0x0;
+       _out = output_state_ = 0x1;
+      
      }
-     else {
-     // switch off?
-     // 1 tick = 60 us
-       if (clock_status_) {
-         uint32_t _ticks = get_pulsewidth() * 17; // ish
-         if (ticks_cnt_ > _ticks) 
-           clock_status_ = _out = 0x0;
-         else // keep on .. 
-           _out = clock_status_;  
-       }
+
+     // turn off?
+     if (output_state_) {
+
+        if (subticks_ > get_pulsewidth()*TICKS_TO_MS)
+          _out = output_state_ = 0x0;
+        else   
+          _out = output_state_ = 0x1; 
      }
+     
+     
      TU::OUTPUTS::set(clock_channel, _out);
   } // end update
 
@@ -352,9 +361,10 @@ public:
 private:
   bool force_update_;
   uint16_t trigger_delay_;
-  uint32_t clocks_cnt_;
-  uint32_t ticks_cnt_;
-  uint16_t clock_status_;
+  uint32_t ticks_;
+  uint32_t subticks_;
+  uint32_t frequency_in_ticks_;
+  uint16_t output_state_;
   
   util::TuringShiftRegister turing_machine_;
   util::LogisticMap logistic_map_;
