@@ -10,7 +10,7 @@
 
 namespace menu = TU::menu; // Ugh. This works for all .ino files
 
-const int8_t MODES = 6;
+const int8_t MODES = 7;
 const int8_t CHANNELS = 6;
 const int8_t _DAC_CHANNEL = 3; // ie, counting from zero
 
@@ -55,16 +55,17 @@ enum ChannelTriggerSource {
   CHANNEL_TRIGGER_LAST
 };
 
-enum Channel_CV_MAPPING {
+enum ChannelCV_Mapping {
   CHANNEL_CV_MAPPING_CV1,
   CHANNEL_CV_MAPPING_CV2,
   CHANNEL_CV_MAPPING_CV3,
   CHANNEL_CV_MAPPING_CV4,
-  CHANNEL_SOURCE_LAST
+  CHANNEL_CV_MAPPING_LAST
 };
 
 enum CLOCKMODES 
 {
+  MULT,
   LFSR,
   RANDOM,
   EUCLID,
@@ -181,7 +182,14 @@ public:
     return values_[CHANNEL_SETTING_LOGISTIC_MAP_SEED];
   }
 
+  uint16_t get_trigger_delay() const {
+    return values_[CHANNEL_SETTING_DELAY];
+  }
   
+  ChannelTriggerSource get_trigger_source() const {
+    return static_cast<ChannelTriggerSource>(values_[CHANNEL_SETTING_TRIGGER]);
+  }
+
   void Init(ChannelTriggerSource trigger_source) {
     
     InitDefaults();
@@ -189,7 +197,7 @@ public:
 
     force_update_ = true;
     trigger_delay_ = 0;
-    clock_ = 0;
+    clocks_cnt_ = 0;
 
     turing_machine_.Init();
     logistic_map_.Init();
@@ -201,11 +209,55 @@ public:
     force_update_ = true;
   }
 
-  inline void Update(uint32_t triggers, size_t index, CLOCK_CHANNEL clock_channel) {
+  inline void Update(uint32_t triggers, CLOCK_CHANNEL clock_channel) {
 
-     //bool forced_update = force_update_;
-     //force_update_ = false;
-  }
+     
+     ChannelTriggerSource trigger_source = get_trigger_source();
+     bool continous = CHANNEL_TRIGGER_CONTINUOUS == trigger_source;
+     bool triggered = !continous && (triggers & DIGITAL_INPUT_MASK(trigger_source - CHANNEL_TRIGGER_TR1));
+
+     uint16_t _out = 0x0;
+     ticks_cnt_++;
+     
+     if (triggered) {
+      
+       switch (get_mode()) {
+  
+           case MULT: {
+
+             uint32_t _n = clocks_cnt_++;
+             uint8_t _mult = get_mult();
+             uint8_t _invert = get_inverted();
+            
+
+             if (_n >= _mult) clocks_cnt_ = 0;
+             
+             if (!_n) _out = 0x1;
+             if (_invert) _out = (~_out & 1u);
+             clock_status_ = _out;
+            
+           }
+            break;
+           default:
+            break; 
+          
+       } // end switch
+       // reset PW counter:
+       ticks_cnt_ = 0; 
+     }
+     else {
+     // switch off?
+     // 1 tick = 60 us
+       if (clock_status_) {
+         uint32_t _ticks = get_pulsewidth() * 17; // ish
+         if (ticks_cnt_ > _ticks) 
+           clock_status_ = _out = 0x0;
+         else // keep on .. 
+           _out = clock_status_;  
+       }
+     }
+     TU::OUTPUTS::set(clock_channel, _out);
+  } // end update
 
   uint8_t getTriggerState() const {
     return clock_display_.getState();
@@ -300,8 +352,10 @@ public:
 private:
   bool force_update_;
   uint16_t trigger_delay_;
-  uint8_t clock_;
-
+  uint32_t clocks_cnt_;
+  uint32_t ticks_cnt_;
+  uint16_t clock_status_;
+  
   util::TuringShiftRegister turing_machine_;
   util::LogisticMap logistic_map_;
   int num_enabled_settings_;
@@ -332,11 +386,12 @@ SETTINGS_DECLARE(Clocks, CHANNEL_SETTING_LAST) {
   { 0, 0, MODES-2, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
   { 0, 0, MODES-1, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
   { CHANNEL_TRIGGER_TR1, 0, CHANNEL_TRIGGER_LAST - 1, "clock src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
-  { CHANNEL_TRIGGER_TR2, 0, CHANNEL_TRIGGER_LAST - 1, "reset", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
+  { CHANNEL_TRIGGER_TR2+1, 0, CHANNEL_TRIGGER_LAST - 1, "reset", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
   { 7, 0, 14, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
   { 10, 2, 255, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, 1, "invert", TU::Strings::no_yes, settings::STORAGE_TYPE_U4 },
   { 0, 0, 8, "clock delay", clock_delays, settings::STORAGE_TYPE_U4 },
+  //
   { 16, 3, 32, "LFSR length",NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, 31, "LFSR tap2",NULL, settings::STORAGE_TYPE_U8 },
@@ -430,12 +485,13 @@ void CLOCKS_loop() {
 void CLOCKS_isr() {
   
   uint32_t triggers = TU::DigitalInputs::clocked();
-  clocks[0].Update(triggers, 0, CLOCK_CHANNEL_1);
-  clocks[1].Update(triggers, 1, CLOCK_CHANNEL_2);
-  clocks[2].Update(triggers, 2, CLOCK_CHANNEL_3);
-  clocks[3].Update(triggers, 3, CLOCK_CHANNEL_4);
-  clocks[4].Update(triggers, 3, CLOCK_CHANNEL_5);
-  clocks[5].Update(triggers, 3, CLOCK_CHANNEL_6);
+  
+  clocks[0].Update(triggers, CLOCK_CHANNEL_1);
+  clocks[1].Update(triggers, CLOCK_CHANNEL_2);
+  clocks[2].Update(triggers, CLOCK_CHANNEL_3);
+  clocks[3].Update(triggers, CLOCK_CHANNEL_4);
+  clocks[4].Update(triggers, CLOCK_CHANNEL_5);
+  clocks[5].Update(triggers, CLOCK_CHANNEL_6);
 }
 
 void CLOCKS_handleButtonEvent(const UI::Event &event) {
