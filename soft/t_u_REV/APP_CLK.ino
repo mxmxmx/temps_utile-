@@ -67,7 +67,6 @@ enum ChannelSetting {
   CHANNEL_SETTING_TURING_PROB,
   CHANNEL_SETTING_LOGISTIC_MAP_R,
   CHANNEL_SETTING_LOGISTIC_MAP_RANGE,
-  CHANNEL_SETTING_LOGISTIC_MAP_SEED,
   CHANNEL_SETTING_SEQ,
   CHANNEL_SETTING_LAST
 };
@@ -112,6 +111,15 @@ enum CLOCKSTATES
 {
   OFF,
   ON = 4095
+};
+
+enum LOGICMODES
+{
+  AND,
+  OR,
+  XOR,
+  NAND,
+  NOR
 };
 
 class Clock_channel : public settings::SettingsBase<Clock_channel, CHANNEL_SETTING_LAST> {
@@ -217,10 +225,6 @@ public:
     return values_[CHANNEL_SETTING_LOGISTIC_MAP_RANGE];
   }
 
-  uint8_t get_logistic_map_seed() const {
-    return values_[CHANNEL_SETTING_LOGISTIC_MAP_SEED];
-  }
-
   uint16_t get_trigger_delay() const {
     return values_[CHANNEL_SETTING_DELAY];
   }
@@ -252,6 +256,7 @@ public:
     
     turing_machine_.Init();
     logistic_map_.Init();
+    logistic_map_.set_seed(analogRead(A12) + analogRead(A13));
     clock_display_.Init();
     update_enabled_settings(0);
   }
@@ -309,9 +314,9 @@ public:
         uint8_t _pulsewidth = get_pulsewidth();
         if (prev_pulsewidth_ != _pulsewidth)
            pulse_width_in_ticks_ = (float)_pulsewidth*TICKS_TO_MS;
-           // int32_t p = signed_multiply_32x16b(TICKS_TO_MS, _pulsewidth); // = * 0.6667f
-           // p = signed_saturate_rshift(p, 16, 0);
-           // pulse_width_in_ticks_  = (_pulsewidth << 4) + p;
+           // int32_t _fraction = signed_multiply_32x16b(TICKS_TO_MS, _pulsewidth); // = * 0.6667f
+           // _fraction = signed_saturate_rshift(_fraction, 16, 0);
+           // pulse_width_in_ticks_  = (_pulsewidth << 4) + _fraction;
         prev_pulsewidth_ = _pulsewidth;
         
         // limit pulsewidth, if need be:
@@ -344,6 +349,7 @@ public:
   
           case MULT:
           case LOGIC:
+          // logic happens elsewhere.
             break;
           case LFSR: {
 
@@ -402,6 +408,8 @@ public:
             }
             break;
           case SEQ:
+
+            // TO DO ... 
             break; 
           case DAC: {
 
@@ -409,71 +417,117 @@ public:
 
                switch (dac_mode()) {
 
-                case _BINARY: {
-
-                   int16_t _binary = 0;
+                  case _BINARY: {
+  
+                     int16_t _binary = 0;
+                    
+                     _binary += (TU::OUTPUTS::value(CLOCK_CHANNEL_1) & 1u) << 4;
+                     _binary += (TU::OUTPUTS::value(CLOCK_CHANNEL_2) & 1u) << 3;
+                     _binary += (TU::OUTPUTS::value(CLOCK_CHANNEL_3) & 1u) << 2;
+                     // CLOCK_CHANNEL_4 = DAC
+                     _binary += (TU::OUTPUTS::value(CLOCK_CHANNEL_5) & 1u) << 1;
+                     _binary += (TU::OUTPUTS::value(CLOCK_CHANNEL_6) & 1u);
+  
+                     _binary = (_binary << 7) - 0x800; // +/- 2048
+                     _binary = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _binary);
+                     _binary = signed_saturate_rshift(_binary, 16, 0);
+                     _out = _ZERO - _binary;
+                   }
+                   break;
+                  case _RANDOM: {
+  
+                     uint16_t _history[TU::OUTPUTS::kHistoryDepth];
+                     int16_t _rand_history;
+                     int16_t _rand_new;
+  
+                     TU::OUTPUTS::getHistory<CLOCK_CHANNEL_4>(_history);
+                     
+                     _rand_history = calc_average(_history, get_history_depth());     
+                     _rand_history = signed_multiply_32x16b((static_cast<int32_t>(get_history_weight()) * 65535U) >> 8, _rand_history);
+                     _rand_history = signed_saturate_rshift(_rand_history, 16, 0) - 0x800; // +/- 2048
+                     
+                     _rand_new = (analogRead(A12) - analogRead(A13)) + random(0xFFF) - 0x800; // +/- 2048
+                     _rand_new = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _rand_new);
+                     _rand_new = signed_saturate_rshift(_rand_new, 16, 0);
+                     _out = _ZERO - (_rand_new + _rand_history);
+                   }
+                   break;
+                  case _TURING: {
                   
-                   _binary += (TU::OUTPUTS::value(CLOCK_CHANNEL_1) & 1u) << 4;
-                   _binary += (TU::OUTPUTS::value(CLOCK_CHANNEL_2) & 1u) << 3;
-                   _binary += (TU::OUTPUTS::value(CLOCK_CHANNEL_3) & 1u) << 2;
-                   // CLOCK_CHANNEL_4 = DAC
-                   _binary += (TU::OUTPUTS::value(CLOCK_CHANNEL_5) & 1u) << 1;
-                   _binary += (TU::OUTPUTS::value(CLOCK_CHANNEL_6) & 1u);
-
-                   _binary = (_binary << 7) - 0x800; // +/- 2048
-                   _binary = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _binary);
-                   _binary = signed_saturate_rshift(_binary, 16, 0);
-                   _out = _ZERO - _binary;
-                 }
-                 break;
-                case _RANDOM: {
-
-                   uint16_t _history[TU::OUTPUTS::kHistoryDepth];
-                   int16_t _rand_history;
-                   int16_t _rand_new;
-
-                   TU::OUTPUTS::getHistory<CLOCK_CHANNEL_4>(_history);
-                   
-                   _rand_history = calc_average(_history, get_history_depth());     
-                   _rand_history = signed_multiply_32x16b((static_cast<int32_t>(get_history_weight()) * 65535U) >> 8, _rand_history);
-                   _rand_history = signed_saturate_rshift(_rand_history, 16, 0) - 0x800; // +/- 2048
-                   
-                   _rand_new =  (analogRead(A12) - analogRead(A13)) + random(0xFFF) - 0x800; // +/- 2048
-                   _rand_new = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _rand_new);
-                   _rand_new = signed_saturate_rshift(_rand_new, 16, 0);
-                   _out = _ZERO - (_rand_new + _rand_history);
-                 }
-                 break;
-                case _TURING: {
-
-                   uint8_t _length = get_turing_length();
-                   uint8_t _probability = get_turing_probability();
-                
-                   turing_machine_.set_length(_length);
-                   turing_machine_.set_probability(_probability); 
-                
-                   int16_t _shift_register = (static_cast<int16_t>(turing_machine_.Clock()) & 0xFFF) - 0x800; // +/- 2048
-                   _shift_register = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _shift_register);
-                   _shift_register = signed_saturate_rshift(_shift_register, 16, 0);
-                   _out = _ZERO - _shift_register;
-                 }
-                 break;
-                case _LOGISTIC:{
-
+                     uint8_t _length = get_turing_length();
+                     uint8_t _probability = get_turing_probability();
                   
-                 }
-                 break;
-                default:
-                 break;   
+                     turing_machine_.set_length(_length);
+                     turing_machine_.set_probability(_probability); 
+                  
+                     int16_t _shift_register = (static_cast<int16_t>(turing_machine_.Clock()) & 0xFFF) - 0x800; // +/- 2048
+                     _shift_register = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _shift_register);
+                     _shift_register = signed_saturate_rshift(_shift_register, 16, 0);
+                     _out = _ZERO - _shift_register;
+                   }
+                   break;
+                  case _LOGISTIC: {
+                    
+                     logistic_map_.set_r(get_logistic_map_r()); 
+                     
+                     int16_t _logistic_map_x = (static_cast<int16_t>(logistic_map_.Clock()) & 0xFFF) - 0x800; // +/- 2048
+                     _logistic_map_x = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _logistic_map_x);
+                     _logistic_map_x = signed_saturate_rshift(_logistic_map_x, 16, 0);
+                     _out = _ZERO - _logistic_map_x;
+                  }
+                  break;
+                 default:
+                  break;   
                }   // end DAC mode switch 
             }
             break;
-          default:
+           default:
             break; // end mode switch       
       }
       return _out; 
   }
 
+  inline void logic(CLOCK_CHANNEL clock_channel) {
+
+
+    if (LOGIC == get_mode()) {
+
+           uint16_t _out = OFF, _op1, _op2;
+
+           _op1 = logic_op1();
+           _op2 = logic_op2();
+           // this doesn't care if CHANNEL_4 is in DAC mode; but so what.
+           _op1 = TU::OUTPUTS::value(_op1);
+           _op2 = TU::OUTPUTS::value(_op2);
+
+           switch (logic_type()) {
+        
+              case AND:  
+                  _out = _op1 & _op2;
+                  break;
+              case OR:   
+                  _out = _op1 | _op2;
+                  break;
+              case XOR:  
+                  _out = _op1 ^ _op2;
+                  break;
+              case NAND: 
+                  _out = ~(_op1 & _op2);
+                  break;
+              case NOR:  
+                  _out = ~(_op1 | _op2);
+                  break;
+              default: 
+                  break;    
+          } // end switch
+
+        // write to output
+        output_state_ = _out = _out ? ON : OFF;
+        TU::OUTPUTS::set(clock_channel, _out);    
+    }  
+  }
+
+  
   inline uint16_t calc_average(const uint16_t *data, uint8_t depth) {
     uint32_t sum = 0;
     uint8_t n = depth;
@@ -497,7 +551,6 @@ public:
   ChannelSetting enabled_setting_at(int index) const {
     return enabled_settings_[index];
   }
-
 
   void update_enabled_settings(uint8_t channel_id) {
 
@@ -552,23 +605,6 @@ public:
 
     num_enabled_settings_ = settings - enabled_settings_;
   }
-
-/*
-  static bool indentSetting(ChannelSetting s) {
-    switch (s) {
-      case CHANNEL_SETTING_TURING_LENGTH:
-      case CHANNEL_SETTING_TURING_RANGE:
-      case CHANNEL_SETTING_TURING_PROB:
-      case CHANNEL_SETTING_LOGISTIC_MAP_R:
-      case CHANNEL_SETTING_LOGISTIC_MAP_RANGE:
-      case CHANNEL_SETTING_LOGISTIC_MAP_SEED:
-      case CHANNEL_SETTING_DELAY:
-        return true;
-      default: break;
-    }
-    return false;
-  }
-*/
 
 private:
   bool force_update_;
@@ -635,10 +671,9 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, TU::OUTPUTS::kHistoryDepth - 1, "hist. depth", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
   { 16, 1, 32, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 0, 255, "LFSR p(x)", NULL, settings::STORAGE_TYPE_U8 },
-  //{ 24, 1, 120, "LFSR range", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 1, 255, "logistic r", NULL, settings::STORAGE_TYPE_U8 },
   { 24, 1, 120, "logistic range", NULL, settings::STORAGE_TYPE_U8 },
-  { 128, 1, 255, "logistic seed", NULL, settings::STORAGE_TYPE_U8 }
+  { 0, 0, 1, "seq ..? ", NULL, settings::STORAGE_TYPE_U4 }  // to do ... 
 };
 
 
@@ -714,7 +749,8 @@ void CLOCKS_loop() {
 void CLOCKS_isr() {
   
   uint32_t triggers = TU::DigitalInputs::clocked();
-  
+
+  // update channels:
   clock_channel[0].Update(triggers, CLOCK_CHANNEL_1);
   clock_channel[1].Update(triggers, CLOCK_CHANNEL_2);
   clock_channel[2].Update(triggers, CLOCK_CHANNEL_3);
@@ -723,7 +759,14 @@ void CLOCKS_isr() {
   clock_channel[5].Update(triggers, CLOCK_CHANNEL_6);
   // update channel 4 last, because of the binary Sequencer thing:
   clock_channel[3].Update(triggers, CLOCK_CHANNEL_4);
- 
+
+  // apply logic ?
+  clock_channel[0].logic(CLOCK_CHANNEL_1);
+  clock_channel[1].logic(CLOCK_CHANNEL_2);
+  clock_channel[2].logic(CLOCK_CHANNEL_3);
+  clock_channel[3].logic(CLOCK_CHANNEL_4);
+  clock_channel[4].logic(CLOCK_CHANNEL_5);
+  clock_channel[5].logic(CLOCK_CHANNEL_6);
 }
 
 void CLOCKS_handleButtonEvent(const UI::Event &event) {
