@@ -12,6 +12,7 @@ namespace menu = TU::menu; // Ugh. This works for all .ino files
 
 const uint8_t MODES = 7;
 const uint8_t DAC_MODES = 4;
+const uint8_t RND_MAX = 31;
 
 const float TICKS_TO_MS = 16.6667f; // 1 tick = 60 us;
 const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
@@ -386,10 +387,10 @@ public:
             break;
           case RANDOM: {
             // mmh, is this really worth keeping?
-               uint8_t _n = rand_n();
+               int16_t _n = rand_n(); // threshold  
+               int16_t _rand_new = analogRead(A12) - analogRead(A13) + random(RND_MAX);
                
-               _out = (analogRead(A12) - analogRead(A13) + random(_n + 1)) & 1u;
-               _out = _out ? ON : OFF; // DAC needs special care ... 
+               _out = _rand_new > _n ? ON : OFF; // DAC needs special care ... 
             }
             break;
           case EUCLID: {
@@ -658,7 +659,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   //
   { 0, 0, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, 31, "LFSR tap2",NULL, settings::STORAGE_TYPE_U8 },
-  { 0, 0, 31, "rand > n", NULL, settings::STORAGE_TYPE_U8 },
+  { 0, 0, RND_MAX, "rand > n", NULL, settings::STORAGE_TYPE_U8 },
   { 3, 3, 31, "euclid: N", NULL, settings::STORAGE_TYPE_U8 },
   { 1, 1, 31, "euclid: K", NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, 31, "euclid: OFFSET", NULL, settings::STORAGE_TYPE_U8 },
