@@ -430,7 +430,7 @@ public:
 
                    uint16_t _history[TU::OUTPUTS::kHistoryDepth];
                    int16_t _rand_history;
-                   int16_t _rand_new = analogRead(A12) - analogRead(A13);
+                   int16_t _rand_new;
 
                    TU::OUTPUTS::getHistory<CLOCK_CHANNEL_4>(_history);
                    
@@ -438,7 +438,7 @@ public:
                    _rand_history = signed_multiply_32x16b((static_cast<int32_t>(get_history_weight()) * 65535U) >> 8, _rand_history);
                    _rand_history = signed_saturate_rshift(_rand_history, 16, 0) - 0x800; // +/- 2048
                    
-                   _rand_new =  random(0xFFF + _rand_new) - 0x800; // +/- 2048
+                   _rand_new =  (analogRead(A12) - analogRead(A13)) + random(0xFFF) - 0x800; // +/- 2048
                    _rand_new = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _rand_new);
                    _rand_new = signed_saturate_rshift(_rand_new, 16, 0);
                    _out = _ZERO - (_rand_new + _rand_history);
