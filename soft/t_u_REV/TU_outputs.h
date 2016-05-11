@@ -80,7 +80,7 @@ public:
     set_Output6(values_[CLOCK_CHANNEL_6]);
     
     size_t tail = history_tail_;
-    history_[0x0][tail] = values_[CLOCK_CHANNEL_4];
+    history_[CLOCK_CHANNEL_4][tail] = values_[CLOCK_CHANNEL_4];
     history_tail_ = (tail + 1) % kHistoryDepth;
   }
 
@@ -102,7 +102,7 @@ public:
 private:
   static CalibrationData *calibration_data_;
   static uint32_t values_[CLOCK_CHANNEL_LAST];
-  static uint16_t history_[NUM_DACS][kHistoryDepth];
+  static uint16_t history_[NUM_CHANNELS][kHistoryDepth];
   static volatile size_t history_tail_;
 };
 

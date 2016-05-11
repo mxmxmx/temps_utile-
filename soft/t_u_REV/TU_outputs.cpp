@@ -17,7 +17,7 @@ void OUTPUTS::Init(CalibrationData *calibration_data) {
 
   calibration_data_ = calibration_data;
   history_tail_ = 0;
-  memset(history_, 0, sizeof(uint16_t) * kHistoryDepth * NUM_DACS);
+  memset(history_, 0, sizeof(uint16_t) * kHistoryDepth * NUM_CHANNELS);
 
 }
 
@@ -26,7 +26,7 @@ OUTPUTS::CalibrationData *OUTPUTS::calibration_data_ = nullptr;
 /*static*/
 uint32_t OUTPUTS::values_[CLOCK_CHANNEL_LAST];
 /*static*/
-uint16_t OUTPUTS::history_[NUM_DACS][OUTPUTS::kHistoryDepth];
+uint16_t OUTPUTS::history_[NUM_CHANNELS][OUTPUTS::kHistoryDepth];
 /*static*/ 
 volatile size_t OUTPUTS::history_tail_;
 

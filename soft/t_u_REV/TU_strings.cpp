@@ -17,7 +17,7 @@ namespace TU {
 
   const char * const mode[] = { "MULT", "LFSR", "RAND", "EUCL", "LOGIC", "SEQ", "DAC" };
 
-  const char * const dac_modes[] = { "BIN", "RAND", "TM", "LSTC"};
+  const char * const dac_modes[] = { "BIN", "RAND", "T_M", "LSTC"};
 
   };
 };

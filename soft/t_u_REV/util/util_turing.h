@@ -62,6 +62,10 @@ public:
     length_ = length;
   }
 
+  void set_shift_register(uint32_t lfsr)  {
+    shift_register_ = lfsr;
+  }
+
   void set_probability(uint8_t probability) {
     probability_ = probability;
   }
