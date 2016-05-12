@@ -16,27 +16,42 @@ const uint8_t RND_MAX = 31;
 
 const float TICKS_TO_MS = 16.6667f; // 1 tick = 60 us;
 const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
-//const uint32_t TICKS_TO_MS = 43691; // 0.6667f for signed_multiply_32x16b
+//const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
 
 
 //  "/8", "/7", "/6", "/5", "/4", "/3", "/2", "-", "x2", "x3", "x4", "x5", "x6", "x7", "x8"
+
 const float multipliers_[] = {
    8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.5f, 0.333333f, 0.25f, 0.2f, 0.166667f, 0.142857f, 0.125f
 };
 
+/* to do
+
+- invert
+- CV
+- pattern seq
+
+*/
+
 /*
 const int32_t multipliers_[] = {
 
-  0x80000000, 0x70000000, 0x60000000, 0x50000000, 0x40000000, 0x30000000, 0x20000000, 
-  0x10000000, // = 1
-  0x8000000,  // 1/2
-  0x5555555,  // 1/3
-  0x4000000,  // 1/4
-  0x3333333,  // 1/5
-  0x2AAAAAB,  // 1/6
-  0x2492492,  // 1/7
-  0x2000000   // 1/8
-}; // float-multiplier / 8.0f * 2^31
+  0x80000000, // /8
+  0x70000000, // /7
+  0x60000000, // /6
+  0x50000000, // /5
+  0x40000000, // /4
+  0x30000000, // /3
+  0x20000000, // /2
+  0x10000000, // x1
+  0x8000000,  // x2
+  0x5555555,  // x3
+  0x4000000,  // x4
+  0x3333333,  // x5
+  0x2AAAAAB,  // x6
+  0x2492492,  // x7
+  0x2000000   // x8
+}; // = multiplier / 8.0f * 2^31
 */
 
 enum ChannelSetting {
@@ -257,7 +272,9 @@ public:
     
     turing_machine_.Init();
     logistic_map_.Init();
-    logistic_map_.set_seed(analogRead(A12) + analogRead(A13));
+    uint32_t _seed = TU::ADC::value<ADC_CHANNEL_1>() + TU::ADC::value<ADC_CHANNEL_2>() + TU::ADC::value<ADC_CHANNEL_3>() + TU::ADC::value<ADC_CHANNEL_4>();
+    randomSeed(_seed);
+    logistic_map_.set_seed(_seed);
     clock_display_.Init();
     update_enabled_settings(0);
   }
@@ -388,7 +405,7 @@ public:
           case RANDOM: {
             // mmh, is this really worth keeping?
                int16_t _n = rand_n(); // threshold  
-               int16_t _rand_new = analogRead(A12) - analogRead(A13) + random(RND_MAX);
+               int16_t _rand_new = random(RND_MAX);
                
                _out = _rand_new > _n ? ON : OFF; // DAC needs special care ... 
             }
@@ -447,7 +464,7 @@ public:
                      _rand_history = signed_multiply_32x16b((static_cast<int32_t>(get_history_weight()) * 65535U) >> 8, _rand_history);
                      _rand_history = signed_saturate_rshift(_rand_history, 16, 0) - 0x800; // +/- 2048
                      
-                     _rand_new = (analogRead(A12) - analogRead(A13)) + random(0xFFF) - 0x800; // +/- 2048
+                     _rand_new = random(0xFFF) - 0x800; // +/- 2048
                      _rand_new = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _rand_new);
                      _rand_new = signed_saturate_rshift(_rand_new, 16, 0);
                      _out = _ZERO - (_rand_new + _rand_history);
