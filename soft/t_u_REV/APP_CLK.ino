@@ -14,9 +14,8 @@ const uint8_t MODES = 7;
 const uint8_t DAC_MODES = 4;
 const uint8_t RND_MAX = 31;
 
-const float TICKS_TO_MS = 16.6667f; // 1 tick = 60 us;
 const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
-//const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
+const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
 
 
 //  "/8", "/7", "/6", "/5", "/4", "/3", "/2", "-", "x2", "x3", "x4", "x5", "x6", "x7", "x8"
@@ -28,8 +27,10 @@ const float multipliers_[] = {
 /* to do
 
 - invert
+- reset
 - CV
 - pattern seq
+- menu details
 
 */
 
@@ -259,7 +260,7 @@ public:
     trigger_delay_ = 0;
     ticks_ = 0;
     subticks_ = 0;
-    totalticks_ = 0;
+    clk_cnt__ = 0;
  
     prev_multiplier_ = 0;
     prev_pulsewidth_ = get_pulsewidth();
@@ -285,7 +286,7 @@ public:
 
   inline void Update(uint32_t triggers, CLOCK_CHANNEL clock_channel) {
 
-     ticks_++; subticks_++; totalticks_++;
+     ticks_++; subticks_++; 
      
      ChannelTriggerSource trigger_source = get_trigger_source();
      
@@ -294,7 +295,7 @@ public:
      bool _tock = false;
      uint8_t _multiplier = get_mult();
      uint8_t _mode = (clock_channel != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
-     uint16_t _output = OFF;
+     uint16_t _output = output_state_;
 
      // ext clock ? 
      if (_triggered) {
@@ -321,37 +322,38 @@ public:
 
          // if so, reset ticks: 
          subticks_ = 0x0;
+         clk_cnt__++;
          // ... and turn on ? 
          _output =  output_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
      }
 
      // on/off...?
-     if (output_state_ && _mode < DAC) { 
+     if (output_state_ && _mode != DAC) { 
 
         // recalculate pulsewidth ? 
         uint8_t _pulsewidth = get_pulsewidth();
-        if (prev_pulsewidth_ != _pulsewidth)
-           pulse_width_in_ticks_ = (float)_pulsewidth*TICKS_TO_MS;
-           // int32_t _fraction = signed_multiply_32x16b(TICKS_TO_MS, _pulsewidth); // = * 0.6667f
-           // _fraction = signed_saturate_rshift(_fraction, 16, 0);
-           // pulse_width_in_ticks_  = (_pulsewidth << 4) + _fraction;
+        if (prev_pulsewidth_ != _pulsewidth) {
+            int32_t _fraction = signed_multiply_32x16b(TICKS_TO_MS, _pulsewidth); // = * 0.6667f
+            _fraction = signed_saturate_rshift(_fraction, 16, 0);
+            pulse_width_in_ticks_  = (_pulsewidth << 4) + _fraction;
+        }
         prev_pulsewidth_ = _pulsewidth;
         
-        // limit pulsewidth, if need be:
-        if (pulse_width_in_ticks_ >= channel_frequency_in_ticks_) {
-            pulse_width_in_ticks_ = signed_multiply_32x16b(channel_frequency_in_ticks_, SCALE_PULSEWIDTH); // = * 0.9f
-            pulse_width_in_ticks_ = signed_saturate_rshift(pulse_width_in_ticks_, 16, 0);
-        }
+        // limit pulsewidth
+        if (pulse_width_in_ticks_ >= channel_frequency_in_ticks_) 
+          pulse_width_in_ticks_ = (channel_frequency_in_ticks_ >> 1) | 1u;
+          
         
         // turn off output? 
         if (subticks_ >= pulse_width_in_ticks_) 
           _output = output_state_ = OFF;
         else // keep on 
           _output = ON; 
+       
      }
 
      // DAC channel needs extra treatment / zero offset: 
-     if (clock_channel == CLOCK_CHANNEL_4 && _mode < DAC && output_state_ == OFF)
+     if (clock_channel == CLOCK_CHANNEL_4 && _mode != DAC && output_state_ == OFF)
        _output += _ZERO;
        
      // update outputs: 
@@ -421,7 +423,7 @@ public:
               if (_k >= _n ) 
                 _k = _n - 1; // should be constrained via UI
                 
-              _out = ((totalticks_ + _offset) * _k) % _n;
+              _out = ((clk_cnt__ + _offset) * _k) % _n;
               _out = (_out < _k) ? ON : OFF;
             }
             break;
@@ -630,7 +632,7 @@ private:
   uint16_t trigger_delay_;
   int32_t ticks_;
   int32_t subticks_;
-  uint32_t totalticks_;
+  uint32_t clk_cnt__;
   int32_t ext_frequency_in_ticks_;
   int32_t channel_frequency_in_ticks_;
   int32_t pulse_width_in_ticks_;
