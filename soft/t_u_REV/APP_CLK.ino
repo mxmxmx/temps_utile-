@@ -33,6 +33,7 @@ const float multipliers_[] = {
 - CV
 - pattern seq
 - menu details
+- DAC mode should have trigger src: channels 1-3, 5, and 6
 
 */
 
@@ -518,17 +519,18 @@ public:
   }
 
   inline void logic(CLOCK_CHANNEL clock_channel) {
+    
+     uint8_t mode = (clock_channel != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
 
-
-    if (LOGIC == get_mode()) {
+    if (mode) {
 
            uint16_t _out = OFF, _op1, _op2;
 
            _op1 = logic_op1();
            _op2 = logic_op2();
-           // this doesn't care if CHANNEL_4 is in DAC mode; but so what.
-           _op1 = TU::OUTPUTS::value(_op1);
-           _op2 = TU::OUTPUTS::value(_op2);
+           // this doesn't care if CHANNEL_4 is in DAC mode (= mostly always true); but so what.
+           _op1 = TU::OUTPUTS::value(_op1) & 1u;
+           _op2 = TU::OUTPUTS::value(_op2) & 1u;
 
            switch (logic_type()) {
         
