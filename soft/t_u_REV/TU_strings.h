@@ -11,6 +11,7 @@ namespace TU {
     extern const char * const channel_id[];
     extern const char * const mode[];
     extern const char * const dac_modes[];
+    extern const char * const logic_tracking[];
   };
 };
 

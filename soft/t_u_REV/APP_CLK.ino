@@ -29,6 +29,7 @@ const float multipliers_[] = {
 /* to do
 
 - invert
+- fix div/8
 - reset
 - CV
 - pattern seq
@@ -96,6 +97,7 @@ enum ChannelSetting {
   CHANNEL_SETTING_LOGIC_TYPE,
   CHANNEL_SETTING_LOGIC_OP1,
   CHANNEL_SETTING_LOGIC_OP2,
+  CHANNEL_SETTING_LOGIC_TRACK_WHAT,
   CHANNEL_SETTING_DAC_RANGE,
   CHANNEL_SETTING_DAC_MODE,
   CHANNEL_SETTING_HISTORY_WEIGHT,
@@ -227,6 +229,10 @@ public:
 
   uint8_t logic_op2() const {
     return values_[CHANNEL_SETTING_LOGIC_OP2];
+  }
+
+  uint8_t logic_tracking() const {
+    return values_[CHANNEL_SETTING_LOGIC_TRACK_WHAT];
   }
 
   uint8_t dac_range() const {
@@ -534,8 +540,14 @@ public:
      _op1 = logic_op1();
      _op2 = logic_op2();
      // this doesn't care if CHANNEL_4 is in DAC mode (= mostly always true); but so what.
-     _op1 = TU::OUTPUTS::state(_op1) & 1u;
-     _op2 = TU::OUTPUTS::state(_op2) & 1u;
+     if (logic_tracking()) {
+       _op1 = TU::OUTPUTS::state(_op1) & 1u;
+       _op2 = TU::OUTPUTS::state(_op2) & 1u;
+     }
+     else {
+       _op1 = TU::OUTPUTS::value(_op1) & 1u;
+       _op2 = TU::OUTPUTS::value(_op2) & 1;
+     }
   
      switch (logic_type()) {
   
@@ -625,6 +637,7 @@ public:
        *settings++ = CHANNEL_SETTING_LOGIC_TYPE;
        *settings++ = CHANNEL_SETTING_LOGIC_OP1;
        *settings++ = CHANNEL_SETTING_LOGIC_OP2;
+       *settings++ = CHANNEL_SETTING_LOGIC_TRACK_WHAT;
        break; 
       case SEQ:
        break;
@@ -723,6 +736,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, 4, "logic type", TU::Strings::operators, settings::STORAGE_TYPE_U8 },
   { 0, 0, NUM_CHANNELS - 1, "op_1", TU::Strings::channel_id, settings::STORAGE_TYPE_U8 },
   { 1, 0, NUM_CHANNELS - 1, "op_2", TU::Strings::channel_id, settings::STORAGE_TYPE_U8 },
+  { 0, 0, 1, "track -->", TU::Strings::logic_tracking, settings::STORAGE_TYPE_U4 },
   { 128, 1, 255, "DAC: range", NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, DAC_MODES-1, "DAC: mode", TU::Strings::dac_modes, settings::STORAGE_TYPE_U4 },
   { 0, 0, 255, "rnd hist.", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
