@@ -271,7 +271,7 @@ public:
     apply_value(CHANNEL_SETTING_TRIGGER, trigger_source);
 
     force_update_ = true;
-    output_state_ = OFF;
+    gpio_state_ = OFF;
     trigger_delay_ = 0;
     ticks_ = 0;
     subticks_ = 0;
@@ -311,7 +311,7 @@ public:
      bool _tock = false;
      uint8_t _multiplier = get_mult();
      uint8_t _mode = (clock_channel != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
-     uint16_t _output = output_state_;
+     uint16_t _output = gpio_state_;
 
      // ext clock ? 
      if (_triggered) {
@@ -339,11 +339,12 @@ public:
          subticks_ = 0x0;
          clk_cnt_++;
          // ... and turn on ? 
-         _output =  output_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
+         _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
+         TU::OUTPUTS::setState(clock_channel, _output);  
      }
 
      // on/off...?
-     if (output_state_ && _mode != DAC) { 
+     if (gpio_state_ && _mode != DAC) { 
 
         // recalculate pulsewidth ? 
         uint8_t _pulsewidth = get_pulsewidth();
@@ -361,17 +362,17 @@ public:
         
         // turn off output? 
         if (subticks_ >= pulse_width_in_ticks_) 
-          _output = output_state_ = OFF;
+          _output = gpio_state_ = OFF;
         else // keep on 
           _output = ON; 
        
      }
 
      // DAC channel needs extra treatment / zero offset: 
-     if (clock_channel == CLOCK_CHANNEL_4 && _mode != DAC && output_state_ == OFF)
+     if (clock_channel == CLOCK_CHANNEL_4 && _mode != DAC && gpio_state_ == OFF)
        _output += _ZERO;
        
-     // update outputs: 
+     // update (physical) outputs:
      TU::OUTPUTS::set(clock_channel, _output);
   } // end update
 
@@ -455,12 +456,12 @@ public:
   
                      int16_t _binary = 0;
                     
-                     _binary += (TU::OUTPUTS::value(CLOCK_CHANNEL_1) & 1u) << 4;
-                     _binary += (TU::OUTPUTS::value(CLOCK_CHANNEL_2) & 1u) << 3;
-                     _binary += (TU::OUTPUTS::value(CLOCK_CHANNEL_3) & 1u) << 2;
+                     _binary += (TU::OUTPUTS::state(CLOCK_CHANNEL_1) & 1u) << 4;
+                     _binary += (TU::OUTPUTS::state(CLOCK_CHANNEL_2) & 1u) << 3;
+                     _binary += (TU::OUTPUTS::state(CLOCK_CHANNEL_3) & 1u) << 2;
                      // CLOCK_CHANNEL_4 = DAC
-                     _binary += (TU::OUTPUTS::value(CLOCK_CHANNEL_5) & 1u) << 1;
-                     _binary += (TU::OUTPUTS::value(CLOCK_CHANNEL_6) & 1u);
+                     _binary += (TU::OUTPUTS::state(CLOCK_CHANNEL_5) & 1u) << 1;
+                     _binary += (TU::OUTPUTS::state(CLOCK_CHANNEL_6) & 1u);
   
                      _binary = (_binary << 7) - 0x800; // +/- 2048
                      _binary = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _binary);
@@ -533,8 +534,8 @@ public:
      _op1 = logic_op1();
      _op2 = logic_op2();
      // this doesn't care if CHANNEL_4 is in DAC mode (= mostly always true); but so what.
-     _op1 = TU::OUTPUTS::value(_op1) & 1u;
-     _op2 = TU::OUTPUTS::value(_op2) & 1u;
+     _op1 = TU::OUTPUTS::state(_op1) & 1u;
+     _op2 = TU::OUTPUTS::state(_op2) & 1u;
   
      switch (logic_type()) {
   
@@ -558,9 +559,10 @@ public:
     } // end op switch
 
     // write to output
-    output_state_ = _out = (_out & 1u) ? ON : OFF;
+    gpio_state_ = _out = (_out & 1u) ? ON : OFF;
     if (!_out && clock_channel == CLOCK_CHANNEL_4)
        _out += _ZERO;
+    TU::OUTPUTS::setState(clock_channel, _out); 
     TU::OUTPUTS::set(clock_channel, _out);    
   }
 
@@ -671,7 +673,7 @@ private:
   uint32_t ext_frequency_in_ticks_;
   uint32_t channel_frequency_in_ticks_;
   uint32_t pulse_width_in_ticks_;
-  uint16_t output_state_;
+  uint16_t gpio_state_;
   uint8_t prev_multiplier_;
   uint8_t prev_pulsewidth_;
   uint8_t logic_;

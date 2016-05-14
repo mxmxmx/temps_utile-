@@ -57,8 +57,21 @@ public:
     values_[channel] = USAT16(value);
   }
 
+  template <CLOCK_CHANNEL channel>
+  static void setState(uint32_t value) {
+    states_[channel] = USAT16(value);
+  }
+
+  static void setState(CLOCK_CHANNEL channel, uint32_t value) {
+    states_[channel] = USAT16(value);
+  }
+
   static uint32_t value(size_t index) {
     return values_[index];
+  }
+
+  static uint32_t state(size_t index) {
+    return states_[index];
   }
 
   static uint32_t get_zero_offset(CLOCK_CHANNEL channel) {
@@ -102,6 +115,7 @@ public:
 private:
   static CalibrationData *calibration_data_;
   static uint32_t values_[CLOCK_CHANNEL_LAST];
+  static uint32_t states_[CLOCK_CHANNEL_LAST];
   static uint16_t history_[NUM_CHANNELS][kHistoryDepth];
   static volatile size_t history_tail_;
 };

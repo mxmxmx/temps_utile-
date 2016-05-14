@@ -26,6 +26,8 @@ OUTPUTS::CalibrationData *OUTPUTS::calibration_data_ = nullptr;
 /*static*/
 uint32_t OUTPUTS::values_[CLOCK_CHANNEL_LAST];
 /*static*/
+uint32_t OUTPUTS::states_[CLOCK_CHANNEL_LAST];
+/*static*/
 uint16_t OUTPUTS::history_[NUM_CHANNELS][OUTPUTS::kHistoryDepth];
 /*static*/ 
 volatile size_t OUTPUTS::history_tail_;
