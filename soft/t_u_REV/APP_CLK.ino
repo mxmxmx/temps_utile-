@@ -276,6 +276,7 @@ public:
     ticks_ = 0;
     subticks_ = 0;
     clk_cnt_ = 0;
+    logic_ = false;
  
     prev_multiplier_ = 0;
     prev_pulsewidth_ = get_pulsewidth();
@@ -382,8 +383,10 @@ public:
       switch (mode) {
   
           case MULT:
+            break;
           case LOGIC:
           // logic happens elsewhere.
+            logic_ = true;
             break;
           case LFSR: {
 
@@ -519,47 +522,48 @@ public:
   }
 
   inline void logic(CLOCK_CHANNEL clock_channel) {
-    
-     uint8_t mode = (clock_channel != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
 
-    if (mode) {
-
-           uint16_t _out = OFF, _op1, _op2;
-
-           _op1 = logic_op1();
-           _op2 = logic_op2();
-           // this doesn't care if CHANNEL_4 is in DAC mode (= mostly always true); but so what.
-           _op1 = TU::OUTPUTS::value(_op1) & 1u;
-           _op2 = TU::OUTPUTS::value(_op2) & 1u;
-
-           switch (logic_type()) {
+     if (!logic_)
+       return;
+     logic_ = false;  
         
-              case AND:  
-                  _out = _op1 & _op2;
-                  break;
-              case OR:   
-                  _out = _op1 | _op2;
-                  break;
-              case XOR:  
-                  _out = _op1 ^ _op2;
-                  break;
-              case NAND: 
-                  _out = ~(_op1 & _op2);
-                  break;
-              case NOR:  
-                  _out = ~(_op1 | _op2);
-                  break;
-              default: 
-                  break;    
-          } // end switch
+     uint16_t _out = OFF;
+     uint8_t _op1, _op2;
+  
+     _op1 = logic_op1();
+     _op2 = logic_op2();
+     // this doesn't care if CHANNEL_4 is in DAC mode (= mostly always true); but so what.
+     _op1 = TU::OUTPUTS::value(_op1) & 1u;
+     _op2 = TU::OUTPUTS::value(_op2) & 1u;
+  
+     switch (logic_type()) {
+  
+        case AND:  
+            _out = _op1 & _op2;
+            break;
+        case OR:   
+            _out = _op1 | _op2;
+            break;
+        case XOR:  
+            _out = _op1 ^ _op2;
+            break;
+        case NAND: 
+            _out = ~(_op1 & _op2);
+            break;
+        case NOR:  
+            _out = ~(_op1 | _op2);
+            break;
+        default: 
+            break;    
+    } // end op switch
 
-        // write to output
-        output_state_ = _out = _out ? ON : OFF;
-        TU::OUTPUTS::set(clock_channel, _out);    
-    }  
+    // write to output
+    output_state_ = _out = (_out & 1u) ? ON : OFF;
+    if (!_out && clock_channel == CLOCK_CHANNEL_4)
+       _out += _ZERO;
+    TU::OUTPUTS::set(clock_channel, _out);    
   }
 
-  
   inline uint16_t calc_average(const uint16_t *data, uint8_t depth) {
     uint32_t sum = 0;
     uint8_t n = depth;
@@ -670,6 +674,7 @@ private:
   uint16_t output_state_;
   uint8_t prev_multiplier_;
   uint8_t prev_pulsewidth_;
+  uint8_t logic_;
  
   util::TuringShiftRegister turing_machine_;
   util::LogisticMap logistic_map_;
