@@ -20,9 +20,11 @@ const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE
 
 //  "/8", "/7", "/6", "/5", "/4", "/3", "/2", "-", "x2", "x3", "x4", "x5", "x6", "x7", "x8"
 
+/*
 const float multipliers_[] = {
-   8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.5f, 0.333333f, 0.25f, 0.2f, 0.166667f, 0.142857f, 0.125f
+   4.0f, 3.5f, 3.0f, 2.5f, 2.0f, 1.5f, 1.0f, 0.5f, 0.25f, 0.166666666667f, 0.125f, 0.1f, 0.08333333333f, 0.07142857142f, 0.0625f
 };
+*/
 
 /* to do
 
@@ -34,9 +36,27 @@ const float multipliers_[] = {
 
 */
 
-/*
-const int32_t multipliers_[] = {
+const uint64_t multipliers_[] = {
 
+  0x100000000,// /8
+  0xE0000000, // /7
+  0xC0000000, // /6
+  0xA0000000, // /5
+  0x80000000, // /4
+  0x60000000, // /3
+  0x40000000, // /2
+  0x20000000, // x1
+  0x10000000, // x2
+  0xAAAAAAB,  // x3
+  0x8000000,  // x4
+  0x6666666,  // x5
+  0x5555555,  // x6
+  0x4924925,  // x7
+  0x4000000   // x8
+}; // = multiplier / 8.0f * 2^32
+
+/*
+const int64_t multipliers_[] = {
   0x80000000, // /8
   0x70000000, // /7
   0x60000000, // /6
@@ -54,7 +74,6 @@ const int32_t multipliers_[] = {
   0x2000000   // x8
 }; // = multiplier / 8.0f * 2^31
 */
-
 enum ChannelSetting {
   
   // shared
@@ -265,9 +284,9 @@ public:
     prev_multiplier_ = 0;
     prev_pulsewidth_ = get_pulsewidth();
     
-    ext_frequency_in_ticks_ = get_pulsewidth() << 5; // init to something...
-    channel_frequency_in_ticks_ = get_pulsewidth() << 5;
-    pulse_width_in_ticks_ = get_pulsewidth() << 4;
+    ext_frequency_in_ticks_ = get_pulsewidth() << 15; // init to something...
+    channel_frequency_in_ticks_ = get_pulsewidth() << 15;
+    pulse_width_in_ticks_ = get_pulsewidth() << 10;
      
     _ZERO = TU::calibration_data.dac.calibrated_Zero[0x0][0x0];
     
@@ -311,11 +330,10 @@ public:
      prev_multiplier_ = _multiplier; 
 
      // recalculate channel frequency:
-     //if (_tock) 
-       // channel_frequency_in_ticks_ = multiply_32x32_rshift32_rounded(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 4; // << 1 : fract mult; << 3 : times 8
-       // or i suppose better to use multiply_u32xu32_rshift32
      if (_tock) 
-        channel_frequency_in_ticks_ = (uint32_t)(0.5f + (float)ext_frequency_in_ticks_*multipliers_[_multiplier]);
+        channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 2; // this is a tiny bit too fast, somehow...?
+     //if (_tock) 
+       // channel_frequency_in_ticks_ = (uint32_t)(0.5f + (float)ext_frequency_in_ticks_*multipliers_[_multiplier]);
         
      // time to output ? 
      if (subticks_ >= channel_frequency_in_ticks_) { 
@@ -333,7 +351,7 @@ public:
         // recalculate pulsewidth ? 
         uint8_t _pulsewidth = get_pulsewidth();
         if (prev_pulsewidth_ != _pulsewidth) {
-            int32_t _fraction = signed_multiply_32x16b(TICKS_TO_MS, _pulsewidth); // = * 0.6667f
+            int32_t _fraction = signed_multiply_32x16b(TICKS_TO_MS, static_cast<int32_t>(_pulsewidth)); // = * 0.6667f
             _fraction = signed_saturate_rshift(_fraction, 16, 0);
             pulse_width_in_ticks_  = (_pulsewidth << 4) + _fraction;
         }
@@ -630,12 +648,12 @@ private:
   bool force_update_;
   uint16_t _ZERO;
   uint16_t trigger_delay_;
-  int32_t ticks_;
-  int32_t subticks_;
+  uint32_t ticks_;
+  uint32_t subticks_;
   uint32_t clk_cnt__;
-  int32_t ext_frequency_in_ticks_;
-  int32_t channel_frequency_in_ticks_;
-  int32_t pulse_width_in_ticks_;
+  uint32_t ext_frequency_in_ticks_;
+  uint32_t channel_frequency_in_ticks_;
+  uint32_t pulse_width_in_ticks_;
   uint16_t output_state_;
   uint8_t prev_multiplier_;
   uint8_t prev_pulsewidth_;
