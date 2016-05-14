@@ -210,7 +210,7 @@ public:
   }
 
   uint8_t euclid_k() const {
-    return values_[CHANNEL_SETTING_EUCLID_N];
+    return values_[CHANNEL_SETTING_EUCLID_K];
   }
 
   uint8_t euclid_offset() const {
@@ -279,7 +279,7 @@ public:
     trigger_delay_ = 0;
     ticks_ = 0;
     subticks_ = 0;
-    clk_cnt__ = 0;
+    clk_cnt_ = 0;
  
     prev_multiplier_ = 0;
     prev_pulsewidth_ = get_pulsewidth();
@@ -340,7 +340,7 @@ public:
 
          // if so, reset ticks: 
          subticks_ = 0x0;
-         clk_cnt__++;
+         clk_cnt_++;
          // ... and turn on ? 
          _output =  output_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
      }
@@ -350,7 +350,7 @@ public:
 
         // recalculate pulsewidth ? 
         uint8_t _pulsewidth = get_pulsewidth();
-        if (prev_pulsewidth_ != _pulsewidth) {
+        if (prev_pulsewidth_ != _pulsewidth || ! subticks_) {
             int32_t _fraction = signed_multiply_32x16b(TICKS_TO_MS, static_cast<int32_t>(_pulsewidth)); // = * 0.6667f
             _fraction = signed_saturate_rshift(_fraction, 16, 0);
             pulse_width_in_ticks_  = (_pulsewidth << 4) + _fraction;
@@ -423,7 +423,7 @@ public:
             }
             break;
           case RANDOM: {
-            // mmh, is this really worth keeping?
+            
                int16_t _n = rand_n(); // threshold  
                int16_t _rand_new = random(RND_MAX);
                
@@ -437,11 +437,8 @@ public:
               _n = euclid_n();
               _k = euclid_k();
               _offset = euclid_offset();
-
-              if (_k >= _n ) 
-                _k = _n - 1; // should be constrained via UI
                 
-              _out = ((clk_cnt__ + _offset) * _k) % _n;
+              _out = ((clk_cnt_ + _offset) * _k) % _n;
               _out = (_out < _k) ? ON : OFF;
             }
             break;
@@ -650,7 +647,7 @@ private:
   uint16_t trigger_delay_;
   uint32_t ticks_;
   uint32_t subticks_;
-  uint32_t clk_cnt__;
+  uint32_t clk_cnt_;
   uint32_t ext_frequency_in_ticks_;
   uint32_t channel_frequency_in_ticks_;
   uint32_t pulse_width_in_ticks_;
