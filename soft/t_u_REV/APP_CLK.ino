@@ -102,7 +102,6 @@ enum ChannelSetting {
   CHANNEL_SETTING_TURING_LENGTH,
   CHANNEL_SETTING_TURING_PROB,
   CHANNEL_SETTING_LOGISTIC_MAP_R,
-  CHANNEL_SETTING_LOGISTIC_MAP_RANGE,
   CHANNEL_SETTING_SEQ,
   CHANNEL_SETTING_LAST
 };
@@ -255,10 +254,6 @@ public:
 
   uint8_t get_logistic_map_r() const {
     return values_[CHANNEL_SETTING_LOGISTIC_MAP_R];
-  }
-
-  uint8_t get_logistic_map_range() const {
-    return values_[CHANNEL_SETTING_LOGISTIC_MAP_RANGE];
   }
 
   uint16_t get_trigger_delay() const {
@@ -479,7 +474,7 @@ public:
                      
                      _rand_history = calc_average(_history, get_history_depth());     
                      _rand_history = signed_multiply_32x16b((static_cast<int32_t>(get_history_weight()) * 65535U) >> 8, _rand_history);
-                     _rand_history = signed_saturate_rshift(_rand_history, 16, 0) - 0x800; // +/- 2048
+                     _rand_history = signed_saturate_rshift(_rand_history, 16, 0);
                      
                      _rand_new = random(0xFFF) - 0x800; // +/- 2048
                      _rand_new = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _rand_new);
@@ -591,16 +586,16 @@ public:
 
     
     ChannelSetting *settings = enabled_settings_;
+    uint8_t mode = (channel_id != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
 
     if (channel_id != CLOCK_CHANNEL_4)
       *settings++ = CHANNEL_SETTING_MODE;
     else   
       *settings++ = CHANNEL_SETTING_MODE4;
       
-    *settings++ = CHANNEL_SETTING_PULSEWIDTH;
+    if (mode != DAC)
+      *settings++ = CHANNEL_SETTING_PULSEWIDTH;
     *settings++ = CHANNEL_SETTING_MULT;
-
-    uint8_t mode = (channel_id != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
 
     switch (mode) {
 
@@ -627,16 +622,35 @@ public:
        break;
       case DAC: 
         *settings++ = CHANNEL_SETTING_DAC_MODE; 
-        *settings++ = CHANNEL_SETTING_DAC_RANGE;    
+        *settings++ = CHANNEL_SETTING_DAC_RANGE;
+        switch (dac_mode())  {
+          
+          case _RANDOM:
+            *settings++ = CHANNEL_SETTING_HISTORY_WEIGHT;
+            *settings++ = CHANNEL_SETTING_HISTORY_DEPTH;
+            break;
+          case _TURING:
+            *settings++ = CHANNEL_SETTING_TURING_PROB;
+            break;
+          case _LOGISTIC:
+            *settings++ = CHANNEL_SETTING_LOGISTIC_MAP_R;
+            break;
+          default:
+            break;                
+        }
        break;  
       default:
        break;
-    }
-    
-    *settings++ = CHANNEL_SETTING_INVERTED;
+    } // end mode switch
+
+    if (mode != DAC)
+      *settings++ = CHANNEL_SETTING_INVERTED;
+      
     *settings++ = CHANNEL_SETTING_DELAY;
     *settings++ = CHANNEL_SETTING_TRIGGER;
-    *settings++ = CHANNEL_SETTING_RESET;
+    
+    if (mode == MULT || mode == EUCLID)
+      *settings++ = CHANNEL_SETTING_RESET;
 
     num_enabled_settings_ = settings - enabled_settings_;
   }
@@ -707,7 +721,6 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 16, 1, 32, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 0, 255, "LFSR p(x)", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 1, 255, "logistic r", NULL, settings::STORAGE_TYPE_U8 },
-  { 24, 1, 120, "logistic range", NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, 1, "seq ..? ", NULL, settings::STORAGE_TYPE_U4 }  // to do ... 
 };
 
@@ -851,6 +864,7 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
             switch (setting) {
               case CHANNEL_SETTING_MODE:
               case CHANNEL_SETTING_MODE4:  
+              case CHANNEL_SETTING_DAC_MODE:
                selected.update_enabled_settings(clocks_state.selected_channel);
                clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
                break;
@@ -887,7 +901,6 @@ void CLOCKS_rightButton() {
 void CLOCKS_leftButton() {
 
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
- 
   clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);  
 }
 
