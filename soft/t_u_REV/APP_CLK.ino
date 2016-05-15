@@ -830,7 +830,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 128, 0, 255, "LFSR p(x)", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 1, 255, "logistic r", NULL, settings::STORAGE_TYPE_U8 },
   { 65535, 1, 65535, "slots -->", NULL, settings::STORAGE_TYPE_U16 },
-  { TU::Patterns::PATTERN_ALL, 0, TU::Patterns::NUM_PATTERNS - 1, "pattern", TU::pattern_names_short, settings::STORAGE_TYPE_U8 }
+  { TU::Patterns::PATTERN_USER_0, 0, TU::Patterns::PATTERN_USER_LAST, "pattern", TU::pattern_names_short, settings::STORAGE_TYPE_U8 }
 };
 
 

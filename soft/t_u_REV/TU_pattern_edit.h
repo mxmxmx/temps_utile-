@@ -116,7 +116,7 @@ void PatternEditor<Owner>::Draw() {
     graphics.movePrintPos(weegfx::Graphics::kFixedFontW, 0);
     if (mutable_pattern_ && TU::ui.read_immediate(TU::CONTROL_BUTTON_L))
       graphics.drawBitmap8(x + 1, y + 23, kBitmapEditIndicatorW, bitmap_edit_indicators_8);
-    graphics.print(pattern_->slots[cursor_pos_], 4);
+    //graphics.print(pattern_->slots[cursor_pos_], 4); // disable until pw works
   } else {
     graphics.print((int)num_slots, 2);
   }
