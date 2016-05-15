@@ -482,7 +482,6 @@ public:
                        _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_6) & 1u);
                      }
                      ++_binary; // 32 max
-                     Serial.println(_binary);
                      
                      int16_t _dac_code = (static_cast<int16_t>(_binary) << 7) - 0x800; // +/- 2048
                      _dac_code = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _dac_code);
