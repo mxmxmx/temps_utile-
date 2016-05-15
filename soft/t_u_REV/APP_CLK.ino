@@ -34,7 +34,7 @@ const float multipliers_[] = {
 - fix div/8
 - reset
 - CV
-- pattern seq
+- pattern seq: get rid of pattern/mask confusion ; user patterns per channel
 - menu details
 - DAC mode should have trigger src: channels 1-3, 5, and 6
 
@@ -297,7 +297,20 @@ public:
   ChannelTriggerSource get_trigger_source() const {
     return static_cast<ChannelTriggerSource>(values_[CHANNEL_SETTING_TRIGGER]);
   }
+  
+  // wrappers for PatternEdit
+  void pattern_changed() {
+    force_update_ = true;
+  }
 
+  void update_pattern_mask(uint16_t mask) {
+    
+    apply_value(CHANNEL_SETTING_CLOCK_MASK, mask); 
+  }
+
+  uint16_t get_rotated_mask() const {
+    return last_mask_;
+  }
   void Init(ChannelTriggerSource trigger_source) {
     
     InitDefaults();
@@ -477,15 +490,14 @@ public:
             break;
           case SEQ: {
 
-              //update_pattern(true, 0);
-               
+              uint16_t _mask = get_mask();
               const TU::Pattern &_pattern = TU::Patterns::GetPattern(get_pattern());
               
               if (clk_cnt_ >= _pattern.num_slots)
                 clk_cnt_ = 0; // reset counter
 
               // pulse_width = _pattern.slots[clk_cnt_];
-              _out = (get_mask() >> clk_cnt_) & 1u;
+              _out = (_mask >> clk_cnt_) & 1u;
               _out = _out ? ON : OFF;
             }   
             break; 
@@ -744,20 +756,8 @@ public:
     }
   }
 
-// wrappers for PatternEdit
-  void pattern_changed() {
-    force_update_ = true;
-  }
-
-  void update_pattern_mask(uint16_t mask) {
-    
-    apply_value(CHANNEL_SETTING_CLOCK_MASK, mask); 
-  }
-
-  uint16_t get_rotated_mask() const {
-    return last_mask_;
-  }
-
+  void RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clock_channel) const;
+  
 private:
   bool force_update_;
   uint16_t _ZERO;
@@ -1080,7 +1080,20 @@ void CLOCKS_menu() {
     
 }
 
+void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clock_channel) const {
+
+  if (TU::OUTPUTS::state(clock_channel))
+    graphics.drawRect(start_x, 36, 10, 10);
+  else
+   graphics.drawRect(start_x, 36, 10, 2);
+}
+
 void CLOCKS_screensaver() {
 
-
+  clock_channel[0].RenderScreensaver(4,  CLOCK_CHANNEL_1);
+  clock_channel[1].RenderScreensaver(26, CLOCK_CHANNEL_2);
+  clock_channel[2].RenderScreensaver(48, CLOCK_CHANNEL_3);
+  clock_channel[3].RenderScreensaver(70, CLOCK_CHANNEL_4);
+  clock_channel[4].RenderScreensaver(92, CLOCK_CHANNEL_5);
+  clock_channel[5].RenderScreensaver(114,CLOCK_CHANNEL_6);
 }
