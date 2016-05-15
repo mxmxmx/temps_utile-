@@ -460,19 +460,20 @@ public:
 
                   case _BINARY: {
   
-                     int16_t _binary = 0;
-                    
-                     _binary += (TU::OUTPUTS::state(CLOCK_CHANNEL_1) & 1u) << 4;
-                     _binary += (TU::OUTPUTS::state(CLOCK_CHANNEL_2) & 1u) << 3;
-                     _binary += (TU::OUTPUTS::state(CLOCK_CHANNEL_3) & 1u) << 2;
-                     // CLOCK_CHANNEL_4 = DAC
-                     _binary += (TU::OUTPUTS::state(CLOCK_CHANNEL_5) & 1u) << 1;
-                     _binary += (TU::OUTPUTS::state(CLOCK_CHANNEL_6) & 1u);
-  
-                     _binary = (_binary << 7) - 0x800; // +/- 2048
-                     _binary = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _binary);
-                     _binary = signed_saturate_rshift(_binary, 16, 0);
-                     _out = _ZERO - _binary;
+                     uint8_t _binary = 0;
+                     // MSB .. LSB
+                     _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_1) & 1u) << 4;
+                     _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_2) & 1u) << 3;
+                     _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_3) & 1u) << 2;
+                     _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_5) & 1u) << 1;
+                     _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_6) & 1u);
+                     ++_binary; // 32 max
+                     
+                     int16_t _dac_code = (static_cast<int16_t>(_binary) << 7) - 0x800; // +/- 2048
+                     _dac_code = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _dac_code);
+                     _dac_code = signed_saturate_rshift(_dac_code, 16, 0);
+                     
+                     _out = _ZERO - _dac_code;
                    }
                    break;
                   case _RANDOM: {
