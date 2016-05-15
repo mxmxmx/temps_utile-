@@ -100,6 +100,7 @@ enum ChannelSetting {
   CHANNEL_SETTING_LOGIC_TRACK_WHAT,
   CHANNEL_SETTING_DAC_RANGE,
   CHANNEL_SETTING_DAC_MODE,
+  CHANNEL_SETTING_DAC_TRACK_WHAT,
   CHANNEL_SETTING_HISTORY_WEIGHT,
   CHANNEL_SETTING_HISTORY_DEPTH,
   CHANNEL_SETTING_TURING_LENGTH,
@@ -241,6 +242,10 @@ public:
 
   uint8_t dac_mode() const {
     return values_[CHANNEL_SETTING_DAC_MODE];
+  }
+
+  uint8_t binary_tracking() const {
+    return values_[CHANNEL_SETTING_DAC_TRACK_WHAT];
   }
 
   uint8_t get_history_weight() const {
@@ -462,12 +467,22 @@ public:
   
                      uint8_t _binary = 0;
                      // MSB .. LSB
-                     _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_1) & 1u) << 4;
-                     _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_2) & 1u) << 3;
-                     _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_3) & 1u) << 2;
-                     _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_5) & 1u) << 1;
-                     _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_6) & 1u);
+                     if (binary_tracking()) {
+                       _binary |= (TU::OUTPUTS::state(CLOCK_CHANNEL_1) & 1u) << 4;
+                       _binary |= (TU::OUTPUTS::state(CLOCK_CHANNEL_2) & 1u) << 3;
+                       _binary |= (TU::OUTPUTS::state(CLOCK_CHANNEL_3) & 1u) << 2;
+                       _binary |= (TU::OUTPUTS::state(CLOCK_CHANNEL_5) & 1u) << 1;
+                       _binary |= (TU::OUTPUTS::state(CLOCK_CHANNEL_6) & 1u);
+                     }
+                     else {
+                       _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_1) & 1u) << 4;
+                       _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_2) & 1u) << 3;
+                       _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_3) & 1u) << 2;
+                       _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_5) & 1u) << 1;
+                       _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_6) & 1u);
+                     }
                      ++_binary; // 32 max
+                     Serial.println(_binary);
                      
                      int16_t _dac_code = (static_cast<int16_t>(_binary) << 7) - 0x800; // +/- 2048
                      _dac_code = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _dac_code);
@@ -541,7 +556,7 @@ public:
      _op1 = logic_op1();
      _op2 = logic_op2();
      // this doesn't care if CHANNEL_4 is in DAC mode (= mostly always true); but so what.
-     if (logic_tracking()) {
+     if (!logic_tracking()) {
        _op1 = TU::OUTPUTS::state(_op1) & 1u;
        _op2 = TU::OUTPUTS::state(_op2) & 1u;
      }
@@ -646,7 +661,10 @@ public:
         *settings++ = CHANNEL_SETTING_DAC_MODE; 
         *settings++ = CHANNEL_SETTING_DAC_RANGE;
         switch (dac_mode())  {
-          
+
+          case _BINARY:
+            *settings++ = CHANNEL_SETTING_DAC_TRACK_WHAT;
+            break;
           case _RANDOM:
             *settings++ = CHANNEL_SETTING_HISTORY_WEIGHT;
             *settings++ = CHANNEL_SETTING_HISTORY_DEPTH;
@@ -740,6 +758,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, 1, "track -->", TU::Strings::logic_tracking, settings::STORAGE_TYPE_U4 },
   { 128, 1, 255, "DAC: range", NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, DAC_MODES-1, "DAC: mode", TU::Strings::dac_modes, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 1, "track -->", TU::Strings::binary_tracking, settings::STORAGE_TYPE_U4 },
   { 0, 0, 255, "rnd hist.", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
   { 0, 0, TU::OUTPUTS::kHistoryDepth - 1, "hist. depth", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
   { 16, 1, 32, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },

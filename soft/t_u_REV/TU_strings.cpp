@@ -21,5 +21,7 @@ namespace TU {
   
   const char * const logic_tracking[] = { "logic", "P_W"};
 
+  const char * const binary_tracking[] = { "P_W", "logic"};
+
   };
 };
