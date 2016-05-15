@@ -1085,7 +1085,7 @@ void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clo
   if (TU::OUTPUTS::state(clock_channel))
     graphics.drawRect(start_x, 36, 10, 10);
   else
-   graphics.drawRect(start_x, 36, 10, 2);
+   graphics.drawRect(start_x, 44, 10, 2);
 }
 
 void CLOCKS_screensaver() {
