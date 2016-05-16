@@ -30,13 +30,20 @@ const float multipliers_[] = {
 
 /* to do
 
-- invert
-- fix div/8
-- reset
-- CV
-- pattern seq: get rid of pattern/mask confusion ; user patterns per channel
-- menu details
-- DAC mode should have trigger src: channels 1-3, 5, and 6
+- invert (? or maybe just get rid of it)
+- something's not quite right with LFSR mode
+- fix div/8 (and expand to div/16)
+- implement reset
+- implement CV 
+- pattern seq: 
+    - get rid of pattern/mask confusion (ie "mask" = pattern; pattern = pulsewidth pattern)
+    - user patterns per channel
+    - implement pulsewidth patterns
+- menu details: 
+    - constrain interdependent values
+    - display clocks, patterns, etc
+- DAC mode should have additional/internal trigger sources: channels 1-3, 5, and 6
+- make screen saver nice ...
 
 */
 
@@ -87,7 +94,7 @@ enum ChannelSetting {
   CHANNEL_SETTING_RESET,
   CHANNEL_SETTING_MULT,
   CHANNEL_SETTING_PULSEWIDTH,
-  CHANNEL_SETTING_INVERTED,
+  //CHANNEL_SETTING_INVERTED, disable, for the time being
   CHANNEL_SETTING_DELAY,
   // mode specifics
   CHANNEL_SETTING_LFSR_TAP1,
@@ -186,11 +193,12 @@ public:
   uint16_t get_pulsewidth() const {
     return values_[CHANNEL_SETTING_PULSEWIDTH];
   }
-
+  /*
   uint8_t get_inverted() const {
     return values_[CHANNEL_SETTING_INVERTED];
   }
-
+  */
+  
   uint16_t get_delay() const {
     return values_[CHANNEL_SETTING_DELAY];
   }
@@ -728,13 +736,13 @@ public:
        break;
     } // end mode switch
 
-    if (mode != DAC)
-      *settings++ = CHANNEL_SETTING_INVERTED;
+    //if (mode != DAC)
+      //*settings++ = CHANNEL_SETTING_INVERTED;
       
     *settings++ = CHANNEL_SETTING_DELAY;
     *settings++ = CHANNEL_SETTING_TRIGGER;
     
-    if (mode == MULT || mode == EUCLID)
+    if (mode == MULT || mode == EUCLID || mode == SEQ)
       *settings++ = CHANNEL_SETTING_RESET;
 
     num_enabled_settings_ = settings - enabled_settings_;
@@ -805,10 +813,10 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, MODES - 2, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
   { 0, 0, MODES - 1, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
   { CHANNEL_TRIGGER_TR1, 0, CHANNEL_TRIGGER_LAST - 1, "clock src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
-  { CHANNEL_TRIGGER_TR2 + 1, 0, CHANNEL_TRIGGER_LAST - 1, "reset", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
+  { CHANNEL_TRIGGER_TR2 + 1, 0, CHANNEL_TRIGGER_LAST - 1, "reset src", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
   { 7, 0, 14, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
   { 10, 1, 255, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
-  { 0, 0, 1, "invert", TU::Strings::no_yes, settings::STORAGE_TYPE_U4 },
+  //{ 0, 0, 1, "invert", TU::Strings::no_yes, settings::STORAGE_TYPE_U4 },
   { 0, 0, 8, "clock delay", clock_delays, settings::STORAGE_TYPE_U4 },
   //
   { 0, 0, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
@@ -829,8 +837,8 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 16, 1, 32, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 0, 255, "LFSR p(x)", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 1, 255, "logistic r", NULL, settings::STORAGE_TYPE_U8 },
-  { 65535, 1, 65535, "slots -->", NULL, settings::STORAGE_TYPE_U16 },
-  { TU::Patterns::PATTERN_USER_0, 0, TU::Patterns::PATTERN_USER_LAST, "pattern", TU::pattern_names_short, settings::STORAGE_TYPE_U8 }
+  { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 },
+  { TU::Patterns::PATTERN_USER_0, 0, TU::Patterns::PATTERN_USER_LAST, "sequence #", TU::pattern_names_short, settings::STORAGE_TYPE_U8 }
 };
 
 
@@ -1001,11 +1009,23 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
 }
 
 void CLOCKS_topButton() {
+  // presumably, some better use could be found for those buttons ... (CV menu?)
+  int selected_channel = clocks_state.selected_channel + 1;
+  CONSTRAIN(selected_channel, 0, NUM_CHANNELS-1);
+  clocks_state.selected_channel = selected_channel;
 
+  Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
 }
 
 void CLOCKS_lowerButton() {
 
+  int selected_channel = clocks_state.selected_channel - 1;
+  CONSTRAIN(selected_channel, 0, NUM_CHANNELS-1);
+  clocks_state.selected_channel = selected_channel;
+
+  Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
 }
 
 void CLOCKS_rightButton() {
@@ -1067,7 +1087,7 @@ void CLOCKS_menu() {
     switch (setting) {
       
       case CHANNEL_SETTING_CLOCK_MASK:
-        menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, 1233, 2);
+        menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_mask(), TU::Patterns::GetPattern(channel.get_pattern()).num_slots);
         list_item.DrawNoValue<false>(value, attr);
         break;
       default:

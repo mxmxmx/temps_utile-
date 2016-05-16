@@ -19,9 +19,9 @@ namespace TU {
 
   const char * const dac_modes[] = { "BIN", "RAND", "T_M", "LSTC"};
   
-  const char * const logic_tracking[] = { "logic", "P_W"};
+  const char * const logic_tracking[] = { "state", "P_W"};
 
-  const char * const binary_tracking[] = { "P_W", "logic"};
+  const char * const binary_tracking[] = { "P_W", "state"};
 
   };
 };
