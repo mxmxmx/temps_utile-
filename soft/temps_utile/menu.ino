@@ -428,6 +428,8 @@ void calibrate_main() {
                  }
                  else {        
                      UI_MODE = _SCREENSAVER;
+                     save_settings();
+                     Serial.println("saved..");
                      LAST_BUT = millis();
                  }
              }
