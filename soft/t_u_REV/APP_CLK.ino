@@ -49,21 +49,21 @@ const float multipliers_[] = {
 
 const uint64_t multipliers_[] = {
 
-  0x100000000,// /8
-  0xE0000000, // /7
-  0xC0000000, // /6
-  0xA0000000, // /5
-  0x80000000, // /4
-  0x60000000, // /3
-  0x40000000, // /2
-  0x20000000, // x1
-  0x10000000, // x2
-  0xAAAAAAB,  // x3
-  0x8000000,  // x4
+  0xFFFFFFFF, // /8
+  0xDFFFFFFF, // /7
+  0xBFFFFFFF, // /6
+  0x9FFFFFFF, // /5
+  0x7FFFFFFF, // /4
+  0x5FFFFFFF, // /3
+  0x3FFFFFFF, // /2
+  0x1FFFFFFF, // x1
+  0xFFFFFFF,  // x2
+  0xAAAAAAA,  // x3
+  0x7FFFFFF,  // x4
   0x6666666,  // x5
   0x5555555,  // x6
-  0x4924925,  // x7
-  0x4000000   // x8
+  0x4924924,  // x7
+  0x3FFFFFF   // x8
 }; // = multiplier / 8.0f * 2^32
 
 /*
@@ -387,6 +387,8 @@ public:
      // recalculate channel frequency:
      if (_tock) 
         channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 3; // this isn't entirely right.
+     if (!channel_frequency_in_ticks_)  
+        channel_frequency_in_ticks_ = 1u; 
      //if (_tock) 
        // channel_frequency_in_ticks_ = (uint32_t)(0.5f + (float)ext_frequency_in_ticks_*multipliers_[_multiplier]);
         
