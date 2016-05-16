@@ -418,11 +418,12 @@ uint8_t find_prev_slot(struct params* _p, int16_t _param, uint16_t _limit) {
 }  
    
 void init_menu(void) {
-  
+
+      ACTIVE_MODE = allChannels[ACTIVE_CHANNEL].mode;
       encoder[RIGHT].setPos(allChannels[ACTIVE_CHANNEL].param[ACTIVE_MODE][ACTIVE_MENU_ITEM-2]);
       MENU_REDRAW = 1;  
-      MODE_SELECTOR = INIT_MODE; 
-      encoder[LEFT].setPos(INIT_MODE);      
+      MODE_SELECTOR = ACTIVE_MODE; 
+      encoder[LEFT].setPos(ACTIVE_MODE);      
 }
 
 void update_channel_params(void) {

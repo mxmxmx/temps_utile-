@@ -51,11 +51,10 @@ uint8_t INIT_MODE = 2; // initial mode: 2 => mult/div
 
 uint16_t DAC_OUT = 0;
 const uint16_t _ON = 4000;
-const uint16_t _ZERO[2] = {1800, 0}; // DAC 0.0V
 const uint16_t DAC_CHANNEL = 3;
-
 const uint16_t PULSE_WIDTH = 0;
 
+uint16_t _ZERO[2] = {1650, 0}; // DAC 0.0V
 
 extern uint16_t MENU_REDRAW;
 
@@ -139,6 +138,7 @@ void clocks_store(struct settings_data *settings) {
   settings->clk_src = (uint8_t)CLK_SRC;
   settings->bpm = BPM;
   settings->bpm_sel = (uint8_t)BPM_SEL;
+  settings->zero_offset = _ZERO[0];
 
   for (int i  = 0; i < 6; i++) {
     clocks_store_channel(&allChannels[i], &settings->channels[i]);
@@ -152,6 +152,7 @@ void clocks_restore(const struct settings_data *settings) {
   BPM = settings->bpm;
   BPM_SEL = settings->bpm_sel;
   bpm_set_microseconds();
+  _ZERO[0] = settings->zero_offset;
 
   for (int i  = 0; i < 6; i++) {
     clocks_restore_channel(&allChannels[i], &settings->channels[i]);

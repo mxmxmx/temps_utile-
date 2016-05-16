@@ -48,8 +48,9 @@ enum MODE_ {
 enum CALIB_ {
   
   _CHECK_CV,
-  _CHECK_CLK
-
+  _CHECK_DAC,
+  _CHECK_CLK,
+  _CALIBRATE_LAST
 };
 
 /* ----------- menu strings ---------------- */
@@ -402,6 +403,9 @@ void calibrate_main() {
         u8g.setColorIndex(1);
         u8g.setFontRefHeightText();
         u8g.setFontPosTop();
+        Serial.print("DAC offset: ");
+        Serial.println(_ZERO[0]);
+        encoder[RIGHT].setPos(_ZERO[0]);
        
         while(UI_MODE == _CALIBRATE) {
          
@@ -418,7 +422,7 @@ void calibrate_main() {
              
              if (millis() - LAST_BUT > DEBOUNCE && !digitalReadFast(butR)) {
                
-                 if (CALIB_MENU == _CHECK_CV) {
+                 if (CALIB_MENU < _CALIBRATE_LAST) {
                      CALIB_MENU++;
                      LAST_BUT = millis();
                  }
@@ -447,11 +451,25 @@ void calibrate(){
        u8g.drawStr(10, 55, "CV4 -- >");
        u8g.setPrintPos(80,55);
        u8g.print(CV[4]);    
-  }    
+  }
+  else if (CALIB_MENU == _CHECK_DAC) {
+       u8g.drawStr(10, 10, "DAC -- > 0.0v");
+       u8g.drawStr(10, 25, "adjust code:"); 
+       u8g.setPrintPos(85,25);
+       uint16_t _zero = encoder[RIGHT].pos(); 
+       u8g.print(_zero);
+       analogWrite(A14, _zero);
+       _ZERO[0] = _zero;    
+       u8g.drawStr(10, 55, "... use R encoder"); 
+  }
   else if (CALIB_MENU == _CHECK_CLK) {
     
        u8g.drawStr(10, 25, "CLK2 -- >");
        if (CALIB_CLK)  u8g.drawStr(80, 25, "OFF");
        else  u8g.drawStr(80, 25, "CLK");
-  }  
+  } 
+  else {
+
+      u8g.drawStr(10, 25, "... done");
+  }
 }
