@@ -319,6 +319,10 @@ public:
   uint16_t get_rotated_mask() const {
     return last_mask_;
   }
+
+  uint16_t get_clock_cnt() const {
+    return clk_cnt_;
+  }
   void Init(ChannelTriggerSource trigger_source) {
     
     InitDefaults();
@@ -382,7 +386,7 @@ public:
 
      // recalculate channel frequency:
      if (_tock) 
-        channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 2; // this is a tiny bit too fast, somehow...?
+        channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 3; // this isn't entirely right.
      //if (_tock) 
        // channel_frequency_in_ticks_ = (uint32_t)(0.5f + (float)ext_frequency_in_ticks_*multipliers_[_multiplier]);
         
@@ -503,7 +507,6 @@ public:
               
               if (clk_cnt_ >= _pattern.num_slots)
                 clk_cnt_ = 0; // reset counter
-
               // pulse_width = _pattern.slots[clk_cnt_];
               _out = (_mask >> clk_cnt_) & 1u;
               _out = _out ? ON : OFF;
