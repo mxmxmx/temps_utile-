@@ -42,7 +42,8 @@ public:
   };
 
   static void Init(CalibrationData *calibration_data);
-
+  static void SPI_Init();
+  
   static void set_all(uint32_t value) {
     for (int i = CLOCK_CHANNEL_1; i < CLOCK_CHANNEL_LAST; ++i)
       values_[i] = USAT16(value);

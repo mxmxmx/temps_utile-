@@ -24,7 +24,6 @@
 // Main startup/loop for T_U firmware; adapted from o_C
 
 #include <ADC.h>
-#include <spi4teensy3_14.h>
 #include <EEPROM.h>
 
 #include "TU_apps.h"
@@ -97,8 +96,9 @@ void FASTRUN CORE_timer_ISR() {
 
 void setup() {
   
+  delay(10);
   NVIC_SET_PRIORITY(IRQ_PORTB, 0); // TR1 = 0 = PTB16
-  spi4teensy3::init();
+  TU::OUTPUTS::SPI_Init();
 
   delay(500);
   SERIAL_PRINTLN("* t_u BOOTING...");

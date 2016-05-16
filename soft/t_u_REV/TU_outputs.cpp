@@ -21,6 +21,40 @@ void OUTPUTS::Init(CalibrationData *calibration_data) {
 
 }
 
+void OUTPUTS::SPI_Init() {
+
+  uint32_t ctar0, ctar1;
+
+  SIM_SCGC6 |= SIM_SCGC6_SPI0;
+  CORE_PIN11_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2);
+  CORE_PIN14_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2);
+  
+  ctar0 = SPI_CTAR_DBR; // default
+  #if   F_BUS == 60000000
+      ctar0 = (SPI_CTAR_PBR(0) | SPI_CTAR_BR(0) | SPI_CTAR_DBR); //(60 / 2) * ((1+1)/2) = 30 MHz
+  #elif F_BUS == 48000000
+      ctar0 = (SPI_CTAR_PBR(0) | SPI_CTAR_BR(0) | SPI_CTAR_DBR); //(48 / 2) * ((1+1)/2) = 24 MHz          
+  #endif
+  ctar1 = ctar0;
+  ctar0 |= SPI_CTAR_FMSZ(7);
+  ctar1 |= SPI_CTAR_FMSZ(15);
+  SPI0_MCR = SPI_MCR_MSTR | SPI_MCR_PCSIS(0x1F);
+  SPI0_MCR |= SPI_MCR_CLR_RXF | SPI_MCR_CLR_TXF;
+
+  // update ctars
+  uint32_t mcr = SPI0_MCR;
+  if (mcr & SPI_MCR_MDIS) {
+    SPI0_CTAR0 = ctar0;
+    SPI0_CTAR1 = ctar1;
+  } else {
+    SPI0_MCR = mcr | SPI_MCR_MDIS | SPI_MCR_HALT;
+    SPI0_CTAR0 = ctar0;
+    SPI0_CTAR1 = ctar1;
+    SPI0_MCR = mcr;
+  }
+}
+
+
 /*static*/
 OUTPUTS::CalibrationData *OUTPUTS::calibration_data_ = nullptr;
 /*static*/
