@@ -43,6 +43,7 @@ const float multipliers_[] = {
     - constrain interdependent values
     - display clocks, patterns, etc
 - DAC mode should have additional/internal trigger sources: channels 1-3, 5, and 6
+- fix screensaver DAC channel [DAC mode]
 - make screen saver nice ...
 
 */
@@ -820,7 +821,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { CHANNEL_TRIGGER_TR1, 0, CHANNEL_TRIGGER_LAST - 1, "clock src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
   { CHANNEL_TRIGGER_TR2 + 1, 0, CHANNEL_TRIGGER_LAST - 1, "reset src", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
   { 7, 0, 14, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
-  { 10, 1, 255, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
+  { 25, 1, 255, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
   //{ 0, 0, 1, "invert", TU::Strings::no_yes, settings::STORAGE_TYPE_U4 },
   { 0, 0, 8, "clock delay", clock_delays, settings::STORAGE_TYPE_U4 },
   //
@@ -967,6 +968,8 @@ void CLOCKS_handleButtonEvent(const UI::Event &event) {
   } else {
     if (TU::CONTROL_BUTTON_L == event.control)
       CLOCKS_leftButtonLong();
+    else if (TU::CONTROL_BUTTON_DOWN == event.control)
+      CLOCKS_lowerButtonLong();  
   }
 }
 
@@ -1062,6 +1065,13 @@ void CLOCKS_leftButtonLong() {
   
 }
 
+void CLOCKS_lowerButtonLong() {
+
+  
+  
+}
+
+
 void CLOCKS_menu() {
 
   menu::SixTitleBar::Draw();
@@ -1107,10 +1117,25 @@ void CLOCKS_menu() {
 
 void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clock_channel) const {
 
-  if (TU::OUTPUTS::state(clock_channel))
+  uint16_t _square, _frame, _mode = get_mode();
+
+  _square = TU::OUTPUTS::state(clock_channel);
+  _frame  = TU::OUTPUTS::value(clock_channel);
+
+  // DAC needs special treatment:
+  if (clock_channel == CLOCK_CHANNEL_4 && _mode < DAC) {
+    _square = _square == ON ? 0x1 : 0x0;
+    _frame = _frame == ON ? 0x1 : 0x0;
+  }
+  // draw little square thingies ..     
+  if (_square && _frame) {
+    graphics.drawRect(start_x, 36, 10, 10);
+    graphics.drawFrame(start_x-2, 34, 14, 14);
+  }
+  else if (_square)
     graphics.drawRect(start_x, 36, 10, 10);
   else
-   graphics.drawRect(start_x, 44, 10, 2);
+   graphics.drawRect(start_x+3, 39, 4, 4);
 }
 
 void CLOCKS_screensaver() {
