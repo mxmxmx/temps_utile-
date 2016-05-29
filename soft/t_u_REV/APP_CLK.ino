@@ -31,12 +31,12 @@ const float multipliers_[] = {
 /* to do
 
 - invert (? or maybe just get rid of it)
-- something's not quite right with LFSR mode
-- fix div/8 (and expand to div/16)
-- implement reset
+- something's not quite right with LFSR mode [?]
+- expand to div/16
+- implement reset, alt trigger source thing doesn't work?
 - implement CV 
 - pattern seq: 
-    - get rid of pattern/mask confusion (ie "mask" = pattern; pattern = pulsewidth pattern)
+    - get rid of pattern/mask terminology confusion (ie "mask" = pattern; pattern = pulsewidth pattern)
     - user patterns per channel
     - implement pulsewidth patterns
 - menu details: 
@@ -335,6 +335,7 @@ public:
     ticks_ = 0;
     subticks_ = 0;
     clk_cnt_ = 0;
+    div_cnt_ = 0;
     logic_ = false;
  
     prev_multiplier_ = 0;
@@ -367,7 +368,7 @@ public:
      
      bool _continous = CHANNEL_TRIGGER_CONTINUOUS == trigger_source;
      bool _triggered = !_continous && (triggers & DIGITAL_INPUT_MASK(trigger_source - CHANNEL_TRIGGER_TR1));
-     bool _tock = false;
+     bool _tock = false, _sync = false;
      uint8_t _multiplier = get_mult();
      uint8_t _mode = (clock_channel != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
      uint16_t _output = gpio_state_;
@@ -376,8 +377,19 @@ public:
      if (_triggered) {
         // new frequency; and reset: 
         ext_frequency_in_ticks_ = ticks_;
-        ticks_ = 0;  
-        _tock = true;  
+        ticks_ = 0;    // reset ticks 
+        _tock = true;  // update channel frequency 
+   
+        if (_multiplier > 7)     // multiply .. always resync
+          _sync = true;
+        else if (div_cnt_ < 1) { // devide   .. 
+          _sync = true;
+          div_cnt_ = 7 - _multiplier; // reset: multiplier 0 = 1/8; multiplier 1 = 1/7, etc .. multiplier 6 = 1/2      
+        }
+        else {
+          div_cnt_--;
+          subticks_ = 0x0; // preempt double triggers
+        }
      }
      
      // new multiplier ?
@@ -387,18 +399,17 @@ public:
 
      // recalculate channel frequency:
      if (_tock) 
-        channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 3; // this isn't entirely right.
+        channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 3; 
      if (!channel_frequency_in_ticks_)  
         channel_frequency_in_ticks_ = 1u; 
-     //if (_tock) 
-       // channel_frequency_in_ticks_ = (uint32_t)(0.5f + (float)ext_frequency_in_ticks_*multipliers_[_multiplier]);
-        
-     // time to output ? 
-     if (subticks_ >= channel_frequency_in_ticks_) { 
+
+     // time to output?
+     if (_sync || subticks_ >= channel_frequency_in_ticks_) { 
 
          // if so, reset ticks: 
          subticks_ = 0x0;
          clk_cnt_++;
+          
          // ... and turn on ? 
          _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
          TU::OUTPUTS::setState(clock_channel, _output);  
@@ -613,6 +624,13 @@ public:
      _op1 = logic_op1();
      _op2 = logic_op2();
      // this doesn't care if CHANNEL_4 is in DAC mode (= mostly always true); but so what.
+     /* // so perhaps then -
+      _op1 = TU::OUTPUTS::state(_op1);
+      if (mode < DAC)
+        _op &= 1u; 
+      else
+        _op1 = _op1 < ZERO ? 0x0 : 0x1;
+     */
      if (!logic_tracking()) {
        _op1 = TU::OUTPUTS::state(_op1) & 1u;
        _op2 = TU::OUTPUTS::state(_op2) & 1u;
@@ -779,6 +797,7 @@ private:
   uint32_t ticks_;
   uint32_t subticks_;
   uint32_t clk_cnt_;
+  int16_t  div_cnt_;
   uint32_t ext_frequency_in_ticks_;
   uint32_t channel_frequency_in_ticks_;
   uint32_t pulse_width_in_ticks_;
@@ -1135,7 +1154,7 @@ void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clo
   else if (_square)
     graphics.drawRect(start_x, 36, 10, 10);
   else
-   graphics.drawRect(start_x+3, 39, 4, 4);
+    graphics.drawRect(start_x+3, 39, 4, 4);
 }
 
 void CLOCKS_screensaver() {
