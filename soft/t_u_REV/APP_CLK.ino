@@ -30,9 +30,10 @@ const float multipliers_[] = {
 
 /* to do
 
+- fix clock drift; make ticks global
 - invert (? or maybe just get rid of it)
 - something's not quite right with LFSR mode
-- fix div/8 (and expand to div/16)
+- expand to div/16)
 - implement reset
 - implement CV 
 - pattern seq: 
