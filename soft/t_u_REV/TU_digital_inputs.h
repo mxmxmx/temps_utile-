@@ -32,7 +32,7 @@ public:
 
   // @return mask if pin clocked since last call and reset state
   template <DigitalInput input> static inline uint32_t clocked() {
-    // This leaves a very small window where a ::clTUk() might interrupt.
+    // This leaves a very small window where a ::clock() might interrupt.
     // With LDREX/STREX it should be possible to close the window, but maybe
     // not necessary
     uint32_t clk = clocked_[input];

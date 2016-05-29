@@ -19,6 +19,8 @@ const uint8_t RND_MAX = 31;
 const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
 const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
 
+uint32_t ticks_src1 = 0;
+uint32_t ticks_src2 = 0;
 
 //  "/8", "/7", "/6", "/5", "/4", "/3", "/2", "-", "x2", "x3", "x4", "x5", "x6", "x7", "x8"
 
@@ -33,7 +35,7 @@ const float multipliers_[] = {
 - fix clock drift; make ticks global
 - invert (? or maybe just get rid of it)
 - something's not quite right with LFSR mode
-- expand to div/16)
+- expand to div/16
 - implement reset
 - implement CV 
 - pattern seq: 
@@ -68,36 +70,17 @@ const uint64_t multipliers_[] = {
   0x3FFFFFF   // x8
 }; // = multiplier / 8.0f * 2^32
 
-/*
-const int64_t multipliers_[] = {
-  0x80000000, // /8
-  0x70000000, // /7
-  0x60000000, // /6
-  0x50000000, // /5
-  0x40000000, // /4
-  0x30000000, // /3
-  0x20000000, // /2
-  0x10000000, // x1
-  0x8000000,  // x2
-  0x5555555,  // x3
-  0x4000000,  // x4
-  0x3333333,  // x5
-  0x2AAAAAB,  // x6
-  0x2492492,  // x7
-  0x2000000   // x8
-}; // = multiplier / 8.0f * 2^31
-*/
 enum ChannelSetting {
   
   // shared
   CHANNEL_SETTING_MODE,
   CHANNEL_SETTING_MODE4,
-  CHANNEL_SETTING_TRIGGER,
+  CHANNEL_SETTING_CLOCK,
   CHANNEL_SETTING_RESET,
   CHANNEL_SETTING_MULT,
   CHANNEL_SETTING_PULSEWIDTH,
   //CHANNEL_SETTING_INVERTED, disable, for the time being
-  CHANNEL_SETTING_DELAY,
+  //CHANNEL_SETTING_DELAY,
   // mode specifics
   CHANNEL_SETTING_LFSR_TAP1,
   CHANNEL_SETTING_LFSR_TAP2,
@@ -125,9 +108,11 @@ enum ChannelSetting {
 enum ChannelTriggerSource {
   CHANNEL_TRIGGER_TR1,
   CHANNEL_TRIGGER_TR2,
-  CHANNEL_TRIGGER_CONTINUOUS,
+  CHANNEL_TRIGGER_NONE,
   CHANNEL_TRIGGER_LAST
 };
+
+uint64_t ext_frequency[CHANNEL_TRIGGER_LAST];
 
 enum ChannelCV_Mapping {
   CHANNEL_CV_MAPPING_CV1,
@@ -184,8 +169,8 @@ public:
     return values_[CHANNEL_SETTING_MODE4];
   }
 
-  uint8_t get_clock_src() const {
-    return values_[CHANNEL_SETTING_TRIGGER];
+  uint8_t get_clock_source() const {
+    return values_[CHANNEL_SETTING_CLOCK];
   }
   
   int8_t get_mult() const {
@@ -195,15 +180,16 @@ public:
   uint16_t get_pulsewidth() const {
     return values_[CHANNEL_SETTING_PULSEWIDTH];
   }
+  
   /*
   uint8_t get_inverted() const {
     return values_[CHANNEL_SETTING_INVERTED];
   }
-  */
   
   uint16_t get_delay() const {
     return values_[CHANNEL_SETTING_DELAY];
   }
+  */
 
   uint8_t get_reset() const {
     return values_[CHANNEL_SETTING_RESET];
@@ -281,10 +267,6 @@ public:
     return values_[CHANNEL_SETTING_LOGISTIC_MAP_R];
   }
 
-  uint16_t get_trigger_delay() const {
-    return values_[CHANNEL_SETTING_DELAY];
-  }
-
   int get_pattern() const {
     return values_[CHANNEL_SETTING_CLOCK_PATTERN];
   }
@@ -302,10 +284,6 @@ public:
 
   int get_mask() const {
     return values_[CHANNEL_SETTING_CLOCK_MASK];
-  }
-  
-  ChannelTriggerSource get_trigger_source() const {
-    return static_cast<ChannelTriggerSource>(values_[CHANNEL_SETTING_TRIGGER]);
   }
   
   // wrappers for PatternEdit
@@ -328,14 +306,15 @@ public:
   void Init(ChannelTriggerSource trigger_source) {
     
     InitDefaults();
-    apply_value(CHANNEL_SETTING_TRIGGER, trigger_source);
+    apply_value(CHANNEL_SETTING_CLOCK, trigger_source);
 
     force_update_ = true;
     gpio_state_ = OFF;
-    trigger_delay_ = 0;
+    //trigger_delay_ = 0;
     ticks_ = 0;
     subticks_ = 0;
     clk_cnt_ = 0;
+    clk_src_ = 0;
     logic_ = false;
  
     prev_multiplier_ = 0;
@@ -362,24 +341,25 @@ public:
 
   inline void Update(uint32_t triggers, CLOCK_CHANNEL clock_channel) {
 
-     ticks_++; subticks_++; 
+     subticks_++; 
      
-     ChannelTriggerSource trigger_source = get_trigger_source();
-     
-     bool _continous = CHANNEL_TRIGGER_CONTINUOUS == trigger_source;
-     bool _triggered = !_continous && (triggers & DIGITAL_INPUT_MASK(trigger_source - CHANNEL_TRIGGER_TR1));
+     int clock_source = get_clock_source();
+     bool _none = CHANNEL_TRIGGER_NONE == clock_source;
+     bool _triggered = !_none && (triggers & DIGITAL_INPUT_MASK(clock_source - CHANNEL_TRIGGER_TR1));
+      
      bool _tock = false;
      uint8_t _multiplier = get_mult();
      uint8_t _mode = (clock_channel != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
      uint16_t _output = gpio_state_;
 
      // ext clock ? 
-     if (_triggered) {
+     if (_triggered || clk_src_ != clock_source) {
         // new frequency; and reset: 
-        ext_frequency_in_ticks_ = ticks_;
-        ticks_ = 0;  
+        ext_frequency_in_ticks_ = ext_frequency[clock_source]; 
         _tock = true;  
      }
+
+     clk_src_ = clock_source;
      
      // new multiplier ?
      if (prev_multiplier_ != _multiplier)
@@ -745,9 +725,8 @@ public:
 
     //if (mode != DAC)
       //*settings++ = CHANNEL_SETTING_INVERTED;
-      
-    *settings++ = CHANNEL_SETTING_DELAY;
-    *settings++ = CHANNEL_SETTING_TRIGGER;
+      //*settings++ = CHANNEL_SETTING_DELAY;
+    *settings++ = CHANNEL_SETTING_CLOCK;
     
     if (mode == MULT || mode == EUCLID || mode == SEQ)
       *settings++ = CHANNEL_SETTING_RESET;
@@ -776,7 +755,7 @@ public:
 private:
   bool force_update_;
   uint16_t _ZERO;
-  uint16_t trigger_delay_;
+  uint8_t clk_src_;
   uint32_t ticks_;
   uint32_t subticks_;
   uint32_t clk_cnt_;
@@ -798,9 +777,8 @@ private:
 
 };
 
-
 const char* const channel_trigger_sources[CHANNEL_TRIGGER_LAST] = {
-  "TR1", "TR2", "cont"
+  "TR1", "TR2", "none"
 };
 
 const char* const reset_trigger_sources[CHANNEL_TRIGGER_LAST] = {
@@ -811,9 +789,9 @@ const char* const multipliers[] = {
   "/8", "/7", "/6", "/5", "/4", "/3", "/2", "-", "x2", "x3", "x4", "x5", "x6", "x7", "x8"
 };
 
-const char* const clock_delays[] = {
-  "off", "60us", "120us", "180us", "240us", "300us", "360us", "420us", "480us"
-};
+//const char* const clock_delays[] = {
+//  "off", "60us", "120us", "180us", "240us", "300us", "360us", "420us", "480us"
+//};
 
 SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
  
@@ -824,7 +802,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 7, 0, 14, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
   { 25, 1, 255, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
   //{ 0, 0, 1, "invert", TU::Strings::no_yes, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 8, "clock delay", clock_delays, settings::STORAGE_TYPE_U4 },
+  //{ 0, 0, 8, "clock delay", clock_delays, settings::STORAGE_TYPE_U4 },
   //
   { 0, 0, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, 31, "LFSR tap2",NULL, settings::STORAGE_TYPE_U8 },
@@ -875,6 +853,10 @@ Clock_channel clock_channel[NUM_CHANNELS];
 
 void CLOCKS_init() {
 
+  ext_frequency[0] = 0xFFFFFF;
+  ext_frequency[1] = 0xFFFFFF;
+  ext_frequency[2] = 0xFFFFFF;
+
   clocks_state.Init();
   for (size_t i = 0; i < NUM_CHANNELS; ++i) {
     clock_channel[i].Init(static_cast<ChannelTriggerSource>(CHANNEL_TRIGGER_TR1));
@@ -922,8 +904,20 @@ void CLOCKS_loop() {
 }
 
 void CLOCKS_isr() {
+
+  ticks_src1++;
+  ticks_src2++;
   
-  uint32_t triggers = TU::DigitalInputs::clocked();
+  uint32_t triggers = TU::DigitalInputs::clocked();  
+  
+  if (triggers == 1)  {
+    ext_frequency[0] = ticks_src1;
+    ticks_src1 = 0x0;
+  }
+  if (triggers == 2) {
+    ext_frequency[1] = ticks_src2;
+    ticks_src2 = 0x0;
+  }
 
   // update channels:
   clock_channel[0].Update(triggers, CLOCK_CHANNEL_1);
