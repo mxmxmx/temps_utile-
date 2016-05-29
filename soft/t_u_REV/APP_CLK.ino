@@ -32,7 +32,8 @@ const float multipliers_[] = {
 
 /* to do
 
-- fix clock drift; make ticks global
+- prevent channels getting out of sync (mult/div)
+- prevent double triggers when slowing down
 - invert (? or maybe just get rid of it)
 - something's not quite right with LFSR mode
 - expand to div/16
@@ -346,17 +347,18 @@ public:
      int clock_source = get_clock_source();
      bool _none = CHANNEL_TRIGGER_NONE == clock_source;
      bool _triggered = !_none && (triggers & DIGITAL_INPUT_MASK(clock_source - CHANNEL_TRIGGER_TR1));
-      
      bool _tock = false;
+     bool _sync = false;
+     
      uint8_t _multiplier = get_mult();
      uint8_t _mode = (clock_channel != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
      uint16_t _output = gpio_state_;
 
-     // ext clock ? 
-     if (_triggered || clk_src_ != clock_source) {
-        // new frequency; and reset: 
+     // ext clock ? -- set new frequency; and reset: 
+     if (_triggered || clk_src_ != clock_source) {   
         ext_frequency_in_ticks_ = ext_frequency[clock_source]; 
-        _tock = true;  
+        _tock = true;
+        div_cnt_--;
      }
 
      clk_src_ = clock_source;
@@ -368,22 +370,41 @@ public:
 
      // recalculate channel frequency:
      if (_tock) 
-        channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 3; // this isn't entirely right.
+        channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 3; 
      if (!channel_frequency_in_ticks_)  
         channel_frequency_in_ticks_ = 1u; 
      //if (_tock) 
        // channel_frequency_in_ticks_ = (uint32_t)(0.5f + (float)ext_frequency_in_ticks_*multipliers_[_multiplier]);
-        
+
+     /* brute force ugly sync hack:
+     * this, presumably, is needlessly complicated. 
+     * but seems to work ok-ish, w/o too much jitter and missing clocks... 
+     */
+     if (_multiplier < 8 && _triggered && div_cnt_ <= 0) {
+        _sync = true;
+        div_cnt_ = 8 - _multiplier;
+        subticks_ = channel_frequency_in_ticks_; 
+     }
+     else if (_multiplier > 7 && _triggered)  {
+        _sync = true; 
+        subticks_ = channel_frequency_in_ticks_;
+     }
+     else if (_multiplier > 7)
+        _sync = true;  
+     // end of ugly hack
+     
      // time to output ? 
-     if (subticks_ >= channel_frequency_in_ticks_) { 
+     if (subticks_ >= channel_frequency_in_ticks_ && _sync) { 
 
          // if so, reset ticks: 
          subticks_ = 0x0;
+
          clk_cnt_++;
+           
          // ... and turn on ? 
          _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
          TU::OUTPUTS::setState(clock_channel, _output);  
-     }
+     } 
 
      // on/off...?
      if (gpio_state_ && _mode != DAC) { 
@@ -759,6 +780,7 @@ private:
   uint32_t ticks_;
   uint32_t subticks_;
   uint32_t clk_cnt_;
+  int16_t div_cnt_;
   uint32_t ext_frequency_in_ticks_;
   uint32_t channel_frequency_in_ticks_;
   uint32_t pulse_width_in_ticks_;
