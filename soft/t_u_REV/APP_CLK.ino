@@ -33,7 +33,7 @@ const float multipliers_[] = {
 /* to do
 
 - prevent channels getting out of sync (mult/div) [offset]
-- fix sequencer when multiplying
+- fix clkcnt when multiplying (drift, missing clocks)
 - invert (? or maybe just get rid of it)
 - something's not quite right with LFSR mode
 - expand to div/16
@@ -54,21 +54,21 @@ const float multipliers_[] = {
 
 const uint64_t multipliers_[] = {
 
-  0xFFFFFFFF, // /8
-  0xDFFFFFFF, // /7
-  0xBFFFFFFF, // /6
-  0x9FFFFFFF, // /5
-  0x7FFFFFFF, // /4
-  0x5FFFFFFF, // /3
-  0x3FFFFFFF, // /2
-  0x1FFFFFFF, // x1
-  0xFFFFFFF,  // x2
-  0xAAAAAAA,  // x3
-  0x7FFFFFF,  // x4
-  0x6666666,  // x5
-  0x5555555,  // x6
-  0x4924924,  // x7
-  0x3FFFFFF   // x8
+  0x100000000,// /8
+  0xE0000000, // /7
+  0xC0000000, // /6
+  0xA0000000, // /5
+  0x80000000, // /4
+  0x60000000, // /3
+  0x40000000, // /2
+  0x20000000, // x1
+  0x10000000,  // x2
+  0xAAAAAAB,  // x3
+  0x8000000,  // x4
+  0x6666667,  // x5
+  0x5555556,  // x6
+  0x4924926,  // x7
+  0x4000000   // x8
 }; // = multiplier / 8.0f * 2^32
 
 enum ChannelSetting {
@@ -386,10 +386,11 @@ public:
      }
      else if (_multiplier > 7 && _triggered)  {
         _sync = true;
-        subticks_ = channel_frequency_in_ticks_; // force sync, if 
+        subticks_ = channel_frequency_in_ticks_; // force sync, if clocked
      }
      else if (_multiplier > 7)
         _sync = true;
+       
      // end of ugly hack
      
      // time to output ? 
@@ -397,11 +398,12 @@ public:
 
          // if so, reset ticks: 
          subticks_ = 0x0;
-         clk_cnt_++;
-           
-         // ... and turn on ? 
-         _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
-         TU::OUTPUTS::setState(clock_channel, _output);
+         // count, only if we're not ON ... 
+         if (!gpio_state_) 
+              clk_cnt_++;  
+          
+          _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
+          TU::OUTPUTS::setState(clock_channel, _output);
      } 
 
      // on/off...?
