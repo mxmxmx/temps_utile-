@@ -33,7 +33,6 @@ const float multipliers_[] = {
 /* to do
 
 - prevent channels getting out of sync (mult/div) [offset]
-- fix clkcnt when multiplying (drift, missing clocks)
 - invert (? or maybe just get rid of it)
 - something's not quite right with LFSR mode
 - expand to div/16
@@ -379,6 +378,7 @@ public:
      * this, presumably, is needlessly complicated. 
      * but seems to work ok-ish, w/o too much jitter and missing clocks... 
      */
+     uint32_t _subticks = subticks_;
      if (_multiplier < 8 && _triggered && div_cnt_ <= 0) { // division, so we track
         _sync = true;
         div_cnt_ = 8 - _multiplier; // /1 = 7 ; /2 = 6, /3 = 5 etc
@@ -398,10 +398,10 @@ public:
 
          // if so, reset ticks: 
          subticks_ = 0x0;
-         // count, only if we're not ON ... 
-         if (!gpio_state_) 
-              clk_cnt_++;  
-          
+         // count, only if ... 
+         if (_subticks > 100)   // mmh, how much jitter do we tolerate? 100 ticks? ; make this function of channel_frequency_in_ticks_
+              clk_cnt_++;
+            
           _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
           TU::OUTPUTS::setState(clock_channel, _output);
      } 
