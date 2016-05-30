@@ -32,8 +32,8 @@ const float multipliers_[] = {
 
 /* to do
 
-- prevent channels getting out of sync (mult/div)
-- prevent double triggers when slowing down
+- prevent channels getting out of sync (mult/div) [offset]
+- fix sequencer when multiplying
 - invert (? or maybe just get rid of it)
 - something's not quite right with LFSR mode
 - expand to div/16
@@ -356,6 +356,7 @@ public:
 
      // ext clock ? -- set new frequency; and reset: 
      if (_triggered || clk_src_ != clock_source) {   
+      
         ext_frequency_in_ticks_ = ext_frequency[clock_source]; 
         _tock = true;
         div_cnt_--;
@@ -372,25 +373,23 @@ public:
      if (_tock) 
         channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 3; 
      if (!channel_frequency_in_ticks_)  
-        channel_frequency_in_ticks_ = 1u; 
-     //if (_tock) 
-       // channel_frequency_in_ticks_ = (uint32_t)(0.5f + (float)ext_frequency_in_ticks_*multipliers_[_multiplier]);
-
+        channel_frequency_in_ticks_ = 1u;  
+                  
      /* brute force ugly sync hack:
      * this, presumably, is needlessly complicated. 
      * but seems to work ok-ish, w/o too much jitter and missing clocks... 
      */
-     if (_multiplier < 8 && _triggered && div_cnt_ <= 0) {
+     if (_multiplier < 8 && _triggered && div_cnt_ <= 0) { // division, so we track
         _sync = true;
-        div_cnt_ = 8 - _multiplier;
-        subticks_ = channel_frequency_in_ticks_; 
+        div_cnt_ = 8 - _multiplier; // /1 = 7 ; /2 = 6, /3 = 5 etc
+        subticks_ = channel_frequency_in_ticks_; // force sync
      }
      else if (_multiplier > 7 && _triggered)  {
-        _sync = true; 
-        subticks_ = channel_frequency_in_ticks_;
+        _sync = true;
+        subticks_ = channel_frequency_in_ticks_; // force sync, if 
      }
      else if (_multiplier > 7)
-        _sync = true;  
+        _sync = true;
      // end of ugly hack
      
      // time to output ? 
@@ -398,12 +397,11 @@ public:
 
          // if so, reset ticks: 
          subticks_ = 0x0;
-
          clk_cnt_++;
            
          // ... and turn on ? 
          _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
-         TU::OUTPUTS::setState(clock_channel, _output);  
+         TU::OUTPUTS::setState(clock_channel, _output);
      } 
 
      // on/off...?
