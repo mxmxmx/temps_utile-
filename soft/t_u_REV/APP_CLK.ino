@@ -14,7 +14,8 @@ namespace menu = TU::menu; // Ugh. This works for all .ino files
 
 const uint8_t MODES = 7;
 const uint8_t DAC_MODES = 4;
-const uint8_t RND_MAX = 31;
+const uint8_t RND_MAX = 31;     // max random (n)
+const uint8_t TICKJITTER = 100; // threshold/double triggers reject (in ticks)
 
 const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
 const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
@@ -379,6 +380,7 @@ public:
      * but seems to work ok-ish, w/o too much jitter and missing clocks... 
      */
      uint32_t _subticks = subticks_;
+     
      if (_multiplier < 8 && _triggered && div_cnt_ <= 0) { // division, so we track
         _sync = true;
         div_cnt_ = 8 - _multiplier; // /1 = 7 ; /2 = 6, /3 = 5 etc
@@ -399,9 +401,10 @@ public:
          // if so, reset ticks: 
          subticks_ = 0x0;
          // count, only if ... 
-         if (_subticks > 100)   // mmh, how much jitter do we tolerate? 100 ticks? ; make this function of channel_frequency_in_ticks_
-              clk_cnt_++;
+         if (_subticks < TICKJITTER)   // reject .. ; make this function of channel_frequency_in_ticks_ ?
+            return;
             
+          clk_cnt_++;  
           _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
           TU::OUTPUTS::setState(clock_channel, _output);
      } 
