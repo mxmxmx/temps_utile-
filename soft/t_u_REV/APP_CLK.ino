@@ -1,3 +1,24 @@
+/* 
+*   TODO
+* - prevent channels getting out of sync (mult/div) [offset]
+* - invert (? or maybe just get rid of it)
+* - something's not quite right with LFSR mode
+* - expand to div/16
+* - implement reset
+* - implement CV 
+* - pattern seq: 
+*    - get rid of pattern/mask confusion (ie "mask" = pattern; pattern = pulsewidth pattern)
+*    - user patterns per channel
+*    - implement pulsewidth patterns
+* - menu details: 
+*    - constrain interdependent values
+*    - display clocks, patterns, etc
+* - DAC mode should have additional/internal trigger sources: channels 1-3, 5, and 6
+* - fix screensaver DAC channel [DAC mode]
+* - make screen saver nice ...
+*
+*/
+
 #include "util/util_settings.h"
 #include "util/util_turing.h"
 #include "util/util_logistic_map.h"
@@ -10,47 +31,18 @@
 #include "TU_patterns.h"
 #include "extern/dspinst.h"
 
-namespace menu = TU::menu; // Ugh. This works for all .ino files
+namespace menu = TU::menu; 
 
-const uint8_t MODES = 7;
-const uint8_t DAC_MODES = 4;
+const uint8_t MODES = 7;        // # clock modes
+const uint8_t DAC_MODES = 4;    // # DAC submodes
 const uint8_t RND_MAX = 31;     // max random (n)
-const uint8_t TICKJITTER = 100; // threshold/double triggers reject (in ticks)
+const uint8_t TICKJITTER = 100; // threshold/double triggers reject (in ticks); TD: should be function of ext_frequency_in_ticks_
 
 const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
 const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
 
-uint32_t ticks_src1 = 0;
-uint32_t ticks_src2 = 0;
-
-//  "/8", "/7", "/6", "/5", "/4", "/3", "/2", "-", "x2", "x3", "x4", "x5", "x6", "x7", "x8"
-
-/*
-const float multipliers_[] = {
-   4.0f, 3.5f, 3.0f, 2.5f, 2.0f, 1.5f, 1.0f, 0.5f, 0.25f, 0.166666666667f, 0.125f, 0.1f, 0.08333333333f, 0.07142857142f, 0.0625f
-};
-*/
-
-/* to do
-
-- prevent channels getting out of sync (mult/div) [offset]
-- invert (? or maybe just get rid of it)
-- something's not quite right with LFSR mode
-- expand to div/16
-- implement reset
-- implement CV 
-- pattern seq: 
-    - get rid of pattern/mask confusion (ie "mask" = pattern; pattern = pulsewidth pattern)
-    - user patterns per channel
-    - implement pulsewidth patterns
-- menu details: 
-    - constrain interdependent values
-    - display clocks, patterns, etc
-- DAC mode should have additional/internal trigger sources: channels 1-3, 5, and 6
-- fix screensaver DAC channel [DAC mode]
-- make screen saver nice ...
-
-*/
+uint32_t ticks_src1 = 0; // main clock frequency (top)
+uint32_t ticks_src2 = 0; // sec. clock frequency (bottom)
 
 const uint64_t multipliers_[] = {
 
@@ -62,7 +54,7 @@ const uint64_t multipliers_[] = {
   0x60000000, // /3
   0x40000000, // /2
   0x20000000, // x1
-  0x10000000,  // x2
+  0x10000000, // x2
   0xAAAAAAB,  // x3
   0x8000000,  // x4
   0x6666667,  // x5
@@ -71,8 +63,7 @@ const uint64_t multipliers_[] = {
   0x4000000   // x8
 }; // = multiplier / 8.0f * 2^32
 
-enum ChannelSetting {
-  
+enum ChannelSetting { 
   // shared
   CHANNEL_SETTING_MODE,
   CHANNEL_SETTING_MODE4,
@@ -80,9 +71,7 @@ enum ChannelSetting {
   CHANNEL_SETTING_RESET,
   CHANNEL_SETTING_MULT,
   CHANNEL_SETTING_PULSEWIDTH,
-  //CHANNEL_SETTING_INVERTED, disable, for the time being
-  //CHANNEL_SETTING_DELAY,
-  // mode specifics
+  // mode specific
   CHANNEL_SETTING_LFSR_TAP1,
   CHANNEL_SETTING_LFSR_TAP2,
   CHANNEL_SETTING_RAND_N,
@@ -113,8 +102,6 @@ enum ChannelTriggerSource {
   CHANNEL_TRIGGER_LAST
 };
 
-uint64_t ext_frequency[CHANNEL_TRIGGER_LAST];
-
 enum ChannelCV_Mapping {
   CHANNEL_CV_MAPPING_CV1,
   CHANNEL_CV_MAPPING_CV2,
@@ -123,8 +110,7 @@ enum ChannelCV_Mapping {
   CHANNEL_CV_MAPPING_LAST
 };
 
-enum CLOCKMODES 
-{
+enum CLOCKMODES {
   MULT,
   LFSR,
   RANDOM,
@@ -135,8 +121,7 @@ enum CLOCKMODES
   LAST_MODE
 };
 
-enum DACMODES 
-{
+enum DACMODES {
   _BINARY,
   _RANDOM,
   _TURING,
@@ -144,20 +129,20 @@ enum DACMODES
   LAST_DACMODE
 };
 
-enum CLOCKSTATES
-{
+enum CLOCKSTATES {
   OFF,
   ON = 4095
 };
 
-enum LOGICMODES
-{
+enum LOGICMODES {
   AND,
   OR,
   XOR,
   NAND,
   NOR
 };
+
+uint64_t ext_frequency[CHANNEL_TRIGGER_LAST];
 
 class Clock_channel : public settings::SettingsBase<Clock_channel, CHANNEL_SETTING_LAST> {
 public:
@@ -182,16 +167,6 @@ public:
     return values_[CHANNEL_SETTING_PULSEWIDTH];
   }
   
-  /*
-  uint8_t get_inverted() const {
-    return values_[CHANNEL_SETTING_INVERTED];
-  }
-  
-  uint16_t get_delay() const {
-    return values_[CHANNEL_SETTING_DELAY];
-  }
-  */
-
   uint8_t get_reset() const {
     return values_[CHANNEL_SETTING_RESET];
   }
@@ -293,7 +268,6 @@ public:
   }
 
   void update_pattern_mask(uint16_t mask) {
-    
     apply_value(CHANNEL_SETTING_CLOCK_MASK, mask); 
   }
 
@@ -311,7 +285,6 @@ public:
 
     force_update_ = true;
     gpio_state_ = OFF;
-    //trigger_delay_ = 0;
     ticks_ = 0;
     subticks_ = 0;
     clk_cnt_ = 0;
@@ -374,10 +347,10 @@ public:
         channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 3; 
      if (!channel_frequency_in_ticks_)  
         channel_frequency_in_ticks_ = 1u;  
-                  
-     /* brute force ugly sync hack:
-     * this, presumably, is needlessly complicated. 
-     * but seems to work ok-ish, w/o too much jitter and missing clocks... 
+    /*             
+     *  brute force ugly sync hack:
+     *  this, presumably, is needlessly complicated. 
+     *  but seems to work ok-ish, w/o too much jitter and missing clocks... 
      */
      uint32_t _subticks = subticks_;
      
@@ -401,19 +374,19 @@ public:
          // if so, reset ticks: 
          subticks_ = 0x0;
          // count, only if ... 
-         if (_subticks < TICKJITTER)   // reject .. ; make this function of channel_frequency_in_ticks_ ?
+         if (_subticks < TICKJITTER)   // reject .. ; make this function of channel_frequency_in_ticks_ 
             return;
             
-          clk_cnt_++;  
-          _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
-          TU::OUTPUTS::setState(clock_channel, _output);
+         clk_cnt_++;  
+         _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
+         TU::OUTPUTS::setState(clock_channel, _output);
      } 
 
      // on/off...?
      if (gpio_state_ && _mode != DAC) { 
 
-        // recalculate pulsewidth ? 
         uint8_t _pulsewidth = get_pulsewidth();
+        // recalculate pulsewidth ? 
         if (prev_pulsewidth_ != _pulsewidth || ! subticks_) {
             int32_t _fraction = signed_multiply_32x16b(TICKS_TO_MS, static_cast<int32_t>(_pulsewidth)); // = * 0.6667f
             _fraction = signed_saturate_rshift(_fraction, 16, 0);
@@ -425,13 +398,11 @@ public:
         if (pulse_width_in_ticks_ >= channel_frequency_in_ticks_) 
           pulse_width_in_ticks_ = (channel_frequency_in_ticks_ >> 1) | 1u;
           
-        
         // turn off output? 
         if (subticks_ >= pulse_width_in_ticks_) 
           _output = gpio_state_ = OFF;
         else // keep on 
           _output = ON; 
-       
      }
 
      // DAC channel needs extra treatment / zero offset: 
@@ -441,7 +412,6 @@ public:
      // update (physical) outputs:
      TU::OUTPUTS::set(clock_channel, _output);
   } // end update
-
 
   inline uint16_t process_clock_channel(uint8_t mode) {
  
@@ -878,9 +848,9 @@ Clock_channel clock_channel[NUM_CHANNELS];
 
 void CLOCKS_init() {
 
-  ext_frequency[0] = 0xFFFFFF;
-  ext_frequency[1] = 0xFFFFFF;
-  ext_frequency[2] = 0xFFFFFF;
+  ext_frequency[CHANNEL_TRIGGER_TR1]  = 0xFFFFFFFF;
+  ext_frequency[CHANNEL_TRIGGER_TR2]  = 0xFFFFFFFF;
+  ext_frequency[CHANNEL_TRIGGER_NONE] = 0xFFFFFFFF;
 
   clocks_state.Init();
   for (size_t i = 0; i < NUM_CHANNELS; ++i) {
@@ -930,17 +900,18 @@ void CLOCKS_loop() {
 
 void CLOCKS_isr() {
 
-  ticks_src1++;
-  ticks_src2++;
+  ticks_src1++; // src #1 ticks
+  ticks_src2++; // src #2 ticks
   
   uint32_t triggers = TU::DigitalInputs::clocked();  
-  
+
+  // clocked? reset ; better use ARM_DWT_CYCCNT ?
   if (triggers == 1)  {
-    ext_frequency[0] = ticks_src1;
+    ext_frequency[CHANNEL_TRIGGER_TR1] = ticks_src1;
     ticks_src1 = 0x0;
   }
   if (triggers == 2) {
-    ext_frequency[1] = ticks_src2;
+    ext_frequency[CHANNEL_TRIGGER_TR2] = ticks_src2;
     ticks_src2 = 0x0;
   }
 
@@ -948,11 +919,9 @@ void CLOCKS_isr() {
   clock_channel[0].Update(triggers, CLOCK_CHANNEL_1);
   clock_channel[1].Update(triggers, CLOCK_CHANNEL_2);
   clock_channel[2].Update(triggers, CLOCK_CHANNEL_3);
-  // ...
   clock_channel[4].Update(triggers, CLOCK_CHANNEL_5);
   clock_channel[5].Update(triggers, CLOCK_CHANNEL_6);
-  // update channel 4 last, because of the binary Sequencer thing:
-  clock_channel[3].Update(triggers, CLOCK_CHANNEL_4);
+  clock_channel[3].Update(triggers, CLOCK_CHANNEL_4); // = DAC channel; update last, because of the binary Sequencer thing.
 
   // apply logic ?
   clock_channel[0].logic(CLOCK_CHANNEL_1);
@@ -1087,10 +1056,7 @@ void CLOCKS_leftButtonLong() {
 
 void CLOCKS_lowerButtonLong() {
 
-  
-  
 }
-
 
 void CLOCKS_menu() {
 
@@ -1131,8 +1097,7 @@ void CLOCKS_menu() {
   }
 
   if (clocks_state.pattern_editor.active())
-    clocks_state.pattern_editor.Draw();
-    
+    clocks_state.pattern_editor.Draw();   
 }
 
 void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clock_channel) const {
@@ -1145,7 +1110,7 @@ void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clo
   // DAC needs special treatment:
   if (clock_channel == CLOCK_CHANNEL_4 && _mode < DAC) {
     _square = _square == ON ? 0x1 : 0x0;
-    _frame = _frame == ON ? 0x1 : 0x0;
+    _frame  = _frame  == ON ? 0x1 : 0x0;
   }
   // draw little square thingies ..     
   if (_square && _frame) {
