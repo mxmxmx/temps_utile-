@@ -317,26 +317,28 @@ public:
 
      subticks_++; 
      
-     int clock_source = get_clock_source();
-     bool _none = CHANNEL_TRIGGER_NONE == clock_source;
-     bool _triggered = !_none && (triggers & DIGITAL_INPUT_MASK(clock_source - CHANNEL_TRIGGER_TR1));
-     bool _tock = false;
-     bool _sync = false;
-     
-     uint8_t _multiplier = get_mult();
-     uint8_t _mode = (clock_channel != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
+     uint8_t _clock_source, _multiplier, _mode;
+     bool _none, _triggered, _tock, _sync;
      uint16_t _output = gpio_state_;
 
-     // ext clock ? -- set new frequency; and reset: 
-     if (_triggered || clk_src_ != clock_source) {   
-      
-        ext_frequency_in_ticks_ = ext_frequency[clock_source]; 
+     // channel parameters:
+     _clock_source = get_clock_source();
+     _multiplier = get_mult();
+     _mode = (clock_channel != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
+     // clocked ?
+     _none = CHANNEL_TRIGGER_NONE == _clock_source;
+     _triggered = !_none && (triggers & DIGITAL_INPUT_MASK(_clock_source - CHANNEL_TRIGGER_TR1));
+     _tock = false;
+     _sync = false;
+     // new tick frequency:
+     if (_triggered || clk_src_ != _clock_source) {   
+        ext_frequency_in_ticks_ = ext_frequency[_clock_source]; 
         _tock = true;
         div_cnt_--;
      }
-
-     clk_src_ = clock_source;
-     
+     // store clock source:
+     clk_src_ = _clock_source;
+    
      // new multiplier ?
      if (prev_multiplier_ != _multiplier)
        _tock |= true;  
@@ -364,8 +366,7 @@ public:
         subticks_ = channel_frequency_in_ticks_; // force sync, if clocked
      }
      else if (_multiplier > 7)
-        _sync = true;
-       
+        _sync = true;   
      // end of ugly hack
      
      // time to output ? 
