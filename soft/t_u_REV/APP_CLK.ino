@@ -1,13 +1,13 @@
 /* 
 *   TODO
-* - prevent channels getting out of sync (mult/div) [offset]
+* - prevent channels getting out of sync (mult/div) [-> offset]
 * - invert (? or maybe just get rid of it)
 * - something's not quite right with LFSR mode
 * - expand to div/16
 * - implement reset
 * - implement CV 
 * - pattern seq: 
-*    - get rid of pattern/mask confusion (ie "mask" = pattern; pattern = pulsewidth pattern)
+*    - get rid of pattern/mask terminology confusion (ie "mask" = pattern; pattern = pulsewidth pattern)
 *    - user patterns per channel
 *    - implement pulsewidth patterns
 * - menu details: 
@@ -36,10 +36,11 @@ namespace menu = TU::menu;
 const uint8_t MODES = 7;        // # clock modes
 const uint8_t DAC_MODES = 4;    // # DAC submodes
 const uint8_t RND_MAX = 31;     // max random (n)
-const uint8_t TICKJITTER = 100; // threshold/double triggers reject (in ticks); TD: should be function of ext_frequency_in_ticks_
 
 const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
 const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
+const uint32_t TICK_JITTER = 0xFFFFFFF; // 1/16 : threshold/double triggers reject -> ext_frequency_in_ticks_
+
 
 uint32_t ticks_src1 = 0; // main clock frequency (top)
 uint32_t ticks_src2 = 0; // sec. clock frequency (bottom)
@@ -287,6 +288,7 @@ public:
     gpio_state_ = OFF;
     ticks_ = 0;
     subticks_ = 0;
+    tickjitter_ = 100;
     clk_cnt_ = 0;
     clk_src_ = 0;
     logic_ = false;
@@ -344,9 +346,12 @@ public:
        _tock |= true;  
      prev_multiplier_ = _multiplier; 
 
-     // recalculate channel frequency:
-     if (_tock) 
+     // recalculate channel frequency and jitter-threshold:
+     if (_tock) {
         channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 3; 
+        tickjitter_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_JITTER);
+     }
+     // limit to > 0
      if (!channel_frequency_in_ticks_)  
         channel_frequency_in_ticks_ = 1u;  
     /*             
@@ -375,7 +380,7 @@ public:
          // if so, reset ticks: 
          subticks_ = 0x0;
          // count, only if ... 
-         if (_subticks < TICKJITTER)   // reject .. ; make this function of channel_frequency_in_ticks_ 
+         if (_subticks < tickjitter_) // reject? .. 
             return;
             
          clk_cnt_++;  
@@ -753,6 +758,7 @@ private:
   uint8_t clk_src_;
   uint32_t ticks_;
   uint32_t subticks_;
+  uint32_t tickjitter_;
   uint32_t clk_cnt_;
   int16_t div_cnt_;
   uint32_t ext_frequency_in_ticks_;

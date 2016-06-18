@@ -2,7 +2,7 @@
 #define TU_CONFIG_H_
 
 #if F_CPU != 120000000
-#error "Please compile T&U firmware with CPU speed 120MHz"
+ #error "Please compile T&U firmware with CPU speed 120MHz"
 #endif
 
 // 60us = 16.666...kHz : Works, SPI transfer ends 2uS before next ISR
