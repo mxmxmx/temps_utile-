@@ -16,10 +16,11 @@
 | 10k  |         7x | **(‡)** |
 | 20k  |         6x  | - | 
 | 33k |          6x  | - |
-| 49k9 |          4x | - |
-| 100k |         6x | - |
+| 100k |         10x | (‡‡) |
 
 - (‡) the (digital) clock outputs are **non-inverting op amps**, the values on the pcb (20k feedback, 10k to ground) will result in 3x gain, or 9.9v on the outputs. adjust, if you like. for example, 15k would give you 3.3v * (20k/15k + 1) = 7.7, etc.
+- (‡‡) use 100k where it says 49k9, too ( = 4x)
+
 
 ###SMD caps (0805):
 
@@ -58,7 +59,6 @@
 | 22uF | 2.5mm | 2x |  electrolytic, 35v | 
 | 470nf | 5mm |  1x | film/ceramic, 35v | 
 | 78L33 |  TO-92 | 1x | 3v3 regulator | 
-| trimpot 100k | 9.5mm |  1x | cermet, inline| 
 |  jacks | [PJ301M-12](https://www.thonk.co.uk/shop/3-5mm-jacks/) | 12x |  'thonkiconn' (or kobiconn) | 
 | encoder w/ switch | 9mm | 2x | 24 steps (e.g. PEC11R-4215K-S0024) **(‡)**  | 
 |  2x5 male header | 2.54mm |  1x |  (euro power connector) | 
