@@ -10,6 +10,7 @@
 *    - get rid of pattern/mask terminology confusion (ie "mask" = pattern; pattern = pulsewidth pattern)
 *    - user patterns per channel
 *    - implement pulsewidth patterns
+*    - store pattern when contracting/re-expanding pattern length (?)
 * - menu details: 
 *    - constrain interdependent values
 *    - display clocks, patterns, etc
@@ -139,6 +140,7 @@ enum LOGICMODES {
   AND,
   OR,
   XOR,
+  XNOR,
   NAND,
   NOR
 };
@@ -366,6 +368,10 @@ public:
         div_cnt_ = 8 - _multiplier; // /1 = 7 ; /2 = 6, /3 = 5 etc
         subticks_ = channel_frequency_in_ticks_; // force sync
      }
+     else if (_multiplier < 8 && _triggered) {
+        // division, mute output:
+        TU::OUTPUTS::setState(clock_channel, OFF);
+     }
      else if (_multiplier > 7 && _triggered)  {
         _sync = true;
         subticks_ = channel_frequency_in_ticks_; // force sync, if clocked
@@ -386,8 +392,8 @@ public:
          clk_cnt_++;  
          _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
          TU::OUTPUTS::setState(clock_channel, _output);
-     } 
-
+     }
+  
      // on/off...?
      if (gpio_state_ && _mode != DAC) { 
 
@@ -422,6 +428,7 @@ public:
   inline uint16_t process_clock_channel(uint8_t mode) {
  
       uint16_t _out = ON;
+      logic_ = false;
   
       switch (mode) {
   
@@ -593,6 +600,7 @@ public:
   
      _op1 = logic_op1();
      _op2 = logic_op2();
+
      // this doesn't care if CHANNEL_4 is in DAC mode (= mostly always true); but so what.
      if (!logic_tracking()) {
        _op1 = TU::OUTPUTS::state(_op1) & 1u;
@@ -600,9 +608,9 @@ public:
      }
      else {
        _op1 = TU::OUTPUTS::value(_op1) & 1u;
-       _op2 = TU::OUTPUTS::value(_op2) & 1;
+       _op2 = TU::OUTPUTS::value(_op2) & 1u;
      }
-  
+
      switch (logic_type()) {
   
         case AND:  
@@ -613,6 +621,9 @@ public:
             break;
         case XOR:  
             _out = _op1 ^ _op2;
+            break;
+        case XNOR:  
+            _out = ~(_op1 ^ _op2);
             break;
         case NAND: 
             _out = ~(_op1 & _op2);
@@ -629,7 +640,7 @@ public:
     if (!_out && clock_channel == CLOCK_CHANNEL_4)
        _out += _ZERO;
     TU::OUTPUTS::setState(clock_channel, _out); 
-    TU::OUTPUTS::set(clock_channel, _out);    
+    TU::OUTPUTS::set(clock_channel, _out);  
   }
 
   inline uint16_t calc_average(const uint16_t *data, uint8_t depth) {
@@ -812,7 +823,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 3, 3, 31, "euclid: N", NULL, settings::STORAGE_TYPE_U8 },
   { 1, 1, 31, "euclid: K", NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, 31, "euclid: OFFSET", NULL, settings::STORAGE_TYPE_U8 },
-  { 0, 0, 4, "logic type", TU::Strings::operators, settings::STORAGE_TYPE_U8 },
+  { 0, 0, 5, "logic type", TU::Strings::operators, settings::STORAGE_TYPE_U8 },
   { 0, 0, NUM_CHANNELS - 1, "op_1", TU::Strings::channel_id, settings::STORAGE_TYPE_U8 },
   { 1, 0, NUM_CHANNELS - 1, "op_2", TU::Strings::channel_id, settings::STORAGE_TYPE_U8 },
   { 0, 0, 1, "track -->", TU::Strings::logic_tracking, settings::STORAGE_TYPE_U4 },

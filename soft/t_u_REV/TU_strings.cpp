@@ -11,7 +11,7 @@ namespace TU {
 
   const char * const no_yes[] = { "No", "Yes" };
 
-  const char * const operators[] = { "AND", "OR", "XOR", "NAND", "NOR" };
+  const char * const operators[] = { "AND", "OR", "XOR", "XNOR", "NAND", "NOR" };
   
   const char * const channel_id[] = { "ch#1", "ch#2", "ch#3", "ch#4", "ch#5", "ch#6"};
 
