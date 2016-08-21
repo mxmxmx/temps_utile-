@@ -1015,7 +1015,7 @@ const char* const multipliers[] = {
 };
 
 const char* const cv_sources[5] = {
-  "None", "CV1", "CV2", "CV3", "CV4"
+  "--", "CV1", "CV2", "CV3", "CV4"
 };
 //const char* const clock_delays[] = {
 //  "off", "60us", "120us", "180us", "240us", "300us", "360us", "420us", "480us"
