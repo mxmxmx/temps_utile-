@@ -379,6 +379,31 @@ public:
     return clk_cnt_;
   }
 
+  void clear_CV_mapping() {
+
+    apply_value(CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE, 0);
+    apply_value(CHANNEL_SETTING_MULT_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_CLOCK_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_LFSR_TAP1_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_LFSR_TAP2_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_RAND_N_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_EUCLID_N_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_EUCLID_K_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_EUCLID_OFFSET_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_LOGIC_TYPE_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_LOGIC_OP1_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_LOGIC_OP2_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_TURING_PROB_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_TURING_LENGTH_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_LOGISTIC_MAP_R_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_SEQ_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_MASK_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_DAC_RANGE_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_DAC_MODE_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_HISTORY_WEIGHT_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_HISTORY_DEPTH_CV_SOURCE,0);
+  }
+
   void page() {
 
      switch (menu_page_) {
@@ -386,7 +411,7 @@ public:
             menu_page_ = CV_SOURCES;
             break;
           case CV_SOURCES:
-            // clear
+            clear_CV_mapping();
             break;
           case TEMPO:
             menu_page_ = CV_SOURCES;
