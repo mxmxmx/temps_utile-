@@ -114,10 +114,12 @@ enum ChannelSetting {
   CHANNEL_SETTING_MASK_CV_SOURCE,
   CHANNEL_SETTING_DAC_RANGE_CV_SOURCE,
   CHANNEL_SETTING_DAC_MODE_CV_SOURCE,
+  CHANNEL_SETTING_HISTORY_WEIGHT_CV_SOURCE,
+  CHANNEL_SETTING_HISTORY_DEPTH_CV_SOURCE,
   CHANNEL_SETTING_DUMMY,
   CHANNEL_SETTING_LAST
 };
-
+  
 enum ChannelTriggerSource {
   CHANNEL_TRIGGER_TR1,
   CHANNEL_TRIGGER_TR2,
@@ -836,7 +838,23 @@ public:
           case DAC: 
             *settings++ = CHANNEL_SETTING_DAC_MODE_CV_SOURCE; 
             *settings++ = CHANNEL_SETTING_DAC_RANGE_CV_SOURCE;
-            *settings++ = CHANNEL_SETTING_DUMMY;   
+            switch (dac_mode())  {
+              case _BINARY:
+                *settings++ = CHANNEL_SETTING_DUMMY;
+                break;
+              case _RANDOM:
+                *settings++ = CHANNEL_SETTING_HISTORY_WEIGHT_CV_SOURCE;
+                *settings++ = CHANNEL_SETTING_HISTORY_DEPTH_CV_SOURCE;
+                break;
+              case _TURING:
+                *settings++ = CHANNEL_SETTING_TURING_PROB_CV_SOURCE;
+                break;
+              case _LOGISTIC:
+                *settings++ = CHANNEL_SETTING_LOGISTIC_MAP_R_CV_SOURCE;
+                break;
+              default:
+                break;                
+            }
           default:
             break;
       }
@@ -1010,25 +1028,27 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 },
   { TU::Patterns::PATTERN_USER_0, 0, TU::Patterns::PATTERN_USER_LAST, "sequence #", TU::pattern_names_short, settings::STORAGE_TYPE_U8 },
   // cv sources
-  { 0, 0, 4, "mult/div    -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "pulsewidth  -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "clock src   -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR tap1   -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR tap2   -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "rand > n    -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "euclid: N   -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "euclid: K   -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "euclid: OFF -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "logic type  -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "op_1        -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "op_2        -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR p(x)   -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR length -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LGST(R)     -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "sequence #  -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "mask        -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "DAC: range  -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "DAC: mode   -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "mult/div    <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "pulsewidth  <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "clock src   <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR tap1   <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR tap2   <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "rand > n    <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "euclid: N   <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "euclid: K   <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "euclid: OFF <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "logic type  <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "op_1        <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "op_2        <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR p(x)   <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR length <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LGST(R)     <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "sequence #  <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "mask        <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "DAC: range  <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "DAC: mode   <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "rnd hist.   <<", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "hist. depth <<", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 0, "--------------------", NULL, settings::STORAGE_TYPE_U4 }
 };
 
