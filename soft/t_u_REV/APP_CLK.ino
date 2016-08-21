@@ -73,6 +73,7 @@ enum ChannelSetting {
   CHANNEL_SETTING_RESET,
   CHANNEL_SETTING_MULT,
   CHANNEL_SETTING_PULSEWIDTH,
+  CHANNEL_SETTING_INTERNAL_CLK,
   // mode specific
   CHANNEL_SETTING_LFSR_TAP1,
   CHANNEL_SETTING_LFSR_TAP2,
@@ -124,6 +125,7 @@ enum ChannelTriggerSource {
   CHANNEL_TRIGGER_TR1,
   CHANNEL_TRIGGER_TR2,
   CHANNEL_TRIGGER_NONE,
+  CHANNEL_TRIGGER_INTERNAL,
   CHANNEL_TRIGGER_LAST
 };
 
@@ -197,6 +199,10 @@ public:
 
   uint16_t get_pulsewidth() const {
     return values_[CHANNEL_SETTING_PULSEWIDTH];
+  }
+
+  uint16_t get_internal_clk() const {
+    return values_[CHANNEL_SETTING_INTERNAL_CLK];
   }
   
   uint8_t get_reset() const {
@@ -379,6 +385,10 @@ public:
     return clk_cnt_;
   }
 
+  void update_int_tempo(uint16_t _tempo) {
+      apply_value(CHANNEL_SETTING_INTERNAL_CLK, _tempo);
+  }
+
   void clear_CV_mapping() {
 
     apply_value(CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE, 0);
@@ -404,20 +414,35 @@ public:
     apply_value(CHANNEL_SETTING_HISTORY_DEPTH_CV_SOURCE,0);
   }
 
+  void set_internal_clock(uint8_t _src) {
+
+    apply_value(CHANNEL_SETTING_CLOCK, _src);
+  }
+
   void page() {
 
      switch (menu_page_) {
           case PARAMETERS:
             menu_page_ = CV_SOURCES;
             break;
-          case CV_SOURCES:
-            clear_CV_mapping();
-            break;
           case TEMPO:
             menu_page_ = CV_SOURCES;
             break;
           default: 
+            menu_page_ = PARAMETERS;
             break;      
+     }
+  }
+
+   void tempo_page() {
+
+     switch (menu_page_) {  
+          case TEMPO:
+            menu_page_ = PARAMETERS;
+            break;
+          default: 
+           menu_page_ = TEMPO;
+           break;      
      }
   }
 
@@ -822,10 +847,15 @@ public:
     ChannelSetting *settings = enabled_settings_;
     uint8_t mode = (channel_id != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
 
-    if (channel_id != CLOCK_CHANNEL_4)
-      *settings++ = CHANNEL_SETTING_MODE;
-    else   
-      *settings++ = CHANNEL_SETTING_MODE4;
+    if (menu_page_ != TEMPO) {
+      
+      if (channel_id != CLOCK_CHANNEL_4)
+        *settings++ = CHANNEL_SETTING_MODE;
+      else   
+        *settings++ = CHANNEL_SETTING_MODE4;
+    }
+    else 
+      *settings++ = CHANNEL_SETTING_INTERNAL_CLK;
           
 
     if (menu_page_ == CV_SOURCES) {
@@ -952,6 +982,12 @@ public:
         if (mode == MULT || mode == EUCLID || mode == SEQ)
           *settings++ = CHANNEL_SETTING_RESET;
     }
+    else if (menu_page_ == TEMPO) {
+      
+      *settings++ = CHANNEL_SETTING_DUMMY;
+      *settings++ = CHANNEL_SETTING_DUMMY;
+      *settings++ = CHANNEL_SETTING_DUMMY;
+    }
     num_enabled_settings_ = settings - enabled_settings_;  
   }
   
@@ -1003,11 +1039,11 @@ private:
 };
 
 const char* const channel_trigger_sources[CHANNEL_TRIGGER_LAST] = {
-  "TR1", "TR2", "none"
+  "TR1", "TR2", "none", "INT"
 };
 
 const char* const reset_trigger_sources[CHANNEL_TRIGGER_LAST] = {
-  "TR1", "TR2", "off"
+  "TR1", "TR2", "off", " "
 };
 
 const char* const multipliers[] = {
@@ -1029,8 +1065,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { CHANNEL_TRIGGER_TR2 + 1, 0, CHANNEL_TRIGGER_LAST - 1, "reset src", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
   { 7, 0, 14, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
   { 25, 1, 255, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
-  //{ 0, 0, 1, "invert", TU::Strings::no_yes, settings::STORAGE_TYPE_U4 },
-  //{ 0, 0, 8, "clock delay", clock_delays, settings::STORAGE_TYPE_U4 },
+  { 25, 1, 255, "BPM:", NULL, settings::STORAGE_TYPE_U8 },
   //
   { 0, 0, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, 31, "LFSR tap2",NULL, settings::STORAGE_TYPE_U8 },
@@ -1053,28 +1088,28 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 },
   { TU::Patterns::PATTERN_USER_0, 0, TU::Patterns::PATTERN_USER_LAST, "sequence #", TU::pattern_names_short, settings::STORAGE_TYPE_U8 },
   // cv sources
-  { 0, 0, 4, "mult/div    <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "pulsewidth  <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "clock src   <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR tap1   <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR tap2   <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "rand > n    <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "euclid: N   <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "euclid: K   <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "euclid: OFF <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "logic type  <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "op_1        <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "op_2        <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR p(x)   <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR length <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LGST(R)     <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "sequence #  <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "mask        <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "DAC: range  <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "DAC: mode   <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "rnd hist.   <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "hist. depth <<", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 0, "--------------------", NULL, settings::STORAGE_TYPE_U4 }
+  { 0, 0, 4, "mult/div    >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "pulsewidth  >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "clock src   >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR tap1   >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR tap2   >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "rand > n    >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "euclid: N   >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "euclid: K   >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "euclid: OFF >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "logic type  >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "op_1        >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "op_2        >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR p(x)   >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR length >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LGST(R)     >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "sequence #  >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "mask        >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "DAC: range  >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "DAC: mode   >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "rnd hist.   >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "hist. depth >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 0, "---------------------", NULL, settings::STORAGE_TYPE_U4 }
 };
 
 
@@ -1193,7 +1228,7 @@ void CLOCKS_handleButtonEvent(const UI::Event &event) {
   if (UI::EVENT_BUTTON_LONG_PRESS == event.type) {
      switch (event.control) {
       case TU::CONTROL_BUTTON_UP:
-          // TEMPO
+         CLOCKS_upButtonLong();
         break;
       case TU::CONTROL_BUTTON_DOWN:
         CLOCKS_downButtonLong();
@@ -1237,11 +1272,17 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
   }
  
   if (TU::CONTROL_ENCODER_L == event.control) {
+
     int selected_channel = clocks_state.selected_channel + event.value;
     CONSTRAIN(selected_channel, 0, NUM_CHANNELS-1);
     clocks_state.selected_channel = selected_channel;
 
     Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+    clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
+    if (selected.get_page() != PARAMETERS) {
+      selected.set_page(PARAMETERS);
+      selected.update_enabled_settings(clocks_state.selected_channel);
+    }
     clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
     
   } else if (TU::CONTROL_ENCODER_R == event.control) {
@@ -1273,40 +1314,51 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
 }
 
 void CLOCKS_upButton() {
-  
-  
+
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
-  if (selected.get_page() == CV_SOURCES) {
+
+  if (selected.get_page() == TEMPO) {
     selected.set_page(PARAMETERS);
     selected.update_enabled_settings(clocks_state.selected_channel);
+    clocks_state.cursor.toggle_editing();
+    return;
   }
-  else {
-    int selected_channel = clocks_state.selected_channel + 1;
-    CONSTRAIN(selected_channel, 0, NUM_CHANNELS-1);
-    clocks_state.selected_channel = selected_channel;
-  }
-  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+
+  clock_channel[clocks_state.selected_channel].tempo_page();
+  clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
+  if (selected.get_page() == TEMPO) 
+    clocks_state.cursor.toggle_editing();
+  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
+  selected.update_enabled_settings(clocks_state.selected_channel); 
 }
 
 void CLOCKS_downButton() {
-
+  
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
 
-  if (selected.get_page() == CV_SOURCES) {
-    selected.set_page(PARAMETERS);
+  if (selected.get_page() == TEMPO) {
+    selected.set_page(CV_SOURCES);
     selected.update_enabled_settings(clocks_state.selected_channel);
+    clocks_state.cursor.toggle_editing();
+    return;
   }
-  else {  
-    int selected_channel = clocks_state.selected_channel - 1;
-    CONSTRAIN(selected_channel, 0, NUM_CHANNELS-1);
-    clocks_state.selected_channel = selected_channel;
-  }
-  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+  
+  clock_channel[clocks_state.selected_channel].page();
+  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
+  selected.update_enabled_settings(clocks_state.selected_channel);
 }
 
 void CLOCKS_rightButton() {
 
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+
+  if (selected.get_page() == TEMPO) {
+    selected.set_page(PARAMETERS);
+    selected.update_enabled_settings(clocks_state.selected_channel);
+    clocks_state.cursor.toggle_editing();
+    return;
+  }
+  
   switch (selected.enabled_setting_at(clocks_state.cursor_pos())) {
 
     case CHANNEL_SETTING_CLOCK_MASK: {
@@ -1333,12 +1385,25 @@ void CLOCKS_leftButtonLong() {
   // sync
 }
 
+void CLOCKS_upButtonLong() {
+
+  Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+  if (selected.get_page() == TEMPO) {
+    for (int i = 0; i < NUM_CHANNELS; ++i)
+        clock_channel[i].set_internal_clock(CHANNEL_TRIGGER_INTERNAL);
+  }
+}
+
 void CLOCKS_downButtonLong() {
 
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
-  clock_channel[clocks_state.selected_channel].page();
-  selected.update_enabled_settings(clocks_state.selected_channel);
-  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
+  
+  if (selected.get_page() == CV_SOURCES)
+    selected.clear_CV_mapping();
+  else if (selected.get_page() == TEMPO)   {
+    for (int i = 0; i < NUM_CHANNELS; ++i)
+        clock_channel[i].set_internal_clock(0x00);
+  }
 }
 
 void CLOCKS_menu() {
@@ -1352,11 +1417,13 @@ void CLOCKS_menu() {
     graphics.print((char)('1' + i));
     graphics.movePrintPos(2, 0);
     //
-    menu::SixTitleBar::DrawGateIndicator(i, channel.getTriggerState());
+    uint16_t internal_ = channel.get_clock_source() == CHANNEL_TRIGGER_INTERNAL ? 0x10 : 0x00;
+    menu::SixTitleBar::DrawGateIndicator(i, internal_);
   }
-  menu::SixTitleBar::Selected(clocks_state.selected_channel);
-
+  
   const Clock_channel &channel = clock_channel[clocks_state.selected_channel];
+  if (channel.get_page() != TEMPO)
+    menu::SixTitleBar::Selected(clocks_state.selected_channel);
 
   menu::SettingsList<menu::kScreenLines, 0, menu::kDefaultValueX> settings_list(clocks_state.cursor);
   
@@ -1377,6 +1444,11 @@ void CLOCKS_menu() {
       case CHANNEL_SETTING_DUMMY:  
         list_item.DrawNoValue<false>(value, attr);
         break;
+      case CHANNEL_SETTING_INTERNAL_CLK:
+        for (int i = 0; i < 6; i++) 
+          clock_channel[i].update_int_tempo(value);
+        list_item.DrawDefault(value, attr);
+        break; 
       default:
         list_item.DrawDefault(value, attr);
     }
