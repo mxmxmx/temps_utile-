@@ -94,6 +94,25 @@ enum ChannelSetting {
   CHANNEL_SETTING_LOGISTIC_MAP_R,
   CHANNEL_SETTING_CLOCK_MASK,
   CHANNEL_SETTING_CLOCK_PATTERN,
+  // cv sources
+  CHANNEL_SETTING_MULT_CV_SOURCE,
+  CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE,
+  CHANNEL_SETTING_CLOCK_CV_SOURCE,
+  CHANNEL_SETTING_LFSR_TAP1_CV_SOURCE,
+  CHANNEL_SETTING_LFSR_TAP2_CV_SOURCE,
+  CHANNEL_SETTING_RAND_N_CV_SOURCE,
+  CHANNEL_SETTING_EUCLID_N_CV_SOURCE,
+  CHANNEL_SETTING_EUCLID_K_CV_SOURCE,
+  CHANNEL_SETTING_EUCLID_OFFSET_CV_SOURCE,
+  CHANNEL_SETTING_LOGIC_TYPE_CV_SOURCE,
+  CHANNEL_SETTING_LOGIC_OP1_CV_SOURCE,
+  CHANNEL_SETTING_LOGIC_OP2_CV_SOURCE,
+  CHANNEL_SETTING_TURING_PROB_CV_SOURCE,
+  CHANNEL_SETTING_TURING_LENGTH_CV_SOURCE,
+  CHANNEL_SETTING_LOGISTIC_MAP_R_CV_SOURCE,
+  CHANNEL_SETTING_MASK_CV_SOURCE,
+  CHANNEL_SETTING_DAC_RANGE_CV_SOURCE,
+  CHANNEL_SETTING_DAC_MODE_CV_SOURCE,
   CHANNEL_SETTING_LAST
 };
 
@@ -143,6 +162,12 @@ enum LOGICMODES {
   XNOR,
   NAND,
   NOR
+};
+
+enum MENUPAGES {
+  PARAMETERS,
+  CV_SOURCES,
+  TEMPO
 };
 
 uint64_t ext_frequency[CHANNEL_TRIGGER_LAST];
@@ -250,6 +275,70 @@ public:
     return values_[CHANNEL_SETTING_CLOCK_PATTERN];
   }
 
+  uint8_t get_mult_cv_source() const {
+    return values_[CHANNEL_SETTING_MULT_CV_SOURCE];
+  }
+
+  uint8_t get_pulsewidth_cv_source() const {
+    return values_[CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE];
+  }
+
+  uint8_t get_clock_cv_source() const {
+    return values_[CHANNEL_SETTING_CLOCK_CV_SOURCE];
+  }
+
+  uint8_t get_tap1_cv_source() const {
+    return values_[CHANNEL_SETTING_LFSR_TAP1_CV_SOURCE];
+  }
+
+  uint8_t get_tap2_cv_source() const {
+    return values_[CHANNEL_SETTING_LFSR_TAP2_CV_SOURCE];
+  }
+
+  uint8_t get_rand_n_cv_source() const {
+    return values_[CHANNEL_SETTING_RAND_N_CV_SOURCE];
+  }
+
+  uint8_t get_euclid_n_cv_source() const {
+    return values_[CHANNEL_SETTING_EUCLID_N_CV_SOURCE];
+  }
+
+  uint8_t get_euclid_k_cv_source() const {
+    return values_[CHANNEL_SETTING_EUCLID_K_CV_SOURCE];
+  }
+
+  uint8_t get_euclid_offset_cv_source() const {
+    return values_[CHANNEL_SETTING_EUCLID_OFFSET_CV_SOURCE];
+  }
+
+  uint8_t get_logic_type_cv_source() const {
+    return values_[CHANNEL_SETTING_LOGIC_TYPE_CV_SOURCE];
+  }
+
+  uint8_t get_logic_op1_cv_source() const {
+    return values_[CHANNEL_SETTING_LOGIC_OP1_CV_SOURCE];
+  }
+
+  uint8_t get_logic_op2_cv_source() const {
+    return values_[CHANNEL_SETTING_LOGIC_OP2_CV_SOURCE];
+  }
+
+  uint8_t get_turing_prob_cv_source() const {
+    return values_[CHANNEL_SETTING_TURING_PROB_CV_SOURCE];
+  }
+
+  uint8_t get_turing_length_cv_source() const {
+    return values_[CHANNEL_SETTING_TURING_LENGTH_CV_SOURCE];
+  }
+
+  uint8_t get_logistic_map_r_cv_source() const {
+    return values_[CHANNEL_SETTING_LOGISTIC_MAP_R_CV_SOURCE];
+  }
+
+  uint8_t get_mask_cv_source() const {
+    return values_[CHANNEL_SETTING_MASK_CV_SOURCE];
+  }
+  
   void set_pattern(int pattern) {
     if (pattern != get_pattern()) {
       const TU::Pattern &pattern_def = TU::Patterns::GetPattern(pattern);
@@ -281,6 +370,32 @@ public:
   uint16_t get_clock_cnt() const {
     return clk_cnt_;
   }
+
+  void page() {
+
+     switch (menu_page_) {
+          case PARAMETERS:
+            menu_page_ = CV_SOURCES;
+            break;
+          case CV_SOURCES:
+            // clear
+            break;
+          case TEMPO:
+            menu_page_ = CV_SOURCES;
+            break;
+          default: 
+            break;      
+     }
+  }
+
+  uint8_t get_page() const {
+    return menu_page_;  
+  }
+
+  void set_page(uint8_t _page) {
+    menu_page_ = _page;  
+  }
+  
   void Init(ChannelTriggerSource trigger_source) {
     
     InitDefaults();
@@ -294,6 +409,7 @@ public:
     clk_cnt_ = 0;
     clk_src_ = 0;
     logic_ = false;
+    menu_page_ = PARAMETERS;
  
     prev_multiplier_ = 0;
     prev_pulsewidth_ = get_pulsewidth();
@@ -677,73 +793,112 @@ public:
       *settings++ = CHANNEL_SETTING_MODE;
     else   
       *settings++ = CHANNEL_SETTING_MODE4;
-      
-    if (mode != DAC)
-      *settings++ = CHANNEL_SETTING_PULSEWIDTH;
-    *settings++ = CHANNEL_SETTING_MULT;
+          
 
-    switch (mode) {
+    if (menu_page_ == CV_SOURCES) {
 
-      case LFSR: 
-       *settings++ = CHANNEL_SETTING_TURING_LENGTH;
-       *settings++ = CHANNEL_SETTING_TURING_PROB;
-       *settings++ = CHANNEL_SETTING_LFSR_TAP1;
-       *settings++ = CHANNEL_SETTING_LFSR_TAP2;
-       break;
-      case EUCLID:
-       *settings++ = CHANNEL_SETTING_EUCLID_N;
-       *settings++ = CHANNEL_SETTING_EUCLID_K;
-       *settings++ = CHANNEL_SETTING_EUCLID_OFFSET;
-       break; 
-      case RANDOM:
-       *settings++ = CHANNEL_SETTING_RAND_N;
-       break;
-      case LOGIC:
-       *settings++ = CHANNEL_SETTING_LOGIC_TYPE;
-       *settings++ = CHANNEL_SETTING_LOGIC_OP1;
-       *settings++ = CHANNEL_SETTING_LOGIC_OP2;
-       *settings++ = CHANNEL_SETTING_LOGIC_TRACK_WHAT;
-       break; 
-      case SEQ:
-       *settings++ = CHANNEL_SETTING_CLOCK_PATTERN;
-       *settings++ = CHANNEL_SETTING_CLOCK_MASK;
-       break;
-      case DAC: 
-        *settings++ = CHANNEL_SETTING_DAC_MODE; 
-        *settings++ = CHANNEL_SETTING_DAC_RANGE;
-        switch (dac_mode())  {
+      *settings++ = CHANNEL_SETTING_MULT_CV_SOURCE;
+      *settings++ = CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE;
 
-          case _BINARY:
-            *settings++ = CHANNEL_SETTING_DAC_TRACK_WHAT;
+      switch (mode) {
+
+          case LFSR:
+            *settings++ = CHANNEL_SETTING_TURING_LENGTH_CV_SOURCE;
+            *settings++ = CHANNEL_SETTING_TURING_PROB_CV_SOURCE;
+            *settings++ = CHANNEL_SETTING_LFSR_TAP1_CV_SOURCE;
+            *settings++ = CHANNEL_SETTING_LFSR_TAP2_CV_SOURCE;
             break;
-          case _RANDOM:
-            *settings++ = CHANNEL_SETTING_HISTORY_WEIGHT;
-            *settings++ = CHANNEL_SETTING_HISTORY_DEPTH;
+          case EUCLID:
+            *settings++ = CHANNEL_SETTING_EUCLID_N_CV_SOURCE;
+            *settings++ = CHANNEL_SETTING_EUCLID_K_CV_SOURCE;
+            *settings++ = CHANNEL_SETTING_EUCLID_OFFSET_CV_SOURCE;
+            break; 
+          case RANDOM:
+            *settings++ = CHANNEL_SETTING_RAND_N_CV_SOURCE;
             break;
-          case _TURING:
-            *settings++ = CHANNEL_SETTING_TURING_PROB;
+          case LOGIC:
+            *settings++ = CHANNEL_SETTING_LOGIC_TYPE_CV_SOURCE;
+            *settings++ = CHANNEL_SETTING_LOGIC_OP1_CV_SOURCE;
+            *settings++ = CHANNEL_SETTING_LOGIC_OP2_CV_SOURCE;
+            break; 
+          case SEQ:
+            *settings++ = CHANNEL_SETTING_MASK_CV_SOURCE;
             break;
-          case _LOGISTIC:
-            *settings++ = CHANNEL_SETTING_LOGISTIC_MAP_R;
-            break;
+          case DAC: 
+            *settings++ = CHANNEL_SETTING_DAC_MODE_CV_SOURCE; 
+            *settings++ = CHANNEL_SETTING_DAC_RANGE_CV_SOURCE;   
           default:
-            break;                
-        }
-       break;  
-      default:
-       break;
-    } // end mode switch
+            break;
+      }
+      *settings++ = CHANNEL_SETTING_CLOCK_CV_SOURCE;
+    }
 
-    //if (mode != DAC)
-      //*settings++ = CHANNEL_SETTING_INVERTED;
-      //*settings++ = CHANNEL_SETTING_DELAY;
-    *settings++ = CHANNEL_SETTING_CLOCK;
+    else if (menu_page_ == PARAMETERS) {
+
+        if (mode != DAC)
+          *settings++ = CHANNEL_SETTING_PULSEWIDTH;
+        *settings++ = CHANNEL_SETTING_MULT;
     
-    if (mode == MULT || mode == EUCLID || mode == SEQ)
-      *settings++ = CHANNEL_SETTING_RESET;
-
-    num_enabled_settings_ = settings - enabled_settings_;
+        switch (mode) {
+    
+          case LFSR: 
+           *settings++ = CHANNEL_SETTING_TURING_LENGTH;
+           *settings++ = CHANNEL_SETTING_TURING_PROB;
+           *settings++ = CHANNEL_SETTING_LFSR_TAP1;
+           *settings++ = CHANNEL_SETTING_LFSR_TAP2;
+           break;
+          case EUCLID:
+           *settings++ = CHANNEL_SETTING_EUCLID_N;
+           *settings++ = CHANNEL_SETTING_EUCLID_K;
+           *settings++ = CHANNEL_SETTING_EUCLID_OFFSET;
+           break; 
+          case RANDOM:
+           *settings++ = CHANNEL_SETTING_RAND_N;
+           break;
+          case LOGIC:
+           *settings++ = CHANNEL_SETTING_LOGIC_TYPE;
+           *settings++ = CHANNEL_SETTING_LOGIC_OP1;
+           *settings++ = CHANNEL_SETTING_LOGIC_OP2;
+           *settings++ = CHANNEL_SETTING_LOGIC_TRACK_WHAT;
+           break; 
+          case SEQ:
+           *settings++ = CHANNEL_SETTING_CLOCK_PATTERN;
+           *settings++ = CHANNEL_SETTING_CLOCK_MASK;
+           break;
+          case DAC: 
+            *settings++ = CHANNEL_SETTING_DAC_MODE; 
+            *settings++ = CHANNEL_SETTING_DAC_RANGE;
+            switch (dac_mode())  {
+    
+              case _BINARY:
+                *settings++ = CHANNEL_SETTING_DAC_TRACK_WHAT;
+                break;
+              case _RANDOM:
+                *settings++ = CHANNEL_SETTING_HISTORY_WEIGHT;
+                *settings++ = CHANNEL_SETTING_HISTORY_DEPTH;
+                break;
+              case _TURING:
+                *settings++ = CHANNEL_SETTING_TURING_PROB;
+                break;
+              case _LOGISTIC:
+                *settings++ = CHANNEL_SETTING_LOGISTIC_MAP_R;
+                break;
+              default:
+                break;                
+            }
+           break;  
+          default:
+           break;
+        } // end mode switch
+    
+        *settings++ = CHANNEL_SETTING_CLOCK;
+        
+        if (mode == MULT || mode == EUCLID || mode == SEQ)
+          *settings++ = CHANNEL_SETTING_RESET;
+    }
+    num_enabled_settings_ = settings - enabled_settings_;  
   }
+  
 
   bool update_pattern(bool force, int32_t mask_rotate) {
     const int pattern = get_pattern();
@@ -781,6 +936,7 @@ private:
   uint8_t logic_;
   uint16_t last_pattern_;
   uint16_t last_mask_;
+  uint8_t menu_page_;
  
   util::TuringShiftRegister turing_machine_;
   util::LogisticMap logistic_map_;
@@ -802,6 +958,9 @@ const char* const multipliers[] = {
   "/8", "/7", "/6", "/5", "/4", "/3", "/2", "-", "x2", "x3", "x4", "x5", "x6", "x7", "x8"
 };
 
+const char* const cv_sources[5] = {
+  "None", "CV1", "CV2", "CV3", "CV4"
+};
 //const char* const clock_delays[] = {
 //  "off", "60us", "120us", "180us", "240us", "300us", "360us", "420us", "480us"
 //};
@@ -836,7 +995,26 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 128, 0, 255, "LFSR p(x)", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 1, 255, "logistic r", NULL, settings::STORAGE_TYPE_U8 },
   { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 },
-  { TU::Patterns::PATTERN_USER_0, 0, TU::Patterns::PATTERN_USER_LAST, "sequence #", TU::pattern_names_short, settings::STORAGE_TYPE_U8 }
+  { TU::Patterns::PATTERN_USER_0, 0, TU::Patterns::PATTERN_USER_LAST, "sequence #", TU::pattern_names_short, settings::STORAGE_TYPE_U8 },
+  // cv sources
+  { 0, 0, 4, "mult.      -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "pulsewidth -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "clock src  -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "tap1       -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "tap2       -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "r(N)       -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "eucl.N     -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "eucl.K     -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "offset     -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "logic type -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "op1        -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "op2        -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR(p)    -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR(len)  -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LGST(R)    -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "mask       -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "DAC range  -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "DAC mode   -->", cv_sources, settings::STORAGE_TYPE_U4 }
 };
 
 
@@ -952,6 +1130,22 @@ void CLOCKS_isr() {
 
 void CLOCKS_handleButtonEvent(const UI::Event &event) {
 
+  if (UI::EVENT_BUTTON_LONG_PRESS == event.type) {
+     switch (event.control) {
+      case TU::CONTROL_BUTTON_UP:
+          // TEMPO
+        break;
+      case TU::CONTROL_BUTTON_DOWN:
+        CLOCKS_downButtonLong();
+        break;
+       case TU::CONTROL_BUTTON_L:
+        CLOCKS_leftButtonLong();
+        break;  
+      default:
+        break;
+     }
+  }
+
   if (clocks_state.pattern_editor.active()) {
     clocks_state.pattern_editor.HandleButtonEvent(event);
     return;
@@ -960,10 +1154,10 @@ void CLOCKS_handleButtonEvent(const UI::Event &event) {
   if (UI::EVENT_BUTTON_PRESS == event.type) {
     switch (event.control) {
       case TU::CONTROL_BUTTON_UP:
-        CLOCKS_topButton();
+        CLOCKS_upButton();
         break;
       case TU::CONTROL_BUTTON_DOWN:
-        CLOCKS_lowerButton();
+        CLOCKS_downButton();
         break;
       case TU::CONTROL_BUTTON_L:
         CLOCKS_leftButton();
@@ -972,12 +1166,7 @@ void CLOCKS_handleButtonEvent(const UI::Event &event) {
         CLOCKS_rightButton();
         break;
     }
-  } else {
-    if (TU::CONTROL_BUTTON_L == event.control)
-      CLOCKS_leftButtonLong();
-    else if (TU::CONTROL_BUTTON_DOWN == event.control)
-      CLOCKS_lowerButtonLong();  
-  }
+  } 
 }
 
 void CLOCKS_handleEncoderEvent(const UI::Event &event) {
@@ -1023,23 +1212,35 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
   }
 }
 
-void CLOCKS_topButton() {
-  // presumably, some better use could be found for those buttons ... (CV menu?)
-  int selected_channel = clocks_state.selected_channel + 1;
-  CONSTRAIN(selected_channel, 0, NUM_CHANNELS-1);
-  clocks_state.selected_channel = selected_channel;
-
+void CLOCKS_upButton() {
+  
+  
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+  if (selected.get_page() == CV_SOURCES) {
+    selected.set_page(PARAMETERS);
+    selected.update_enabled_settings(clocks_state.selected_channel);
+  }
+  else {
+    int selected_channel = clocks_state.selected_channel + 1;
+    CONSTRAIN(selected_channel, 0, NUM_CHANNELS-1);
+    clocks_state.selected_channel = selected_channel;
+  }
   clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
 }
 
-void CLOCKS_lowerButton() {
-
-  int selected_channel = clocks_state.selected_channel - 1;
-  CONSTRAIN(selected_channel, 0, NUM_CHANNELS-1);
-  clocks_state.selected_channel = selected_channel;
+void CLOCKS_downButton() {
 
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+
+  if (selected.get_page() == CV_SOURCES) {
+    selected.set_page(PARAMETERS);
+    selected.update_enabled_settings(clocks_state.selected_channel);
+  }
+  else {  
+    int selected_channel = clocks_state.selected_channel - 1;
+    CONSTRAIN(selected_channel, 0, NUM_CHANNELS-1);
+    clocks_state.selected_channel = selected_channel;
+  }
   clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
 }
 
@@ -1063,17 +1264,21 @@ void CLOCKS_rightButton() {
 }
 
 void CLOCKS_leftButton() {
-
-  Clock_channel &selected = clock_channel[clocks_state.selected_channel];
-  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
+ 
+  // ?
 }
 
 void CLOCKS_leftButtonLong() {
-  
+
+  // sync
 }
 
-void CLOCKS_lowerButtonLong() {
+void CLOCKS_downButtonLong() {
 
+  Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+  clock_channel[clocks_state.selected_channel].page();
+  selected.update_enabled_settings(clocks_state.selected_channel);
+  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
 }
 
 void CLOCKS_menu() {
