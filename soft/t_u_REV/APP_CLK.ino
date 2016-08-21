@@ -110,9 +110,11 @@ enum ChannelSetting {
   CHANNEL_SETTING_TURING_PROB_CV_SOURCE,
   CHANNEL_SETTING_TURING_LENGTH_CV_SOURCE,
   CHANNEL_SETTING_LOGISTIC_MAP_R_CV_SOURCE,
+  CHANNEL_SETTING_SEQ_CV_SOURCE,
   CHANNEL_SETTING_MASK_CV_SOURCE,
   CHANNEL_SETTING_DAC_RANGE_CV_SOURCE,
   CHANNEL_SETTING_DAC_MODE_CV_SOURCE,
+  CHANNEL_SETTING_DUMMY,
   CHANNEL_SETTING_LAST
 };
 
@@ -337,6 +339,10 @@ public:
 
   uint8_t get_mask_cv_source() const {
     return values_[CHANNEL_SETTING_MASK_CV_SOURCE];
+  }
+
+  uint8_t get_seq_cv_source() const {
+    return values_[CHANNEL_SETTING_SEQ_CV_SOURCE];
   }
   
   void set_pattern(int pattern) {
@@ -797,9 +803,10 @@ public:
 
     if (menu_page_ == CV_SOURCES) {
 
+      if (mode != DAC)
+        *settings++ = CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE;
       *settings++ = CHANNEL_SETTING_MULT_CV_SOURCE;
-      *settings++ = CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE;
-
+     
       switch (mode) {
 
           case LFSR:
@@ -820,17 +827,23 @@ public:
             *settings++ = CHANNEL_SETTING_LOGIC_TYPE_CV_SOURCE;
             *settings++ = CHANNEL_SETTING_LOGIC_OP1_CV_SOURCE;
             *settings++ = CHANNEL_SETTING_LOGIC_OP2_CV_SOURCE;
+            *settings++ = CHANNEL_SETTING_DUMMY;
             break; 
           case SEQ:
+            *settings++ = CHANNEL_SETTING_SEQ_CV_SOURCE;
             *settings++ = CHANNEL_SETTING_MASK_CV_SOURCE;
             break;
           case DAC: 
             *settings++ = CHANNEL_SETTING_DAC_MODE_CV_SOURCE; 
-            *settings++ = CHANNEL_SETTING_DAC_RANGE_CV_SOURCE;   
+            *settings++ = CHANNEL_SETTING_DAC_RANGE_CV_SOURCE;
+            *settings++ = CHANNEL_SETTING_DUMMY;   
           default:
             break;
       }
       *settings++ = CHANNEL_SETTING_CLOCK_CV_SOURCE;
+      if (mode == MULT || mode == SEQ || mode == EUCLID) // make # items the same...
+        *settings++ = CHANNEL_SETTING_DUMMY;
+       
     }
 
     else if (menu_page_ == PARAMETERS) {
@@ -997,24 +1010,26 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 },
   { TU::Patterns::PATTERN_USER_0, 0, TU::Patterns::PATTERN_USER_LAST, "sequence #", TU::pattern_names_short, settings::STORAGE_TYPE_U8 },
   // cv sources
-  { 0, 0, 4, "mult.      -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "pulsewidth -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "clock src  -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "tap1       -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "tap2       -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "r(N)       -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "eucl.N     -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "eucl.K     -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "offset     -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "logic type -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "op1        -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "op2        -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR(p)    -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR(len)  -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LGST(R)    -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "mask       -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "DAC range  -->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "DAC mode   -->", cv_sources, settings::STORAGE_TYPE_U4 }
+  { 0, 0, 4, "mult/div    -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "pulsewidth  -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "clock src   -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR tap1   -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR tap2   -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "rand > n    -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "euclid: N   -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "euclid: K   -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "euclid: OFF -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "logic type  -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "op_1        -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "op_2        -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR p(x)   -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR length -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LGST(R)     -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "sequence #  -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "mask        -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "DAC: range  -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "DAC: mode   -->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 0, "--------------------", NULL, settings::STORAGE_TYPE_U4 }
 };
 
 
@@ -1312,6 +1327,9 @@ void CLOCKS_menu() {
       
       case CHANNEL_SETTING_CLOCK_MASK:
         menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_mask(), TU::Patterns::GetPattern(channel.get_pattern()).num_slots);
+        list_item.DrawNoValue<false>(value, attr);
+        break;
+      case CHANNEL_SETTING_DUMMY:  
         list_item.DrawNoValue<false>(value, attr);
         break;
       default:
