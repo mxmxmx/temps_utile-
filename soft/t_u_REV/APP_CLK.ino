@@ -1,16 +1,17 @@
 /* 
 *   TODO
 * - prevent channels getting out of sync (mult/div) [-> offset]
-* - invert (? or maybe just get rid of it)
+* - sync (left button long)
+* - prevent double triggers when slowing down [skip force sync when: force sync < previous tick_frequency, or something]
 * - something's not quite right with LFSR mode
 * - expand to div/16
 * - implement reset
 * - implement CV 
 * - pattern seq: 
 *    - get rid of pattern/mask terminology confusion (ie "mask" = pattern; pattern = pulsewidth pattern)
+*    - fix pattern storage/retrieval
 *    - user patterns per channel
 *    - implement pulsewidth patterns
-*    - store pattern when contracting/re-expanding pattern length (?)
 * - menu details: 
 *    - constrain interdependent values
 *    - display clocks, patterns, etc
@@ -93,8 +94,8 @@ enum ChannelSetting {
   CHANNEL_SETTING_TURING_LENGTH,
   CHANNEL_SETTING_TURING_PROB,
   CHANNEL_SETTING_LOGISTIC_MAP_R,
-  CHANNEL_SETTING_CLOCK_MASK,
-  CHANNEL_SETTING_CLOCK_PATTERN,
+  CHANNEL_SETTING_MASK,
+  CHANNEL_SETTING_SEQUENCE,
   // cv sources
   CHANNEL_SETTING_MULT_CV_SOURCE,
   CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE,
@@ -287,8 +288,8 @@ public:
     return values_[CHANNEL_SETTING_LOGISTIC_MAP_R];
   }
 
-  int get_pattern() const {
-    return values_[CHANNEL_SETTING_CLOCK_PATTERN];
+  int get_sequence() const {
+    return values_[CHANNEL_SETTING_SEQUENCE];
   }
 
   uint8_t get_mult_cv_source() const {
@@ -360,18 +361,19 @@ public:
   }
   
   void set_pattern(int pattern) {
-    if (pattern != get_pattern()) {
+    
+    if (pattern != get_sequence()) {
       const TU::Pattern &pattern_def = TU::Patterns::GetPattern(pattern);
       uint16_t mask = get_mask();
       if (0 == (mask & ~(0xffff << pattern_def.num_slots)))
         mask |= 0x1;
-      apply_value(CHANNEL_SETTING_CLOCK_MASK, mask);
-      apply_value(CHANNEL_SETTING_CLOCK_PATTERN, pattern);
+      apply_value(CHANNEL_SETTING_MASK, mask);
+      apply_value(CHANNEL_SETTING_SEQUENCE, pattern);
     }
   }
 
   int get_mask() const {
-    return values_[CHANNEL_SETTING_CLOCK_MASK];
+    return values_[CHANNEL_SETTING_MASK];
   }
   
   // wrappers for PatternEdit
@@ -380,7 +382,7 @@ public:
   }
 
   void update_pattern_mask(uint16_t mask) {
-    apply_value(CHANNEL_SETTING_CLOCK_MASK, mask); 
+    apply_value(CHANNEL_SETTING_MASK, mask); 
   }
 
   uint16_t get_rotated_mask() const {
@@ -442,7 +444,6 @@ public:
     clk_src_ = 0;
     logic_ = false;
     menu_page_ = PARAMETERS;
-    cursor_pos_ = CHANNEL_SETTING_MODE;
  
     prev_multiplier_ = 0;
     prev_pulsewidth_ = get_pulsewidth();
@@ -643,7 +644,7 @@ public:
           case SEQ: {
 
               uint16_t _mask = get_mask();
-              const TU::Pattern &_pattern = TU::Patterns::GetPattern(get_pattern());
+              const TU::Pattern &_pattern = TU::Patterns::GetPattern(get_sequence());
               
               if (clk_cnt_ >= _pattern.num_slots)
                 clk_cnt_ = 0; // reset counter
@@ -923,8 +924,8 @@ public:
            *settings++ = CHANNEL_SETTING_LOGIC_TRACK_WHAT;
            break; 
           case SEQ:
-           *settings++ = CHANNEL_SETTING_CLOCK_PATTERN;
-           *settings++ = CHANNEL_SETTING_CLOCK_MASK;
+           *settings++ = CHANNEL_SETTING_SEQUENCE;
+           *settings++ = CHANNEL_SETTING_MASK;
            break;
           case DAC: 
             *settings++ = CHANNEL_SETTING_DAC_MODE; 
@@ -968,7 +969,7 @@ public:
   
 
   bool update_pattern(bool force, int32_t mask_rotate) {
-    const int pattern = get_pattern();
+    const int pattern = get_sequence();
     uint16_t mask = get_mask();
     if (mask_rotate)
       mask = TU::PatternEditor<Clock_channel>::RotateMask(mask, TU::Patterns::GetPattern(pattern).num_slots, mask_rotate);
@@ -1004,7 +1005,6 @@ private:
   uint16_t last_pattern_;
   uint16_t last_mask_;
   uint8_t menu_page_;
-  uint8_t cursor_pos_;
  
   util::TuringShiftRegister turing_machine_;
   util::LogisticMap logistic_map_;
@@ -1043,8 +1043,8 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 25, 1, 255, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
   { 25, 1, 255, "BPM:", NULL, settings::STORAGE_TYPE_U8 },
   //
-  { 0, 0, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
-  { 0, 0, 31, "LFSR tap2",NULL, settings::STORAGE_TYPE_U8 },
+  { 1, 0, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
+  { 1, 0, 31, "LFSR tap2",NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, RND_MAX, "rand > n", NULL, settings::STORAGE_TYPE_U8 },
   { 3, 3, 31, "euclid: N", NULL, settings::STORAGE_TYPE_U8 },
   { 1, 1, 31, "euclid: K", NULL, settings::STORAGE_TYPE_U8 },
@@ -1062,7 +1062,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 128, 0, 255, "LFSR p(x)", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 1, 255, "logistic r", NULL, settings::STORAGE_TYPE_U8 },
   { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 },
-  { TU::Patterns::PATTERN_USER_0, 0, TU::Patterns::PATTERN_USER_LAST, "sequence #", TU::pattern_names_short, settings::STORAGE_TYPE_U8 },
+  { TU::Patterns::PATTERN_USER_0, 0, TU::Patterns::PATTERN_USER_LAST-1, "sequence #", TU::pattern_names_short, settings::STORAGE_TYPE_U8 },
   // cv sources
   { 0, 0, 4, "mult/div    >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "pulsewidth  >>", cv_sources, settings::STORAGE_TYPE_U4 },
@@ -1118,6 +1118,8 @@ Clock_channel clock_channel[NUM_CHANNELS];
 
 void CLOCKS_init() {
 
+  TU::Patterns::Init();
+
   ext_frequency[CHANNEL_TRIGGER_TR1]  = 0xFFFFFFFF;
   ext_frequency[CHANNEL_TRIGGER_TR2]  = 0xFFFFFFFF;
   ext_frequency[CHANNEL_TRIGGER_NONE] = 0xFFFFFFFF;
@@ -1125,6 +1127,7 @@ void CLOCKS_init() {
   clocks_state.Init();
   for (size_t i = 0; i < NUM_CHANNELS; ++i) {
     clock_channel[i].Init(static_cast<ChannelTriggerSource>(CHANNEL_TRIGGER_TR1));
+    clock_channel[i].update_pattern(true,0);
   }
   clocks_state.cursor.AdjustEnd(clock_channel[0].num_enabled_settings() - 1);
  
@@ -1259,7 +1262,7 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
 
     Clock_channel &selected = clock_channel[clocks_state.selected_channel];
     
-    if (selected.get_page() == TEMPO) 
+    if (selected.get_page() == TEMPO || selected.get_page() == CV_SOURCES) 
       selected.set_page(PARAMETERS);
       
     selected.update_enabled_settings(clocks_state.selected_channel);
@@ -1286,7 +1289,7 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
        if (clocks_state.editing()) {
           ChannelSetting setting = selected.enabled_setting_at(clocks_state.cursor_pos());
           
-           if (CHANNEL_SETTING_CLOCK_MASK != setting) {
+           if (CHANNEL_SETTING_MASK != setting) {
             if (selected.change_value(setting, event.value))
              selected.force_update();
 
@@ -1340,6 +1343,9 @@ void CLOCKS_downButton() {
   switch (_menu_page) {
 
     case CV_SOURCES:
+      // don't get stuck:
+      if (selected.enabled_setting_at(clocks_state.cursor_pos()) == CHANNEL_SETTING_MASK_CV_SOURCE)
+        clocks_state.cursor.set_editing(false);
       selected.set_page(PARAMETERS);
       break;
     case TEMPO:
@@ -1367,8 +1373,8 @@ void CLOCKS_rightButton() {
   
   switch (selected.enabled_setting_at(clocks_state.cursor_pos())) {
 
-    case CHANNEL_SETTING_CLOCK_MASK: {
-      int pattern = selected.get_pattern();
+    case CHANNEL_SETTING_MASK: {
+      int pattern = selected.get_sequence();
       if (TU::Patterns::PATTERN_NONE != pattern) {
         clocks_state.pattern_editor.Edit(&selected, pattern);
       }
@@ -1453,8 +1459,8 @@ void CLOCKS_menu() {
 
     switch (setting) {
       
-      case CHANNEL_SETTING_CLOCK_MASK:
-        menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_mask(), TU::Patterns::GetPattern(channel.get_pattern()).num_slots);
+      case CHANNEL_SETTING_MASK:
+        menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_mask(), TU::Patterns::GetPattern(channel.get_sequence()).num_slots);
         list_item.DrawNoValue<false>(value, attr);
         break;
       case CHANNEL_SETTING_DUMMY:

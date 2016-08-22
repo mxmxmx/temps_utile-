@@ -14,7 +14,7 @@ static constexpr int kMinPatternLength = 4;
 class Patterns {
 public:
 
-	static const int NUM_PATTERNS;
+  static const int NUM_PATTERNS;
 
   enum {
     PATTERN_USER_0,

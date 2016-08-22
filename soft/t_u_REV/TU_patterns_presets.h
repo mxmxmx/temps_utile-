@@ -15,7 +15,7 @@ namespace TU {
   const Pattern patterns[] = {
     // Off
     { 0, 0, { } },
-    // Semitones
+    // ON
     { 12 << 7, 12, { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1} }
   
   };
