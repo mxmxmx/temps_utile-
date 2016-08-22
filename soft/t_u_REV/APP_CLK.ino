@@ -442,6 +442,7 @@ public:
     clk_src_ = 0;
     logic_ = false;
     menu_page_ = PARAMETERS;
+    cursor_pos_ = CHANNEL_SETTING_MODE;
  
     prev_multiplier_ = 0;
     prev_pulsewidth_ = get_pulsewidth();
@@ -1003,6 +1004,7 @@ private:
   uint16_t last_pattern_;
   uint16_t last_mask_;
   uint8_t menu_page_;
+  uint8_t cursor_pos_;
  
   util::TuringShiftRegister turing_machine_;
   util::LogisticMap logistic_map_;
@@ -1107,6 +1109,7 @@ public:
 
   int selected_channel;
   menu::ScreenCursor<menu::kScreenLines> cursor;
+  menu::ScreenCursor<menu::kScreenLines> cursor_state;
   TU::PatternEditor<Clock_channel> pattern_editor;
 };
 
@@ -1242,6 +1245,7 @@ void CLOCKS_handleButtonEvent(const UI::Event &event) {
 
 void CLOCKS_handleEncoderEvent(const UI::Event &event) {
 
+  
   if (clocks_state.pattern_editor.active()) {
     clocks_state.pattern_editor.HandleEncoderEvent(event);
     return;
@@ -1249,21 +1253,44 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
  
   if (TU::CONTROL_ENCODER_L == event.control) {
 
+    Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+    
+    if (selected.get_page() == TEMPO) {
+      selected.set_page(PARAMETERS);
+      clocks_state.cursor = clocks_state.cursor_state;
+      selected.update_enabled_settings(clocks_state.selected_channel);
+      return;
+    }
+    else if (selected.get_page() == CV_SOURCES) {
+      selected.set_page(PARAMETERS);
+      selected.update_enabled_settings(clocks_state.selected_channel);
+      return;
+    }
+
     int selected_channel = clocks_state.selected_channel + event.value;
     CONSTRAIN(selected_channel, 0, NUM_CHANNELS-1);
     clocks_state.selected_channel = selected_channel;
-
-    Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+    
     clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
-    if (selected.get_page() != PARAMETERS) {
-      selected.set_page(PARAMETERS);
-      selected.update_enabled_settings(clocks_state.selected_channel);
-    }
+    selected.update_enabled_settings(clocks_state.selected_channel);
     clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
     
   } else if (TU::CONTROL_ENCODER_R == event.control) {
     
        Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+
+       if (selected.get_page() == TEMPO) {
+
+         uint16_t int_clock_used_ = 0x0;
+         for (int i = 0; i < NUM_CHANNELS; i++) 
+              int_clock_used_ += selected.get_clock_source() == CHANNEL_TRIGGER_INTERNAL ? 0x10 : 0x00;
+         if (!int_clock_used_) {
+          selected.set_page(PARAMETERS);
+          clocks_state.cursor = clocks_state.cursor_state;
+          selected.update_enabled_settings(clocks_state.selected_channel);
+          return;     
+         }
+       }
     
        if (clocks_state.editing()) {
           ChannelSetting setting = selected.enabled_setting_at(clocks_state.cursor_pos());
@@ -1293,35 +1320,46 @@ void CLOCKS_upButton() {
 
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
 
-  if (selected.get_page() == TEMPO) {
-    selected.set_page(PARAMETERS);
-    selected.update_enabled_settings(clocks_state.selected_channel);
-    clocks_state.cursor.toggle_editing();
-    return;
-  }
-  else 
-    selected.set_page(TEMPO);
+  uint8_t _menu_page = selected.get_page();
 
-  clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
-  clocks_state.cursor.toggle_editing();
-  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
+  switch (_menu_page) {
+
+    case TEMPO:
+      selected.set_page(PARAMETERS);
+      clocks_state.cursor = clocks_state.cursor_state;
+      break;
+    default:  
+      clocks_state.cursor_state = clocks_state.cursor;
+      selected.set_page(TEMPO);
+      clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
+      clocks_state.cursor.toggle_editing();
+     break;
+  }
   selected.update_enabled_settings(clocks_state.selected_channel); 
+  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
 }
 
 void CLOCKS_downButton() {
+
   
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
 
-  if (selected.get_page() > PARAMETERS) {
-    selected.set_page(PARAMETERS);
-    selected.update_enabled_settings(clocks_state.selected_channel);
-    return;
+  uint8_t _menu_page = selected.get_page();
+
+  switch (_menu_page) {
+
+    case CV_SOURCES:
+      selected.set_page(PARAMETERS);
+      break;
+    case TEMPO:
+      selected.set_page(CV_SOURCES);
+      clocks_state.cursor = clocks_state.cursor_state;  
+    default:  
+      selected.set_page(CV_SOURCES);
+     break;
   }
-  else 
-    selected.set_page(CV_SOURCES);
-  
+  selected.update_enabled_settings(clocks_state.selected_channel); 
   clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
-  selected.update_enabled_settings(clocks_state.selected_channel);
 }
 
 void CLOCKS_rightButton() {
