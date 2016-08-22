@@ -1368,8 +1368,9 @@ void CLOCKS_rightButton() {
 
   if (selected.get_page() == TEMPO) {
     selected.set_page(PARAMETERS);
+    clocks_state.cursor = clocks_state.cursor_state;
     selected.update_enabled_settings(clocks_state.selected_channel);
-    clocks_state.cursor.toggle_editing();
+    clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
     return;
   }
   
@@ -1391,7 +1392,15 @@ void CLOCKS_rightButton() {
 
 void CLOCKS_leftButton() {
  
-  // ?
+  Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+
+  if (selected.get_page() == TEMPO) {
+    selected.set_page(PARAMETERS);
+    clocks_state.cursor = clocks_state.cursor_state;
+    selected.update_enabled_settings(clocks_state.selected_channel);
+    clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
+    return;
+  }
 }
 
 void CLOCKS_leftButtonLong() {
