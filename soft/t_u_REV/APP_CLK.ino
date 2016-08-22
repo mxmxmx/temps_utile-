@@ -1083,8 +1083,9 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, 4, "DAC: mode   >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "rnd hist.   >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "hist. depth >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 0, "---------------------", NULL, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_U4 }
+  { 0, 0, 0, "---------------------", NULL, settings::STORAGE_TYPE_U4 }, // DUMMY
+  { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_U4 }, // DUMMY empty
+  { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_U4 }  // screensaver
 };
 
 
