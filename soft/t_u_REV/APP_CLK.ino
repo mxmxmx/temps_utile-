@@ -1253,26 +1253,17 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
  
   if (TU::CONTROL_ENCODER_L == event.control) {
 
-    Clock_channel &selected = clock_channel[clocks_state.selected_channel];
-    
-    if (selected.get_page() == TEMPO) {
-      selected.set_page(PARAMETERS);
-      clocks_state.cursor = clocks_state.cursor_state;
-      selected.update_enabled_settings(clocks_state.selected_channel);
-      return;
-    }
-    else if (selected.get_page() == CV_SOURCES) {
-      selected.set_page(PARAMETERS);
-      selected.update_enabled_settings(clocks_state.selected_channel);
-      return;
-    }
-
     int selected_channel = clocks_state.selected_channel + event.value;
     CONSTRAIN(selected_channel, 0, NUM_CHANNELS-1);
     clocks_state.selected_channel = selected_channel;
+
+    Clock_channel &selected = clock_channel[clocks_state.selected_channel];
     
-    clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
+    if (selected.get_page() == TEMPO) 
+      selected.set_page(PARAMETERS);
+      
     selected.update_enabled_settings(clocks_state.selected_channel);
+    clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0); 
     clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
     
   } else if (TU::CONTROL_ENCODER_R == event.control) {
@@ -1359,7 +1350,7 @@ void CLOCKS_downButton() {
      break;
   }
   selected.update_enabled_settings(clocks_state.selected_channel); 
-  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
+  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
 }
 
 void CLOCKS_rightButton() {
