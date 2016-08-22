@@ -118,6 +118,8 @@ enum ChannelSetting {
   CHANNEL_SETTING_HISTORY_WEIGHT_CV_SOURCE,
   CHANNEL_SETTING_HISTORY_DEPTH_CV_SOURCE,
   CHANNEL_SETTING_DUMMY,
+  CHANNEL_SETTING_DUMMY_EMPTY,
+  CHANNEL_SETTING_SCREENSAVER,
   CHANNEL_SETTING_LAST
 };
   
@@ -192,6 +194,10 @@ public:
   uint8_t get_clock_source() const {
     return values_[CHANNEL_SETTING_CLOCK];
   }
+
+  void set_clock_source(uint8_t _src) {
+    apply_value(CHANNEL_SETTING_CLOCK, _src);
+  }
   
   int8_t get_mult() const {
     return values_[CHANNEL_SETTING_MULT];
@@ -201,7 +207,7 @@ public:
     return values_[CHANNEL_SETTING_PULSEWIDTH];
   }
 
-  uint16_t get_internal_clk() const {
+  uint16_t get_internal_tempo() const {
     return values_[CHANNEL_SETTING_INTERNAL_CLK];
   }
   
@@ -412,38 +418,6 @@ public:
     apply_value(CHANNEL_SETTING_DAC_MODE_CV_SOURCE,0);
     apply_value(CHANNEL_SETTING_HISTORY_WEIGHT_CV_SOURCE,0);
     apply_value(CHANNEL_SETTING_HISTORY_DEPTH_CV_SOURCE,0);
-  }
-
-  void set_internal_clock(uint8_t _src) {
-
-    apply_value(CHANNEL_SETTING_CLOCK, _src);
-  }
-
-  void page() {
-
-     switch (menu_page_) {
-          case PARAMETERS:
-            menu_page_ = CV_SOURCES;
-            break;
-          case TEMPO:
-            menu_page_ = CV_SOURCES;
-            break;
-          default: 
-            menu_page_ = PARAMETERS;
-            break;      
-     }
-  }
-
-   void tempo_page() {
-
-     switch (menu_page_) {  
-          case TEMPO:
-            menu_page_ = PARAMETERS;
-            break;
-          default: 
-           menu_page_ = TEMPO;
-           break;      
-     }
   }
 
   uint8_t get_page() const {
@@ -984,9 +958,9 @@ public:
     }
     else if (menu_page_ == TEMPO) {
       
-      *settings++ = CHANNEL_SETTING_DUMMY;
-      *settings++ = CHANNEL_SETTING_DUMMY;
-      *settings++ = CHANNEL_SETTING_DUMMY;
+      *settings++ = CHANNEL_SETTING_DUMMY_EMPTY;
+      *settings++ = CHANNEL_SETTING_SCREENSAVER;
+      *settings++ = CHANNEL_SETTING_DUMMY_EMPTY;
     }
     num_enabled_settings_ = settings - enabled_settings_;  
   }
@@ -1109,7 +1083,8 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, 4, "DAC: mode   >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "rnd hist.   >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "hist. depth >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 0, "---------------------", NULL, settings::STORAGE_TYPE_U4 }
+  { 0, 0, 0, "---------------------", NULL, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_U4 }
 };
 
 
@@ -1323,11 +1298,11 @@ void CLOCKS_upButton() {
     clocks_state.cursor.toggle_editing();
     return;
   }
+  else 
+    selected.set_page(TEMPO);
 
-  clock_channel[clocks_state.selected_channel].tempo_page();
   clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
-  if (selected.get_page() == TEMPO) 
-    clocks_state.cursor.toggle_editing();
+  clocks_state.cursor.toggle_editing();
   clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
   selected.update_enabled_settings(clocks_state.selected_channel); 
 }
@@ -1336,14 +1311,14 @@ void CLOCKS_downButton() {
   
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
 
-  if (selected.get_page() == TEMPO) {
-    selected.set_page(CV_SOURCES);
+  if (selected.get_page() > PARAMETERS) {
+    selected.set_page(PARAMETERS);
     selected.update_enabled_settings(clocks_state.selected_channel);
-    clocks_state.cursor.toggle_editing();
     return;
   }
+  else 
+    selected.set_page(CV_SOURCES);
   
-  clock_channel[clocks_state.selected_channel].page();
   clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
   selected.update_enabled_settings(clocks_state.selected_channel);
 }
@@ -1390,7 +1365,7 @@ void CLOCKS_upButtonLong() {
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
   if (selected.get_page() == TEMPO) {
     for (int i = 0; i < NUM_CHANNELS; ++i)
-        clock_channel[i].set_internal_clock(CHANNEL_TRIGGER_INTERNAL);
+        clock_channel[i].set_clock_source(CHANNEL_TRIGGER_INTERNAL);
   }
 }
 
@@ -1402,13 +1377,14 @@ void CLOCKS_downButtonLong() {
     selected.clear_CV_mapping();
   else if (selected.get_page() == TEMPO)   {
     for (int i = 0; i < NUM_CHANNELS; ++i)
-        clock_channel[i].set_internal_clock(0x00);
+        clock_channel[i].set_clock_source(CHANNEL_TRIGGER_TR1);
   }
 }
 
 void CLOCKS_menu() {
 
   menu::SixTitleBar::Draw();
+  uint16_t int_clock_used_ = 0x0;
   
   for (int i = 0, x = 0; i < NUM_CHANNELS; ++i, x += 21) {
 
@@ -1418,6 +1394,7 @@ void CLOCKS_menu() {
     graphics.movePrintPos(2, 0);
     //
     uint16_t internal_ = channel.get_clock_source() == CHANNEL_TRIGGER_INTERNAL ? 0x10 : 0x00;
+    int_clock_used_ += internal_;
     menu::SixTitleBar::DrawGateIndicator(i, internal_);
   }
   
@@ -1441,13 +1418,18 @@ void CLOCKS_menu() {
         menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_mask(), TU::Patterns::GetPattern(channel.get_pattern()).num_slots);
         list_item.DrawNoValue<false>(value, attr);
         break;
-      case CHANNEL_SETTING_DUMMY:  
+      case CHANNEL_SETTING_DUMMY:
+      case CHANNEL_SETTING_DUMMY_EMPTY:  
         list_item.DrawNoValue<false>(value, attr);
+        break;
+      case CHANNEL_SETTING_SCREENSAVER:
+        CLOCKS_screensaver(); 
         break;
       case CHANNEL_SETTING_INTERNAL_CLK:
         for (int i = 0; i < 6; i++) 
           clock_channel[i].update_int_tempo(value);
-        list_item.DrawDefault(value, attr);
+        if (int_clock_used_ )  
+          list_item.DrawDefault(value, attr);
         break; 
       default:
         list_item.DrawDefault(value, attr);
