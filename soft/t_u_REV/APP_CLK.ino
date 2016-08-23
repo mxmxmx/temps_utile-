@@ -996,7 +996,7 @@ public:
               case 2:
               *settings++ = CHANNEL_SETTING_MASK3;
               break;
-              case 4:
+              case 3:
               *settings++ = CHANNEL_SETTING_MASK4;
               break;
               default:
@@ -1334,8 +1334,6 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
   
   if (clocks_state.pattern_editor.active()) {
     clocks_state.pattern_editor.HandleEncoderEvent(event);
-    //Serial.println(clock_channel[clocks_state.selected_channel].get_mask());
-    //Serial.println(clock_channel[clocks_state.selected_channel].get_sequence_length());
     return;
   }
  
@@ -1379,9 +1377,6 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
              selected.force_update();
 
             switch (setting) {
-              //case CHANNEL_SETTING_SEQUENCE:
-              //selected.get_mask();
-              //break;
               case CHANNEL_SETTING_MODE:
               case CHANNEL_SETTING_MODE4:  
               case CHANNEL_SETTING_DAC_MODE:
