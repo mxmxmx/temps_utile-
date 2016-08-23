@@ -466,6 +466,7 @@ public:
      uint8_t _clock_source, _multiplier, _mode;
      bool _none, _triggered, _tock, _sync;
      uint16_t _output = gpio_state_;
+     uint32_t prev_channel_frequency_in_ticks_ = 0x0;
 
      // channel parameters:
      _clock_source = get_clock_source();
@@ -492,6 +493,7 @@ public:
 
      // recalculate channel frequency and jitter-threshold:
      if (_tock) {
+        prev_channel_frequency_in_ticks_ = channel_frequency_in_ticks_;
         channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 3; 
         tickjitter_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_JITTER);
      }
@@ -528,7 +530,7 @@ public:
          // if so, reset ticks: 
          subticks_ = 0x0;
          // count, only if ... 
-         if (_subticks < tickjitter_) // reject? .. 
+         if (_subticks < tickjitter_ || _subticks < (prev_channel_frequency_in_ticks_>>1)) // reject, if jittery or skip quasi-double triggers when ext. frequency changes...
             return;
             
          clk_cnt_++;  
