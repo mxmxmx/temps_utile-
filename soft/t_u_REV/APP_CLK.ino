@@ -33,6 +33,9 @@ namespace menu = TU::menu;
 const uint8_t MODES = 7;        // # clock modes
 const uint8_t DAC_MODES = 4;    // # DAC submodes
 const uint8_t RND_MAX = 31;     // max random (n)
+const uint8_t MULT_MAX = 14;    // max multiplier
+const uint8_t PULSEW_MAX = 255; // max pulse width [ms]
+const uint16_t TOGGLE_THRESHOLD = 500; // ADC threshold for 0/1 parameters (~1.2V)
 
 const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
 const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
@@ -329,7 +332,7 @@ public:
     return values_[CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE];
   }
 
-  uint8_t get_clock_cv_source() const {
+  uint8_t get_clock_source_cv_source() const {
     return values_[CHANNEL_SETTING_CLOCK_CV_SOURCE];
   }
 
@@ -538,14 +541,29 @@ public:
 
      subticks_++; 
      
-     uint8_t _clock_source, _multiplier, _mode;
+     int8_t _clock_source, _mode;
+     int8_t _multiplier;
      bool _none, _triggered, _tock, _sync;
      uint16_t _output = gpio_state_;
      uint32_t prev_channel_frequency_in_ticks_ = 0x0;
 
      // channel parameters:
      _clock_source = get_clock_source();
+     
+     if (get_clock_source_cv_source()){
+        int16_t _toggle = TU::ADC::value(static_cast<ADC_CHANNEL>(get_clock_source_cv_source() - 1));
+
+        if (_toggle > TOGGLE_THRESHOLD && _clock_source <= CHANNEL_TRIGGER_TR2) 
+          _clock_source = (~_clock_source) & 1u;
+     }
+     
      _multiplier = get_mult();
+
+     if (get_mult_cv_source()) {
+        _multiplier += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_mult_cv_source() - 1)) + 127) >> 8;             
+        CONSTRAIN(_multiplier, 0, MULT_MAX);
+     }
+      
      _mode = (clock_channel != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
      // clocked ?
      _none = CHANNEL_TRIGGER_NONE == _clock_source;
@@ -601,13 +619,12 @@ public:
      
      // time to output ? 
      if (subticks_ >= channel_frequency_in_ticks_ && _sync) { 
-
+         
          // if so, reset ticks: 
          subticks_ = 0x0;
          // count, only if ... 
          if (_subticks < tickjitter_ || _subticks < (prev_channel_frequency_in_ticks_>>1)) // reject, if jittery or skip quasi-double triggers when ext. frequency changes...
             return;
-            
          clk_cnt_++;  
          _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
          TU::OUTPUTS::setState(clock_channel, _output);
@@ -616,7 +633,12 @@ public:
      // on/off...?
      if (gpio_state_ && _mode != DAC) { 
 
-        uint8_t _pulsewidth = get_pulsewidth();
+        int16_t _pulsewidth = get_pulsewidth();
+        // CV?
+        if (get_pulsewidth_cv_source()) {
+          _pulsewidth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_pulsewidth_cv_source() - 1)) + 16) >> 4;             
+          CONSTRAIN(_pulsewidth, 1, PULSEW_MAX);
+        }
         // recalculate pulsewidth ? 
         if (prev_pulsewidth_ != _pulsewidth || ! subticks_) {
             int32_t _fraction = signed_multiply_32x16b(TICKS_TO_MS, static_cast<int32_t>(_pulsewidth)); // = * 0.6667f
@@ -1130,8 +1152,8 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, MODES - 1, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
   { CHANNEL_TRIGGER_TR1, 0, CHANNEL_TRIGGER_LAST - 1, "clock src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
   { CHANNEL_TRIGGER_TR2 + 1, 0, CHANNEL_TRIGGER_LAST - 1, "reset src", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
-  { 7, 0, 14, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
-  { 25, 1, 255, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
+  { 7, 0, MULT_MAX, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
+  { 25, 1, PULSEW_MAX, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
   { 25, 1, 255, "BPM:", NULL, settings::STORAGE_TYPE_U8 },
   //
   { 1, 1, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
