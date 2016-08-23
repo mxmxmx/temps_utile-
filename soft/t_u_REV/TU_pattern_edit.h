@@ -179,7 +179,7 @@ void PatternEditor<Owner>::HandleEncoderEvent(const UI::Event &event) {
               mask |= 0x1;
           }
 
-          mutable_pattern_->num_slots = num_slots_;
+          owner_->set_sequence_length(num_slots_); //mutable_pattern_->num_slots = num_slots_;
           cursor_pos_ = num_slots_;
           handled = pattern_changed = true;
         }
@@ -265,7 +265,7 @@ void PatternEditor<Owner>::reset_pattern() {
   Serial.println("Resetting pattern ... ");
 
   *mutable_pattern_ = TU::Patterns::GetPattern(TU::Patterns::PATTERN_DEFAULT);
-  num_slots_ = mutable_pattern_->num_slots;
+  num_slots_ = owner_->get_sequence_length();// mutable_pattern_->num_slots;
   cursor_pos_ = num_slots_;
   mask_ = ~(0xfff << num_slots_);
   apply_mask(mask_);
@@ -275,7 +275,7 @@ template <typename Owner>
 void PatternEditor<Owner>::BeginEditing() {
 
   cursor_pos_ = 0;
-  num_slots_ = pattern_->num_slots;
+  num_slots_ = owner_->get_sequence_length();// pattern_->num_slots;
   mask_ = owner_->get_mask();
 }
 

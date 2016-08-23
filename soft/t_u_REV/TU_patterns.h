@@ -28,6 +28,8 @@ public:
 
   static void Init();
   static const Pattern &GetPattern(int index);
+  static const int kMin = kMinPatternLength;
+  static const int kMax = kMaxPatternLength;
 };
 
 

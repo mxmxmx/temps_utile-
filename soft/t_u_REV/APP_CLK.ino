@@ -7,12 +7,6 @@
 * - expand to div/16
 * - implement reset
 * - implement CV 
-* - pattern seq: 
-*    - get rid of pattern/mask terminology confusion (ie "mask" = pattern; pattern = pulsewidth pattern)
-*    - save 'sequences' as int, ie just length
-*    - fix pattern storage/retrieval
-*    - user patterns per channel
-*    - implement pulsewidth patterns
 * - menu details: 
 *    - constrain interdependent values
 *    - display clocks, patterns, etc
@@ -97,6 +91,7 @@ enum ChannelSetting {
   CHANNEL_SETTING_LOGISTIC_MAP_R,
   CHANNEL_SETTING_MASK,
   CHANNEL_SETTING_SEQUENCE,
+  CHANNEL_SETTING_SEQUENCE_LEN,
   // cv sources
   CHANNEL_SETTING_MULT_CV_SOURCE,
   CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE,
@@ -293,6 +288,10 @@ public:
     return values_[CHANNEL_SETTING_SEQUENCE];
   }
 
+  uint8_t get_sequence_length() const {
+    return values_[CHANNEL_SETTING_SEQUENCE_LEN];
+  }
+  
   uint8_t get_mult_cv_source() const {
     return values_[CHANNEL_SETTING_MULT_CV_SOURCE];
   }
@@ -361,18 +360,6 @@ public:
     return values_[CHANNEL_SETTING_SEQ_CV_SOURCE];
   }
   
-  void set_pattern(int pattern) {
-    
-    if (pattern != get_sequence()) {
-      const TU::Pattern &pattern_def = TU::Patterns::GetPattern(pattern);
-      uint16_t mask = get_mask();
-      if (0 == (mask & ~(0xffff << pattern_def.num_slots)))
-        mask |= 0x1;
-      apply_value(CHANNEL_SETTING_MASK, mask);
-      apply_value(CHANNEL_SETTING_SEQUENCE, pattern);
-    }
-  }
-
   int get_mask() const {
     return values_[CHANNEL_SETTING_MASK];
   }
@@ -384,6 +371,10 @@ public:
 
   void update_pattern_mask(uint16_t mask) {
     apply_value(CHANNEL_SETTING_MASK, mask); 
+  }
+
+  void set_sequence_length(uint8_t len) {
+    apply_value(CHANNEL_SETTING_SEQUENCE_LEN, len);
   }
 
   uint16_t get_rotated_mask() const {
@@ -645,9 +636,9 @@ public:
           case SEQ: {
 
               uint16_t _mask = get_mask();
-              const TU::Pattern &_pattern = TU::Patterns::GetPattern(get_sequence());
+              //const TU::Pattern &_pattern = TU::Patterns::GetPattern(get_sequence());
               
-              if (clk_cnt_ >= _pattern.num_slots)
+              if (clk_cnt_ >= get_sequence_length())//_pattern.num_slots)
                 clk_cnt_ = 0; // reset counter
               // pulse_width = _pattern.slots[clk_cnt_];
               _out = (_mask >> clk_cnt_) & 1u;
@@ -973,7 +964,7 @@ public:
     const int pattern = get_sequence();
     uint16_t mask = get_mask();
     if (mask_rotate)
-      mask = TU::PatternEditor<Clock_channel>::RotateMask(mask, TU::Patterns::GetPattern(pattern).num_slots, mask_rotate);
+      mask = TU::PatternEditor<Clock_channel>::RotateMask(mask, get_sequence_length(), mask_rotate);
 
     if (force || (last_pattern_ != pattern || last_mask_ != mask)) {
 
@@ -1064,6 +1055,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 128, 1, 255, "logistic r", NULL, settings::STORAGE_TYPE_U8 },
   { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 },
   { TU::Patterns::PATTERN_USER_0, 0, TU::Patterns::PATTERN_USER_LAST-1, "sequence #", TU::pattern_names_short, settings::STORAGE_TYPE_U8 },
+  { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 },
   // cv sources
   { 0, 0, 4, "mult/div    >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "pulsewidth  >>", cv_sources, settings::STORAGE_TYPE_U4 },
@@ -1252,6 +1244,8 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
   
   if (clocks_state.pattern_editor.active()) {
     clocks_state.pattern_editor.HandleEncoderEvent(event);
+    Serial.println(clock_channel[clocks_state.selected_channel].get_mask());
+    Serial.println(clock_channel[clocks_state.selected_channel].get_sequence_length());
     return;
   }
  
@@ -1461,7 +1455,7 @@ void CLOCKS_menu() {
     switch (setting) {
       
       case CHANNEL_SETTING_MASK:
-        menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_mask(), TU::Patterns::GetPattern(channel.get_sequence()).num_slots);
+        menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_mask(), channel.get_sequence_length());
         list_item.DrawNoValue<false>(value, attr);
         break;
       case CHANNEL_SETTING_DUMMY:

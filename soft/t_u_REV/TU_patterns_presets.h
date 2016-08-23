@@ -12,7 +12,7 @@ namespace TU {
 
   const Pattern patterns[] = {
     // default
-    { 8 }
+    { 16 }
   
   };
 }
