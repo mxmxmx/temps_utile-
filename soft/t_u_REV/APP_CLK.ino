@@ -89,9 +89,15 @@ enum ChannelSetting {
   CHANNEL_SETTING_TURING_LENGTH,
   CHANNEL_SETTING_TURING_PROB,
   CHANNEL_SETTING_LOGISTIC_MAP_R,
-  CHANNEL_SETTING_MASK,
+  CHANNEL_SETTING_MASK1,
+  CHANNEL_SETTING_MASK2,
+  CHANNEL_SETTING_MASK3,
+  CHANNEL_SETTING_MASK4,
   CHANNEL_SETTING_SEQUENCE,
-  CHANNEL_SETTING_SEQUENCE_LEN,
+  CHANNEL_SETTING_SEQUENCE_LEN1,
+  CHANNEL_SETTING_SEQUENCE_LEN2,
+  CHANNEL_SETTING_SEQUENCE_LEN3,
+  CHANNEL_SETTING_SEQUENCE_LEN4,
   // cv sources
   CHANNEL_SETTING_MULT_CV_SOURCE,
   CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE,
@@ -288,8 +294,23 @@ public:
     return values_[CHANNEL_SETTING_SEQUENCE];
   }
 
-  uint8_t get_sequence_length() const {
-    return values_[CHANNEL_SETTING_SEQUENCE_LEN];
+  uint8_t get_sequence_length(uint8_t _seq) const {
+
+    switch (_seq) {
+
+    case 1:
+    return values_[CHANNEL_SETTING_SEQUENCE_LEN2];
+    break;
+    case 2:
+    return values_[CHANNEL_SETTING_SEQUENCE_LEN3];
+    break;
+    case 3:
+    return values_[CHANNEL_SETTING_SEQUENCE_LEN4];
+    break;    
+    default:
+    return values_[CHANNEL_SETTING_SEQUENCE_LEN1];
+    break;
+    }
   }
   
   uint8_t get_mult_cv_source() const {
@@ -359,9 +380,43 @@ public:
   uint8_t get_seq_cv_source() const {
     return values_[CHANNEL_SETTING_SEQ_CV_SOURCE];
   }
+
+  void update_pattern_mask(uint16_t mask) {
+
+    switch(get_sequence()) {
+      
+    case 1:
+      apply_value(CHANNEL_SETTING_MASK2, mask);
+      break;
+    case 2:
+      apply_value(CHANNEL_SETTING_MASK3, mask);
+      break;
+    case 3:
+      apply_value(CHANNEL_SETTING_MASK4, mask);
+      break;    
+    default:
+      apply_value(CHANNEL_SETTING_MASK1, mask);
+      break;   
+    }
+  }
   
-  int get_mask() const {
-    return values_[CHANNEL_SETTING_MASK];
+  int get_mask(uint8_t _mask) const {
+
+    switch(_mask) {
+      
+    case 1:
+      return values_[CHANNEL_SETTING_MASK2];
+      break;
+    case 2:
+      return values_[CHANNEL_SETTING_MASK3];
+      break;
+    case 3:
+      return values_[CHANNEL_SETTING_MASK4];
+      break;    
+    default:
+      return values_[CHANNEL_SETTING_MASK1];
+      break;   
+    }
   }
   
   // wrappers for PatternEdit
@@ -369,12 +424,24 @@ public:
     force_update_ = true;
   }
 
-  void update_pattern_mask(uint16_t mask) {
-    apply_value(CHANNEL_SETTING_MASK, mask); 
-  }
+  void set_sequence_length(uint8_t len, uint8_t seq) {
 
-  void set_sequence_length(uint8_t len) {
-    apply_value(CHANNEL_SETTING_SEQUENCE_LEN, len);
+    switch(seq) {
+      case 0:
+      apply_value(CHANNEL_SETTING_SEQUENCE_LEN1, len);
+      break;
+      case 1:
+      apply_value(CHANNEL_SETTING_SEQUENCE_LEN2, len);
+      break;
+      case 2:
+      apply_value(CHANNEL_SETTING_SEQUENCE_LEN3, len);
+      break;
+      case 3:
+      apply_value(CHANNEL_SETTING_SEQUENCE_LEN4, len);
+      break;
+      default:
+      break;
+    }
   }
 
   uint16_t get_rotated_mask() const {
@@ -637,12 +704,11 @@ public:
             break;
           case SEQ: {
 
-              uint16_t _mask = get_mask();
-              //const TU::Pattern &_pattern = TU::Patterns::GetPattern(get_sequence());
+              uint8_t _seq = get_sequence();
+              uint16_t _mask = get_mask(_seq);
               
-              if (clk_cnt_ >= get_sequence_length())//_pattern.num_slots)
+              if (clk_cnt_ >= get_sequence_length(_seq))
                 clk_cnt_ = 0; // reset counter
-              // pulse_width = _pattern.slots[clk_cnt_];
               _out = (_mask >> clk_cnt_) & 1u;
               _out = _out ? ON : OFF;
             }   
@@ -919,7 +985,23 @@ public:
            break; 
           case SEQ:
            *settings++ = CHANNEL_SETTING_SEQUENCE;
-           *settings++ = CHANNEL_SETTING_MASK;
+           
+           switch (get_sequence()) {
+              case 0:
+              *settings++ = CHANNEL_SETTING_MASK1;
+              break;
+              case 1:
+              *settings++ = CHANNEL_SETTING_MASK2;
+              break;
+              case 2:
+              *settings++ = CHANNEL_SETTING_MASK3;
+              break;
+              case 4:
+              *settings++ = CHANNEL_SETTING_MASK4;
+              break;
+              default:
+              break;
+           }
            break;
           case DAC: 
             *settings++ = CHANNEL_SETTING_DAC_MODE; 
@@ -964,9 +1046,9 @@ public:
 
   bool update_pattern(bool force, int32_t mask_rotate) {
     const int pattern = get_sequence();
-    uint16_t mask = get_mask();
+    uint16_t mask = get_mask(pattern);
     if (mask_rotate)
-      mask = TU::PatternEditor<Clock_channel>::RotateMask(mask, get_sequence_length(), mask_rotate);
+      mask = TU::PatternEditor<Clock_channel>::RotateMask(mask, get_sequence_length(pattern), mask_rotate);
 
     if (force || (last_pattern_ != pattern || last_mask_ != mask)) {
 
@@ -1055,9 +1137,15 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 16, 1, 32, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 0, 255, "LFSR p(x)", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 1, 255, "logistic r", NULL, settings::STORAGE_TYPE_U8 },
-  { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 },
+  { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 1
+  { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 2
+  { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 3
+  { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 4
   { TU::Patterns::PATTERN_USER_0, 0, TU::Patterns::PATTERN_USER_LAST-1, "sequence #", TU::pattern_names_short, settings::STORAGE_TYPE_U8 },
-  { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 },
+  { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 1
+  { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 2
+  { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 3
+  { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 4
   // cv sources
   { 0, 0, 4, "mult/div    >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "pulsewidth  >>", cv_sources, settings::STORAGE_TYPE_U4 },
@@ -1246,8 +1334,8 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
   
   if (clocks_state.pattern_editor.active()) {
     clocks_state.pattern_editor.HandleEncoderEvent(event);
-    Serial.println(clock_channel[clocks_state.selected_channel].get_mask());
-    Serial.println(clock_channel[clocks_state.selected_channel].get_sequence_length());
+    //Serial.println(clock_channel[clocks_state.selected_channel].get_mask());
+    //Serial.println(clock_channel[clocks_state.selected_channel].get_sequence_length());
     return;
   }
  
@@ -1286,11 +1374,14 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
        if (clocks_state.editing()) {
           ChannelSetting setting = selected.enabled_setting_at(clocks_state.cursor_pos());
           
-           if (CHANNEL_SETTING_MASK != setting) {
+           if (CHANNEL_SETTING_MASK1 != setting || CHANNEL_SETTING_MASK2 != setting || CHANNEL_SETTING_MASK3 != setting || CHANNEL_SETTING_MASK4 != setting) {
             if (selected.change_value(setting, event.value))
              selected.force_update();
 
             switch (setting) {
+              //case CHANNEL_SETTING_SEQUENCE:
+              //selected.get_mask();
+              //break;
               case CHANNEL_SETTING_MODE:
               case CHANNEL_SETTING_MODE4:  
               case CHANNEL_SETTING_DAC_MODE:
@@ -1370,7 +1461,11 @@ void CLOCKS_rightButton() {
   
   switch (selected.enabled_setting_at(clocks_state.cursor_pos())) {
 
-    case CHANNEL_SETTING_MASK: {
+    case CHANNEL_SETTING_MASK1:
+    case CHANNEL_SETTING_MASK2:
+    case CHANNEL_SETTING_MASK3:
+    case CHANNEL_SETTING_MASK4:
+    {
       int pattern = selected.get_sequence();
       if (TU::Patterns::PATTERN_NONE != pattern) {
         clocks_state.pattern_editor.Edit(&selected, pattern);
@@ -1456,8 +1551,11 @@ void CLOCKS_menu() {
 
     switch (setting) {
       
-      case CHANNEL_SETTING_MASK:
-        menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_mask(), channel.get_sequence_length());
+      case CHANNEL_SETTING_MASK1:
+      case CHANNEL_SETTING_MASK2:
+      case CHANNEL_SETTING_MASK3:
+      case CHANNEL_SETTING_MASK4:
+        menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_mask(channel.get_sequence()), channel.get_sequence_length(channel.get_sequence()));
         list_item.DrawNoValue<false>(value, attr);
         break;
       case CHANNEL_SETTING_DUMMY:
