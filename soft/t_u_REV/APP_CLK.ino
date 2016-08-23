@@ -9,6 +9,7 @@
 * - implement CV 
 * - pattern seq: 
 *    - get rid of pattern/mask terminology confusion (ie "mask" = pattern; pattern = pulsewidth pattern)
+*    - save 'sequences' as int, ie just length
 *    - fix pattern storage/retrieval
 *    - user patterns per channel
 *    - implement pulsewidth patterns
@@ -1043,8 +1044,8 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 25, 1, 255, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
   { 25, 1, 255, "BPM:", NULL, settings::STORAGE_TYPE_U8 },
   //
-  { 1, 0, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
-  { 1, 0, 31, "LFSR tap2",NULL, settings::STORAGE_TYPE_U8 },
+  { 1, 1, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
+  { 1, 1, 31, "LFSR tap2",NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, RND_MAX, "rand > n", NULL, settings::STORAGE_TYPE_U8 },
   { 3, 3, 31, "euclid: N", NULL, settings::STORAGE_TYPE_U8 },
   { 1, 1, 31, "euclid: K", NULL, settings::STORAGE_TYPE_U8 },
