@@ -7,10 +7,10 @@
  
 //#define _TEMPS_UTILE_REV_0
 
-#define CV1 A5
-#define CV2 A4
-#define CV3 A6
-#define CV4 A3
+#define CV1 A3
+#define CV2 A6
+#define CV3 A5
+#define CV4 A4
 
 #define TR1 0
 #define TR2 1 // reset

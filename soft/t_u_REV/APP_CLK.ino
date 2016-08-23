@@ -294,6 +294,14 @@ public:
     return values_[CHANNEL_SETTING_SEQUENCE];
   }
 
+  int get_display_sequence() const {
+    return display_sequence_;
+  }
+
+  void set_sequence(uint8_t seq) {
+    apply_value(CHANNEL_SETTING_SEQUENCE, seq);
+  }
+
   uint8_t get_sequence_length(uint8_t _seq) const {
 
     switch (_seq) {
@@ -377,7 +385,7 @@ public:
     return values_[CHANNEL_SETTING_MASK_CV_SOURCE];
   }
 
-  uint8_t get_seq_cv_source() const {
+  uint8_t get_sequence_cv_source() const {
     return values_[CHANNEL_SETTING_SEQ_CV_SOURCE];
   }
 
@@ -704,7 +712,13 @@ public:
             break;
           case SEQ: {
 
-              uint8_t _seq = get_sequence();
+              int16_t _seq = get_sequence();
+              
+              if (get_sequence_cv_source()) {
+                _seq += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_sequence_cv_source() - 1)) + 256) >> 9;             
+                CONSTRAIN(_seq, 0, TU::Patterns::PATTERN_USER_LAST-1);
+              }
+              display_sequence_ = _seq;
               uint16_t _mask = get_mask(_seq);
               
               if (clk_cnt_ >= get_sequence_length(_seq))
@@ -1080,6 +1094,7 @@ private:
   uint8_t logic_;
   uint16_t last_pattern_;
   uint16_t last_mask_;
+  uint8_t display_sequence_;
   uint8_t menu_page_;
  
   util::TuringShiftRegister turing_machine_;
@@ -1550,7 +1565,7 @@ void CLOCKS_menu() {
       case CHANNEL_SETTING_MASK2:
       case CHANNEL_SETTING_MASK3:
       case CHANNEL_SETTING_MASK4:
-        menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_mask(channel.get_sequence()), channel.get_sequence_length(channel.get_sequence()));
+        menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_mask(channel.get_display_sequence()), channel.get_sequence_length(channel.get_display_sequence()));
         list_item.DrawNoValue<false>(value, attr);
         break;
       case CHANNEL_SETTING_DUMMY:
