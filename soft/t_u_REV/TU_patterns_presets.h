@@ -6,17 +6,13 @@
 namespace TU {
 
   struct Pattern {
-    int16_t span;
     size_t num_slots;
-    int16_t slots[16];
   };
 
 
   const Pattern patterns[] = {
-    // Off
-    { 0, 0, { } },
-    // ON
-    { 12 << 7, 12, { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1} }
+    // default
+    { 8 }
   
   };
 }

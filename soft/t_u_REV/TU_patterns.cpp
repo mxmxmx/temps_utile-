@@ -12,7 +12,7 @@ namespace TU {
     /*static*/
     void Patterns::Init() {
       for (size_t i = 0; i < PATTERN_USER_LAST; ++i)
-        memcpy(&user_patterns[i], &TU::patterns[1], sizeof(Pattern));
+        memcpy(&user_patterns[i], &TU::patterns[0], sizeof(Pattern));
     }
 
     /*static*/
@@ -28,8 +28,7 @@ namespace TU {
         "USER2",
         "USER3",
         "USER4",
-        "OFF ",
-        "ON"
+        "DEFAULT"
     };
 
     const char* const pattern_names[] = {
@@ -37,7 +36,6 @@ namespace TU {
         "User-defined 2",
         "User-defined 3",
         "User-defined 4",
-        "ALL OFF ",
-        "ALL ON"
+        "DEFAULT"
     }; 
 } // namespace TU

@@ -52,7 +52,6 @@ public:
   void Draw();
   void HandleButtonEvent(const UI::Event &event);
   void HandleEncoderEvent(const UI::Event &event);
-
   static uint16_t RotateMask(uint16_t mask, int num_slots, int amount);
 
 private:
@@ -81,7 +80,7 @@ private:
   }
 
   void reset_pattern();
-  void change_slot(size_t pos, int delta, bool notify);
+  //void change_slot(size_t pos, int delta, bool notify);
   void handleButtonLeft(const UI::Event &event);
   void handleButtonUp(const UI::Event &event);
   void handleButtonDown(const UI::Event &event);
@@ -108,18 +107,12 @@ void PatternEditor<Owner>::Draw() {
   x += 2;
   y += 3;
 
-  //graphics.setPrintPos(x, y);
-  //graphics.print(pattern_name_);
-
   graphics.setPrintPos(x, y + 24);
-  if (cursor_pos_ != num_slots) {
+  
+  if (cursor_pos_ != num_slots) 
     graphics.movePrintPos(weegfx::Graphics::kFixedFontW, 0);
-    if (mutable_pattern_ && TU::ui.read_immediate(TU::CONTROL_BUTTON_L))
-      graphics.drawBitmap8(x + 1, y + 23, kBitmapEditIndicatorW, bitmap_edit_indicators_8);
-    //graphics.print(pattern_->slots[cursor_pos_], 4); // disable until pw works
-  } else {
+  else 
     graphics.print((int)num_slots, 2);
-  }
 
   x += 2; y += 10;
   uint16_t mask = mask_;
@@ -169,14 +162,8 @@ void PatternEditor<Owner>::HandleEncoderEvent(const UI::Event &event) {
   } else if (TU::CONTROL_ENCODER_R == event.control) {
     bool handled = false;
     if (mutable_pattern_) {
-      if (cursor_pos_ < num_slots_) {
-        if (event.mask & TU::CONTROL_BUTTON_L) {
-          TU::ui.IgnoreButton(TU::CONTROL_BUTTON_L);
-          change_slot(cursor_pos_, event.value, false);
-          pattern_changed = true;
-          handled = true;
-        }
-      } else {
+      if (cursor_pos_ >= num_slots_) {
+       
         if (cursor_pos_ == num_slots_) {
           int num_slots = num_slots_;
           num_slots += event.value;
@@ -184,9 +171,6 @@ void PatternEditor<Owner>::HandleEncoderEvent(const UI::Event &event) {
 
           num_slots_ = num_slots;
           if (event.value > 0) {
-            for (size_t pos = cursor_pos_; pos < num_slots_; ++pos)
-              change_slot(pos, 0, false);
-
             // Enable new slots by default
             mask |= ~(0xffff << (num_slots_ - cursor_pos_)) << cursor_pos_;
           } else {
@@ -225,25 +209,13 @@ void PatternEditor<Owner>::move_cursor(int offset) {
 template <typename Owner>
 void PatternEditor<Owner>::handleButtonUp(const UI::Event &event) {
 
-  if (event.mask & TU::CONTROL_BUTTON_L) {
-    TU::ui.IgnoreButton(TU::CONTROL_BUTTON_L);
-    if (cursor_pos_ == num_slots_)
-      reset_pattern();
-    else
-      change_slot(cursor_pos_, 128, true);
-  } else {
     invert_mask();
-  }
 }
 
 template <typename Owner>
 void PatternEditor<Owner>::handleButtonDown(const UI::Event &event) {
-  if (event.mask & TU::CONTROL_BUTTON_L) {
-    TU::ui.IgnoreButton(TU::CONTROL_BUTTON_L);
-    change_slot(cursor_pos_, -128, true);
-  } else {
+  
     invert_mask();
-  }
 }
 
 template <typename Owner>
@@ -292,31 +264,11 @@ template <typename Owner>
 void PatternEditor<Owner>::reset_pattern() {
   Serial.println("Resetting pattern ... ");
 
-  *mutable_pattern_ = TU::Patterns::GetPattern(TU::Patterns::PATTERN_ALL);
+  *mutable_pattern_ = TU::Patterns::GetPattern(TU::Patterns::PATTERN_DEFAULT);
   num_slots_ = mutable_pattern_->num_slots;
   cursor_pos_ = num_slots_;
   mask_ = ~(0xfff << num_slots_);
   apply_mask(mask_);
-}
-
-template <typename Owner> // this should be for changing pulsewith; and seq length
-void PatternEditor<Owner>::change_slot(size_t pos, int delta, bool notify) {
-  if (mutable_pattern_ && pos < num_slots_) {
-    int32_t slot = mutable_pattern_->slots[pos] + delta;
-
-    const int32_t min = pos > 0 ? mutable_pattern_->slots[pos - 1] : 0;
-    const int32_t max = pos < num_slots_ - 1 ? mutable_pattern_->slots[pos + 1] : mutable_pattern_->span + 1;
-
-    // TODO It's probably possible to construct a pothological pattern,
-    // maybe factor cursor_pos into it somehow?
-    if (slot < min) slot = pos > 0 ? min + 1 : 0;
-    if (slot > max) slot = max - 1;
-    //mutable_pattern_->slots[pos] = slot;
-    Serial.print(pos); Serial.print(" - > "); Serial.println(slot);
-
-    if (notify)
-      owner_->pattern_changed();
-  }
 }
 
 template <typename Owner>
