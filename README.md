@@ -17,19 +17,21 @@ i/o:
 
 **- 6 clock outputs (5 digital (10V), 1 DAC (12 bit, +/- 6V))**
 
-**- 5 modes, selectable per channel (params / channel):** 
+**- 6 modes, selectable per channel (params / channel):** 
 
-  - clock multiplication/division (pulse-width, multiplier, inverted)
+  - clock multiplication/division (pulse-width, multiplier) (available across modes)
 
-  - LFSR (pulse-width, length, tap1, tap2)
+  - LFSR (length, tap1, tap2)
 
-  - random (pulse-width, N, inverted)
+  - random (N (threshold))
 
-  - euclidian (pulse-width, N (length), K (fill), offset)
+  - euclidian (N (length), K (fill), offset)
 
-  - logic (pulse-width, mode (AND, OR, XOR, NAND, NOR), op1, op2)
+  - logic (operator (AND, OR, XOR, NAND, NOR), operand_1, operand_2)
 
-  - DAC (channel #4 only): random, binary seq.
+  - trigger sequencer (pattern length(4-16), 4 editable patterns/channel)
+
+  - DAC (channel #4 only): random, ‘binary’ sequencer, ‘Turing Machine’, logistic map.
 
 25 mm Depth
 

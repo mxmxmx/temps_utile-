@@ -35,12 +35,15 @@ const uint8_t DAC_MODES = 4;    // # DAC submodes
 const uint8_t RND_MAX = 31;     // max random (n)
 const uint8_t MULT_MAX = 14;    // max multiplier
 const uint8_t PULSEW_MAX = 255; // max pulse width [ms]
+const uint8_t BPM_MIN = 25;
+const uint8_t BPM_MAX = 255;
 const uint16_t TOGGLE_THRESHOLD = 500; // ADC threshold for 0/1 parameters (~1.2V)
 
 const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
 const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
 const uint32_t TICK_JITTER = 0xFFFFFFF; // 1/16 : threshold/double triggers reject -> ext_frequency_in_ticks_
 
+extern const uint32_t BPM_microseconds_4th[];
 
 uint32_t ticks_src1 = 0; // main clock frequency (top)
 uint32_t ticks_src2 = 0; // sec. clock frequency (bottom)
@@ -499,6 +502,15 @@ public:
   void set_page(uint8_t _page) {
     menu_page_ = _page;  
   }
+
+  uint16_t get_zero(uint8_t channel) {
+
+    uint16_t _off = 0;
+    if (channel == CLOCK_CHANNEL_4)
+      _off += _ZERO;
+      
+    return _off; 
+  }
   
   void Init(ChannelTriggerSource trigger_source) {
     
@@ -517,6 +529,7 @@ public:
  
     prev_multiplier_ = 0;
     prev_pulsewidth_ = get_pulsewidth();
+    bpm_last_ = 0;
     
     ext_frequency_in_ticks_ = get_pulsewidth() << 15; // init to something...
     channel_frequency_in_ticks_ = get_pulsewidth() << 15;
@@ -570,12 +583,39 @@ public:
      _triggered = !_none && (triggers & DIGITAL_INPUT_MASK(_clock_source - CHANNEL_TRIGGER_TR1));
      _tock = false;
      _sync = false;
-     // new tick frequency:
-     if (_triggered || clk_src_ != _clock_source) {   
-        ext_frequency_in_ticks_ = ext_frequency[_clock_source]; 
-        _tock = true;
-        div_cnt_--;
+     
+     // new tick frequency, external:
+     if (_clock_source <= CHANNEL_TRIGGER_TR2) {
+      
+         if (_triggered || clk_src_ != _clock_source) {   
+            ext_frequency_in_ticks_ = ext_frequency[_clock_source]; 
+            _tock = true;
+            div_cnt_--;
+         }
      }
+     // internal clock active?
+     else if (_clock_source == CHANNEL_TRIGGER_INTERNAL) {
+
+          ticks_++;
+          
+          uint8_t _bpm = get_internal_tempo() - BPM_MIN; // substract min value
+          
+          if (_bpm != bpm_last_ || clk_src_ != _clock_source) {
+            // new BPM value, recalculate channel frequency below ... 
+            ext_frequency_in_ticks_ = BPM_microseconds_4th[_bpm];
+            _tock = true;
+          }
+          // store current bpm value
+          bpm_last_ = _bpm; 
+          
+          // simulate clock ... ?
+          if (ticks_ > ext_frequency_in_ticks_) {
+            _triggered |= true;
+            ticks_ = 0x0;
+            div_cnt_--;
+          }
+     }
+     
      // store clock source:
      clk_src_ = _clock_source;
     
@@ -599,7 +639,7 @@ public:
      *  but seems to work ok-ish, w/o too much jitter and missing clocks... 
      */
      uint32_t _subticks = subticks_;
-     
+
      if (_multiplier < 8 && _triggered && div_cnt_ <= 0) { // division, so we track
         _sync = true;
         div_cnt_ = 8 - _multiplier; // /1 = 7 ; /2 = 6, /3 = 5 etc
@@ -623,7 +663,7 @@ public:
          // if so, reset ticks: 
          subticks_ = 0x0;
          // count, only if ... 
-         if (_subticks < tickjitter_ || _subticks < (prev_channel_frequency_in_ticks_>>1)) // reject, if jittery or skip quasi-double triggers when ext. frequency changes...
+         if (_subticks < tickjitter_ || _subticks < (prev_channel_frequency_in_ticks_ >> 1)) // reject, if jittery or skip quasi-double triggers when ext. frequency changes...
             return;
          clk_cnt_++;  
          _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
@@ -1118,6 +1158,7 @@ private:
   uint16_t last_mask_;
   uint8_t display_sequence_;
   uint8_t menu_page_;
+  uint8_t bpm_last_;
  
   util::TuringShiftRegister turing_machine_;
   util::LogisticMap logistic_map_;
@@ -1154,7 +1195,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { CHANNEL_TRIGGER_TR2 + 1, 0, CHANNEL_TRIGGER_LAST - 1, "reset src", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
   { 7, 0, MULT_MAX, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
   { 25, 1, PULSEW_MAX, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
-  { 25, 1, 255, "BPM:", NULL, settings::STORAGE_TYPE_U8 },
+  { BPM_MIN, 100, BPM_MAX, "BPM:", NULL, settings::STORAGE_TYPE_U8 },
   //
   { 1, 1, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
   { 1, 1, 31, "LFSR tap2",NULL, settings::STORAGE_TYPE_U8 },
@@ -1532,9 +1573,23 @@ void CLOCKS_leftButtonLong() {
 void CLOCKS_upButtonLong() {
 
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+  // set all channels to internal ?
   if (selected.get_page() == TEMPO) {
-    for (int i = 0; i < NUM_CHANNELS; ++i)
+    for (int i = 0; i < NUM_CHANNELS; ++i) 
         clock_channel[i].set_clock_source(CHANNEL_TRIGGER_INTERNAL);
+    // and clear outputs:
+    TU::OUTPUTS::set(CLOCK_CHANNEL_1, OFF);
+    TU::OUTPUTS::setState(CLOCK_CHANNEL_1, OFF);
+    TU::OUTPUTS::set(CLOCK_CHANNEL_2, OFF); 
+    TU::OUTPUTS::setState(CLOCK_CHANNEL_2, OFF);
+    TU::OUTPUTS::set(CLOCK_CHANNEL_3, OFF);
+    TU::OUTPUTS::setState(CLOCK_CHANNEL_3, OFF); 
+    TU::OUTPUTS::set(CLOCK_CHANNEL_4, selected.get_zero(CLOCK_CHANNEL_4)); 
+    TU::OUTPUTS::setState(CLOCK_CHANNEL_4, OFF);
+    TU::OUTPUTS::set(CLOCK_CHANNEL_5, OFF);
+    TU::OUTPUTS::setState(CLOCK_CHANNEL_5, OFF);
+    TU::OUTPUTS::set(CLOCK_CHANNEL_6, OFF);
+    TU::OUTPUTS::setState(CLOCK_CHANNEL_6, OFF);      
   }
 }
 
@@ -1547,6 +1602,19 @@ void CLOCKS_downButtonLong() {
   else if (selected.get_page() == TEMPO)   {
     for (int i = 0; i < NUM_CHANNELS; ++i)
         clock_channel[i].set_clock_source(CHANNEL_TRIGGER_TR1);
+    // and clear outputs:
+    TU::OUTPUTS::set(CLOCK_CHANNEL_1, OFF);
+    TU::OUTPUTS::setState(CLOCK_CHANNEL_1, OFF);
+    TU::OUTPUTS::set(CLOCK_CHANNEL_2, OFF);
+    TU::OUTPUTS::setState(CLOCK_CHANNEL_2, OFF);  
+    TU::OUTPUTS::set(CLOCK_CHANNEL_3, OFF);
+    TU::OUTPUTS::setState(CLOCK_CHANNEL_3, OFF);  
+    TU::OUTPUTS::set(CLOCK_CHANNEL_4, selected.get_zero(CLOCK_CHANNEL_4)); 
+    TU::OUTPUTS::setState(CLOCK_CHANNEL_4, OFF);  
+    TU::OUTPUTS::set(CLOCK_CHANNEL_5, OFF);
+    TU::OUTPUTS::setState(CLOCK_CHANNEL_5, OFF); 
+    TU::OUTPUTS::set(CLOCK_CHANNEL_6, OFF);   
+    TU::OUTPUTS::setState(CLOCK_CHANNEL_6, OFF);     
   }
 }
 

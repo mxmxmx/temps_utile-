@@ -39,6 +39,7 @@
 #include "TU_version.h"
 #include "drivers/display.h"
 #include "util/util_debugpins.h"
+#include "TU_BPM.h"
 
 unsigned long LAST_REDRAW_TIME = 0;
 uint_fast8_t MENU_REDRAW = true;
