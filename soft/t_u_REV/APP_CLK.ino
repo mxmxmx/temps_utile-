@@ -35,7 +35,7 @@ const uint8_t DAC_MODES = 4;    // # DAC submodes
 const uint8_t RND_MAX = 31;     // max random (n)
 const uint8_t MULT_MAX = 14;    // max multiplier
 const uint8_t PULSEW_MAX = 255; // max pulse width [ms]
-const uint8_t BPM_MIN = 25;
+const uint8_t BPM_MIN = 1;     // changes need changes in TU_BPM.h
 const uint8_t BPM_MAX = 255;
 const uint16_t TOGGLE_THRESHOLD = 500; // ADC threshold for 0/1 parameters (~1.2V)
 
@@ -219,7 +219,7 @@ public:
   uint16_t get_internal_tempo() const {
     return values_[CHANNEL_SETTING_INTERNAL_CLK];
   }
-  
+
   uint8_t get_reset() const {
     return values_[CHANNEL_SETTING_RESET];
   }
