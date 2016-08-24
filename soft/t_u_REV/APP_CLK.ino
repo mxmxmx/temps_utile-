@@ -1195,7 +1195,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { CHANNEL_TRIGGER_TR2 + 1, 0, CHANNEL_TRIGGER_LAST - 1, "reset src", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
   { 7, 0, MULT_MAX, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
   { 25, 1, PULSEW_MAX, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
-  { BPM_MIN, 100, BPM_MAX, "BPM:", NULL, settings::STORAGE_TYPE_U8 },
+  { 100, BPM_MIN, BPM_MAX, "BPM:", NULL, settings::STORAGE_TYPE_U8 },
   //
   { 1, 1, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
   { 1, 1, 31, "LFSR tap2",NULL, settings::STORAGE_TYPE_U8 },
