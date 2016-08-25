@@ -37,7 +37,7 @@ const uint8_t PULSEW_MAX = 255; // max pulse width [ms]
 const uint8_t BPM_MIN = 1;      // changes need changes in TU_BPM.h
 const uint8_t BPM_MAX = 255;
 const uint8_t LFSR_MAX = 32;  
-const uint8_t LFSR_MIN = 4; 
+const uint8_t LFSR_MIN = 7; 
 const uint8_t EUCLID_N_MAX = 32;
 const uint16_t TOGGLE_THRESHOLD = 500; // ADC threshold for 0/1 parameters (~1.2V)
 
@@ -404,7 +404,7 @@ public:
   uint8_t get_DAC_range_cv_source() const {
     return values_[CHANNEL_SETTING_DAC_RANGE_CV_SOURCE];
   }
-
+  
   void update_pattern_mask(uint16_t mask) {
 
     switch(get_sequence()) {
@@ -919,8 +919,16 @@ public:
                    }
                    break;
                   case _LOGISTIC: {
-                    
-                     logistic_map_.set_r(get_logistic_map_r()); 
+                     // ? not properly working
+                     logistic_map_.set_seed(TU::ADC::value<ADC_CHANNEL_1>());
+                     int32_t logistic_map_r = get_logistic_map_r();
+                     
+                     if (get_logistic_map_r_cv_source()) {
+                        logistic_map_r += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logistic_map_r_cv_source() - 1)) + 16) >> 4;
+                        CONSTRAIN(logistic_map_r, 0, 255);
+                     } 
+              
+                     logistic_map_.set_r(logistic_map_r);
                      
                      int16_t _logistic_map_x = (static_cast<int16_t>(logistic_map_.Clock()) & 0xFFF) - 0x800; // +/- 2048
                      _logistic_map_x = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _logistic_map_x);
