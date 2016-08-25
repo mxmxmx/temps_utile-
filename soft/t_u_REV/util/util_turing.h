@@ -54,6 +54,9 @@ public:
     else
       shift_register = (shift_register >> 1) & ~lsb_mask;
 
+    if (shift_register == 0x0 || shift_register == 0xFFFFFFFF)
+      shift_register ^= 0x1;
+
     shift_register_ = shift_register;
     return shift_register & ~(0xffffffff << length_);
   }

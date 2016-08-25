@@ -1278,8 +1278,8 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 25, 1, PULSEW_MAX, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
   { 100, BPM_MIN, BPM_MAX, "BPM:", NULL, settings::STORAGE_TYPE_U8 },
   //
-  { 1, 1, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
-  { 1, 1, 31, "LFSR tap2",NULL, settings::STORAGE_TYPE_U8 },
+  { 0, 0, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
+  { 0, 0, 31, "LFSR tap2",NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, RND_MAX, "rand > n", NULL, settings::STORAGE_TYPE_U8 },
   { 3, 3, EUCLID_N_MAX, "euclid: N", NULL, settings::STORAGE_TYPE_U8 },
   { 1, 1, EUCLID_N_MAX, "euclid: K", NULL, settings::STORAGE_TYPE_U8 },
