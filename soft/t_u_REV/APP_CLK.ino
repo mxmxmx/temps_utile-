@@ -2,8 +2,7 @@
 *   TODO
 * - prevent channels getting out of sync (mult/div) [-> offset]
 * - sync (left button long)
-* - prevent double triggers when slowing down [skip force sync when: force sync < previous tick_frequency, or something]
-* - something's not quite right with LFSR mode
+* - something's not quite right with LFSR mode, still.
 * - expand to div/16
 * - implement reset
 * - implement CV 
@@ -35,8 +34,10 @@ const uint8_t DAC_MODES = 4;    // # DAC submodes
 const uint8_t RND_MAX = 31;     // max random (n)
 const uint8_t MULT_MAX = 14;    // max multiplier
 const uint8_t PULSEW_MAX = 255; // max pulse width [ms]
-const uint8_t BPM_MIN = 1;     // changes need changes in TU_BPM.h
+const uint8_t BPM_MIN = 1;      // changes need changes in TU_BPM.h
 const uint8_t BPM_MAX = 255;
+const uint8_t LFSR_MAX = 32;  
+const uint8_t EUCLID_N_MAX = 32;
 const uint16_t TOGGLE_THRESHOLD = 500; // ADC threshold for 0/1 parameters (~1.2V)
 
 const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
@@ -395,6 +396,14 @@ public:
     return values_[CHANNEL_SETTING_SEQ_CV_SOURCE];
   }
 
+  uint8_t get_DAC_mode_cv_source() const {
+    return values_[CHANNEL_SETTING_DAC_MODE_CV_SOURCE];
+  }
+
+  uint8_t get_DAC_range_cv_source() const {
+    return values_[CHANNEL_SETTING_DAC_RANGE_CV_SOURCE];
+  }
+
   void update_pattern_mask(uint16_t mask) {
 
     switch(get_sequence()) {
@@ -542,6 +551,7 @@ public:
     uint32_t _seed = TU::ADC::value<ADC_CHANNEL_1>() + TU::ADC::value<ADC_CHANNEL_2>() + TU::ADC::value<ADC_CHANNEL_3>() + TU::ADC::value<ADC_CHANNEL_4>();
     randomSeed(_seed);
     logistic_map_.set_seed(_seed);
+    turing_machine_.set_shift_register(_seed);
     clock_display_.Init();
     update_enabled_settings(0);
   }
@@ -725,7 +735,17 @@ public:
               
               _length = get_turing_length();
               _probability = get_turing_probability();
-              
+
+              if (get_turing_length_cv_source()) {
+                _length += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_length_cv_source() - 1)) + 64) >> 6;   
+                CONSTRAIN(_length, 1, LFSR_MAX);
+              }
+
+              if (get_turing_prob_cv_source()) {
+                _probability += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_prob_cv_source() - 1)) + 16) >> 4;
+                CONSTRAIN(_probability, 1, 255);              
+              }
+
               turing_machine_.set_length(_length);
               turing_machine_.set_probability(_probability); 
               
@@ -739,11 +759,14 @@ public:
               uint8_t  _tap1 = get_tap1(); 
               uint8_t  _tap2 = get_tap2(); 
 
-              // should be constrained via UI -
-              if (_tap1 >= _length)
-                _tap1 = _length;
-              if (_tap2 >= _length)
-                _tap2 = _length;
+              if (get_tap1_cv_source())
+                _tap1 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_tap1_cv_source() - 1)) + 64) >> 6;             
+               
+              if (get_tap2_cv_source())
+                _tap2 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_tap2_cv_source() - 1)) + 64) >> 6;
+
+              CONSTRAIN(_tap1, 1, _length);
+              CONSTRAIN(_tap2, 1, _length);
      
               _tap1 = (_shift_register >> _tap1) & 1u;  // bit at tap1
               _tap2 = (_shift_register >> _tap2) & 1u;  // bit at tap1
@@ -755,8 +778,12 @@ public:
           case RANDOM: {
             
                int16_t _n = rand_n(); // threshold  
-               int16_t _rand_new = random(RND_MAX);
+               if (get_rand_n_cv_source()) {
+                 _n += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_n_cv_source() - 1)) + 64) >> 6;             
+                 CONSTRAIN(_n, 0, RND_MAX);
+               }
                
+               int16_t _rand_new = random(RND_MAX);
                _out = _rand_new > _n ? ON : OFF; // DAC needs special care ... 
             }
             break;
@@ -767,6 +794,21 @@ public:
               _n = euclid_n();
               _k = euclid_k();
               _offset = euclid_offset();
+
+              if (get_euclid_n_cv_source()) {
+                _n += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_n_cv_source() - 1)) + 64) >> 6;   
+                CONSTRAIN(_n, 1, EUCLID_N_MAX);
+              }
+
+              if (get_euclid_k_cv_source()) {
+                _k += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_k_cv_source() - 1)) + 64) >> 6;   
+                CONSTRAIN(_k, 1, _n);
+              }
+
+              if (get_euclid_offset_cv_source()) {
+                _offset += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_offset_cv_source() - 1)) + 64) >> 6;   
+                CONSTRAIN(_offset, 1, _n);
+              }
                 
               _out = ((clk_cnt_ + _offset) * _k) % _n;
               _out = (_out < _k) ? ON : OFF;
@@ -792,8 +834,19 @@ public:
           case DAC: {
 
                int16_t _range = dac_range(); // 1-255
+               int8_t _mode = dac_mode(); 
+               
+               if (get_DAC_mode_cv_source()) {
+                _mode += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_mode_cv_source() - 1)) + 256) >> 9;             
+                CONSTRAIN(_mode, 0, LAST_DACMODE-1);
+               }
 
-               switch (dac_mode()) {
+               if (get_DAC_range_cv_source()) {
+                _range += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_range_cv_source() - 1)) + 16) >> 4;
+                CONSTRAIN(_range, 1, 255);              
+              }
+
+               switch (_mode) {
 
                   case _BINARY: {
   
@@ -844,6 +897,16 @@ public:
                   
                      uint8_t _length = get_turing_length();
                      uint8_t _probability = get_turing_probability();
+
+                     if (get_turing_length_cv_source()) {
+                        _length += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_length_cv_source() - 1)) + 64) >> 6;   
+                        CONSTRAIN(_length, 1, LFSR_MAX);
+                     }
+
+                     if (get_turing_prob_cv_source()) {
+                        _probability += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_prob_cv_source() - 1)) + 16) >> 4;
+                        CONSTRAIN(_probability, 1, 255);              
+                     }
                   
                      turing_machine_.set_length(_length);
                      turing_machine_.set_probability(_probability); 
@@ -1014,6 +1077,7 @@ public:
                 *settings++ = CHANNEL_SETTING_HISTORY_DEPTH_CV_SOURCE;
                 break;
               case _TURING:
+                *settings++ = CHANNEL_SETTING_TURING_LENGTH_CV_SOURCE;
                 *settings++ = CHANNEL_SETTING_TURING_PROB_CV_SOURCE;
                 break;
               case _LOGISTIC:
@@ -1092,6 +1156,7 @@ public:
                 *settings++ = CHANNEL_SETTING_HISTORY_DEPTH;
                 break;
               case _TURING:
+                *settings++ = CHANNEL_SETTING_TURING_LENGTH;
                 *settings++ = CHANNEL_SETTING_TURING_PROB;
                 break;
               case _LOGISTIC:
@@ -1200,9 +1265,9 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 1, 1, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
   { 1, 1, 31, "LFSR tap2",NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, RND_MAX, "rand > n", NULL, settings::STORAGE_TYPE_U8 },
-  { 3, 3, 31, "euclid: N", NULL, settings::STORAGE_TYPE_U8 },
-  { 1, 1, 31, "euclid: K", NULL, settings::STORAGE_TYPE_U8 },
-  { 0, 0, 31, "euclid: OFFSET", NULL, settings::STORAGE_TYPE_U8 },
+  { 3, 3, EUCLID_N_MAX, "euclid: N", NULL, settings::STORAGE_TYPE_U8 },
+  { 1, 1, EUCLID_N_MAX, "euclid: K", NULL, settings::STORAGE_TYPE_U8 },
+  { 0, 0, EUCLID_N_MAX-1, "euclid: OFFSET", NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, 5, "logic type", TU::Strings::operators, settings::STORAGE_TYPE_U8 },
   { 0, 0, NUM_CHANNELS - 1, "op_1", TU::Strings::channel_id, settings::STORAGE_TYPE_U8 },
   { 1, 0, NUM_CHANNELS - 1, "op_2", TU::Strings::channel_id, settings::STORAGE_TYPE_U8 },
@@ -1212,7 +1277,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, 1, "track -->", TU::Strings::binary_tracking, settings::STORAGE_TYPE_U4 },
   { 0, 0, 255, "rnd hist.", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
   { 0, 0, TU::OUTPUTS::kHistoryDepth - 1, "hist. depth", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
-  { 16, 1, 32, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },
+  { 16, 4, LFSR_MAX, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 0, 255, "LFSR p(x)", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 1, 255, "logistic r", NULL, settings::STORAGE_TYPE_U8 },
   { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 1
