@@ -2,7 +2,7 @@
 *   TODO
 * - prevent channels getting out of sync (mult/div) [-> offset]
 * - sync (left button long)
-* - something's not quite right with LFSR mode, still.
+* - something's not quite right with LFSR mode, and logistic (DAC) mode.
 * - expand to div/16
 * - implement reset
 * - implement CV 
@@ -37,6 +37,7 @@ const uint8_t PULSEW_MAX = 255; // max pulse width [ms]
 const uint8_t BPM_MIN = 1;      // changes need changes in TU_BPM.h
 const uint8_t BPM_MAX = 255;
 const uint8_t LFSR_MAX = 32;  
+const uint8_t LFSR_MIN = 4; 
 const uint8_t EUCLID_N_MAX = 32;
 const uint16_t TOGGLE_THRESHOLD = 500; // ADC threshold for 0/1 parameters (~1.2V)
 
@@ -738,7 +739,7 @@ public:
 
               if (get_turing_length_cv_source()) {
                 _length += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_length_cv_source() - 1)) + 64) >> 6;   
-                CONSTRAIN(_length, 1, LFSR_MAX);
+                CONSTRAIN(_length, LFSR_MIN, LFSR_MAX);
               }
 
               if (get_turing_prob_cv_source()) {
@@ -900,7 +901,7 @@ public:
 
                      if (get_turing_length_cv_source()) {
                         _length += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_length_cv_source() - 1)) + 64) >> 6;   
-                        CONSTRAIN(_length, 1, LFSR_MAX);
+                        CONSTRAIN(_length, LFSR_MIN, LFSR_MAX);
                      }
 
                      if (get_turing_prob_cv_source()) {
@@ -1277,7 +1278,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, 1, "track -->", TU::Strings::binary_tracking, settings::STORAGE_TYPE_U4 },
   { 0, 0, 255, "rnd hist.", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
   { 0, 0, TU::OUTPUTS::kHistoryDepth - 1, "hist. depth", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
-  { 16, 4, LFSR_MAX, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },
+  { 16, LFSR_MIN, LFSR_MAX, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 0, 255, "LFSR p(x)", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 1, 255, "logistic r", NULL, settings::STORAGE_TYPE_U8 },
   { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 1
