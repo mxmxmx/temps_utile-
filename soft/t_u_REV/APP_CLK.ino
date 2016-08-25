@@ -1775,10 +1775,10 @@ void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clo
       _frame  = _frame  == ON ? 0x1 : 0x0;
     }
     else { // display DAC values, ish; x/y coordinates slightly off ...
-      uint16_t _zero = get_zero(CLOCK_CHANNEL_4);
+      
       uint16_t _dac_value = _frame;
       
-      if (_frame < 2047) {
+      if (_dac_value < 2047) {
         // output negative
         _dac_value = 16 - (_dac_value >> 7);
         CONSTRAIN(_dac_value, 1, 16);
@@ -1786,7 +1786,7 @@ void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clo
       }
       else {
         // positive output
-        _dac_value = ((_dac_value - _zero) >> 7);
+        _dac_value = ((_dac_value - 2047) >> 7);
         CONSTRAIN(_dac_value, 1, 16);
         graphics.drawRect(start_x + 5 - (_dac_value >> 1), 41 - (_dac_value >> 1), _dac_value, _dac_value);
       }
