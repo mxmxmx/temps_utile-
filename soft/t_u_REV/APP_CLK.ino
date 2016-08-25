@@ -1778,7 +1778,7 @@ void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clo
       uint16_t _zero = get_zero(CLOCK_CHANNEL_4);
       uint16_t _dac_value = _frame;
       
-      if (_frame < _zero) {
+      if (_frame < 2047) {
         // output negative
         _dac_value = 16 - (_dac_value >> 7);
         CONSTRAIN(_dac_value, 1, 16);
