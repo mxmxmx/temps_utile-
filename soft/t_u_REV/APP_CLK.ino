@@ -37,7 +37,7 @@ const uint8_t PULSEW_MAX = 255; // max pulse width [ms]
 const uint8_t BPM_MIN = 1;      // changes need changes in TU_BPM.h
 const uint8_t BPM_MAX = 255;
 const uint8_t LFSR_MAX = 32;  
-const uint8_t LFSR_MIN = 7; 
+const uint8_t LFSR_MIN = 4; 
 const uint8_t EUCLID_N_MAX = 32;
 const uint16_t TOGGLE_THRESHOLD = 500; // ADC threshold for 0/1 parameters (~1.2V)
 
@@ -533,11 +533,11 @@ public:
     subticks_ = 0;
     tickjitter_ = 100;
     clk_cnt_ = 0;
-    clk_src_ = 0;
+    clk_src_ = get_clock_source();
     logic_ = false;
     menu_page_ = PARAMETERS;
  
-    prev_multiplier_ = 0;
+    prev_multiplier_ = get_mult();
     prev_pulsewidth_ = get_pulsewidth();
     bpm_last_ = 0;
     
@@ -548,13 +548,14 @@ public:
     _ZERO = TU::calibration_data.dac.calibrated_Zero[0x0][0x0];
     
     turing_machine_.Init();
+    turing_machine_.Clock();
     logistic_map_.Init();
     uint32_t _seed = TU::ADC::value<ADC_CHANNEL_1>() + TU::ADC::value<ADC_CHANNEL_2>() + TU::ADC::value<ADC_CHANNEL_3>() + TU::ADC::value<ADC_CHANNEL_4>();
     randomSeed(_seed);
     logistic_map_.set_seed(_seed);
     turing_machine_.set_shift_register(_seed);
     clock_display_.Init();
-    update_enabled_settings(0);
+    update_enabled_settings(0);  
   }
  
   void force_update() {
@@ -912,7 +913,13 @@ public:
                      turing_machine_.set_length(_length);
                      turing_machine_.set_probability(_probability); 
                   
-                     int16_t _shift_register = (static_cast<int16_t>(turing_machine_.Clock()) & 0xFFF) - 0x800; // +/- 2048
+                     int32_t _shift_register = (static_cast<int16_t>(turing_machine_.Clock()) & 0xFFF); //
+                     // return useful values for small values of _length:
+                     if (_length < 12) {
+                      _shift_register = _shift_register << (12 -_length);
+                      _shift_register = _shift_register & 0xFFF;
+                     }
+                     _shift_register -= 0x800; // +/- 2048
                      _shift_register = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _shift_register);
                      _shift_register = signed_saturate_rshift(_shift_register, 16, 0);
                      _out = _ZERO - _shift_register;
@@ -1364,8 +1371,7 @@ void CLOCKS_init() {
     clock_channel[i].Init(static_cast<ChannelTriggerSource>(CHANNEL_TRIGGER_TR1));
     clock_channel[i].update_pattern(true,0);
   }
-  clocks_state.cursor.AdjustEnd(clock_channel[0].num_enabled_settings() - 1);
- 
+  clocks_state.cursor.AdjustEnd(clock_channel[0].num_enabled_settings() - 1); 
 }
 
 size_t CLOCKS_storageSize() {
@@ -1410,7 +1416,7 @@ void CLOCKS_isr() {
 
   ticks_src1++; // src #1 ticks
   ticks_src2++; // src #2 ticks
-  
+   
   uint32_t triggers = TU::DigitalInputs::clocked();  
 
   // clocked? reset ; better use ARM_DWT_CYCCNT ?
@@ -1775,13 +1781,13 @@ void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clo
       if (_frame < _zero) {
         // output negative
         _dac_value = 16 - (_dac_value >> 7);
-        CONSTRAIN(_dac_value, 2, 16);
+        CONSTRAIN(_dac_value, 1, 16);
         graphics.drawFrame(start_x + 5 - (_dac_value >> 1), 41 - (_dac_value >> 1), _dac_value, _dac_value);
       }
       else {
         // positive output
         _dac_value = ((_dac_value - _zero) >> 7);
-        CONSTRAIN(_dac_value, 2, 16);
+        CONSTRAIN(_dac_value, 1, 16);
         graphics.drawRect(start_x + 5 - (_dac_value >> 1), 41 - (_dac_value >> 1), _dac_value, _dac_value);
       }
       return;
