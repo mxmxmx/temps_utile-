@@ -180,7 +180,8 @@ enum LOGICMODES {
   XOR,
   XNOR,
   NAND,
-  NOR
+  NOR,
+  LOGICMODE_LAST
 };
 
 enum MENUPAGES {
@@ -403,6 +404,14 @@ public:
 
   uint8_t get_DAC_range_cv_source() const {
     return values_[CHANNEL_SETTING_DAC_RANGE_CV_SOURCE];
+  }
+
+  uint8_t get_rand_history_w_cv_source() const {
+    return values_[CHANNEL_SETTING_HISTORY_WEIGHT_CV_SOURCE];
+  }
+
+  uint8_t get_rand_history_d_cv_source() const {
+    return values_[CHANNEL_SETTING_HISTORY_DEPTH_CV_SOURCE];
   }
   
   void update_pattern_mask(uint16_t mask) {
@@ -802,15 +811,14 @@ public:
                 CONSTRAIN(_n, 1, EUCLID_N_MAX);
               }
 
-              if (get_euclid_k_cv_source()) {
+              if (get_euclid_k_cv_source()) 
                 _k += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_k_cv_source() - 1)) + 64) >> 6;   
-                CONSTRAIN(_k, 1, _n);
-              }
-
-              if (get_euclid_offset_cv_source()) {
+             
+              if (get_euclid_offset_cv_source()) 
                 _offset += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_offset_cv_source() - 1)) + 64) >> 6;   
-                CONSTRAIN(_offset, 1, _n);
-              }
+          
+              CONSTRAIN(_k, 1, _n);
+              CONSTRAIN(_offset, 1, _n);
                 
               _out = ((clk_cnt_ + _offset) * _k) % _n;
               _out = (_out < _k) ? ON : OFF;
@@ -880,13 +888,24 @@ public:
                   case _RANDOM: {
   
                      uint16_t _history[TU::OUTPUTS::kHistoryDepth];
-                     int16_t _rand_history;
-                     int16_t _rand_new;
+                     int16_t _rand_history, _rand_new, _depth, _weight;
+
+                     _depth  = get_history_depth();
+                     _weight = get_history_weight();
+
+                     if (get_rand_history_d_cv_source()) {
+                         _depth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_history_d_cv_source() - 1)) + 256) >> 9;             
+                         CONSTRAIN(_depth, 0, (int8_t) TU::OUTPUTS::kHistoryDepth - 1 );
+                     }
+                     if (get_rand_history_w_cv_source()) {
+                        _weight += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_history_w_cv_source() - 1)) + 16) >> 4;
+                        CONSTRAIN(_weight, 0, 255);
+                     }
   
                      TU::OUTPUTS::getHistory<CLOCK_CHANNEL_4>(_history);
                      
-                     _rand_history = calc_average(_history, get_history_depth());     
-                     _rand_history = signed_multiply_32x16b((static_cast<int32_t>(get_history_weight()) * 65535U) >> 8, _rand_history);
+                     _rand_history = calc_average(_history,_depth);     
+                     _rand_history = signed_multiply_32x16b((static_cast<int32_t>(_weight) * 65535U) >> 8, _rand_history);
                      _rand_history = signed_saturate_rshift(_rand_history, 16, 0);
                      
                      _rand_new = random(0xFFF) - 0x800; // +/- 2048
@@ -926,7 +945,7 @@ public:
                    }
                    break;
                   case _LOGISTIC: {
-                     // ? not properly working
+                     // ? not properly working; ask Tim .. 
                      logistic_map_.set_seed(TU::ADC::value<ADC_CHANNEL_1>());
                      
                      int32_t logistic_map_r = get_logistic_map_r();
@@ -962,10 +981,25 @@ public:
      logic_ = false;  
         
      uint16_t _out = OFF;
-     uint8_t _op1, _op2;
+     int8_t _op1, _op2, _type = logic_type();
   
      _op1 = logic_op1();
      _op2 = logic_op2();
+
+     if (get_logic_type_cv_source()) {
+        _type += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logic_type_cv_source() - 1)) + 256) >> 9;             
+        CONSTRAIN(_type, 0, LOGICMODE_LAST-1);
+     }
+
+     if (get_logic_op1_cv_source())  {
+        _op1 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logic_op1_cv_source() - 1)) + 127) >> 8;             
+        CONSTRAIN(_op1, 0, NUM_CHANNELS-1);
+     }
+     
+     if (get_logic_op2_cv_source()) {
+        _op2 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logic_op2_cv_source() - 1)) + 127) >> 8;             
+        CONSTRAIN(_op2, 0, NUM_CHANNELS-1);
+     }
 
      // this doesn't care if CHANNEL_4 is in DAC mode (= mostly always true); but so what.
      if (!logic_tracking()) {
@@ -977,7 +1011,7 @@ public:
        _op2 = TU::OUTPUTS::value(_op2) & 1u;
      }
 
-     switch (logic_type()) {
+     switch (_type) {
   
         case AND:  
             _out = _op1 & _op2;
@@ -1285,7 +1319,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 3, 3, EUCLID_N_MAX, "euclid: N", NULL, settings::STORAGE_TYPE_U8 },
   { 1, 1, EUCLID_N_MAX, "euclid: K", NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, EUCLID_N_MAX-1, "euclid: OFFSET", NULL, settings::STORAGE_TYPE_U8 },
-  { 0, 0, 5, "logic type", TU::Strings::operators, settings::STORAGE_TYPE_U8 },
+  { 0, 0, LOGICMODE_LAST-1, "logic type", TU::Strings::operators, settings::STORAGE_TYPE_U8 },
   { 0, 0, NUM_CHANNELS - 1, "op_1", TU::Strings::channel_id, settings::STORAGE_TYPE_U8 },
   { 1, 0, NUM_CHANNELS - 1, "op_2", TU::Strings::channel_id, settings::STORAGE_TYPE_U8 },
   { 0, 0, 1, "track -->", TU::Strings::logic_tracking, settings::STORAGE_TYPE_U4 },
