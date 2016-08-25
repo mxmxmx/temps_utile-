@@ -54,8 +54,9 @@ public:
     else
       shift_register = (shift_register >> 1) & ~lsb_mask;
 
-    if (shift_register == 0x0 || shift_register == 0xFFFFFFFF)
+    if (shift_register == prev_shift_register_)
       shift_register ^= 0x1;
+    prev_shift_register_ = shift_register;
 
     shift_register_ = shift_register;
     return shift_register & ~(0xffffffff << length_);
@@ -82,6 +83,7 @@ private:
   uint8_t length_;
   uint8_t probability_;
   uint32_t shift_register_;
+  uint32_t prev_shift_register_;
 };
 
 }; // namespace util
