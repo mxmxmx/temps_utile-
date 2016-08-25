@@ -36,7 +36,7 @@ const uint8_t MULT_MAX = 14;    // max multiplier
 const uint8_t PULSEW_MAX = 255; // max pulse width [ms]
 const uint8_t BPM_MIN = 1;      // changes need changes in TU_BPM.h
 const uint8_t BPM_MAX = 255;
-const uint8_t LFSR_MAX = 32;  
+const uint8_t LFSR_MAX = 31;  
 const uint8_t LFSR_MIN = 4; 
 const uint8_t EUCLID_N_MAX = 32;
 const uint16_t TOGGLE_THRESHOLD = 500; // ADC threshold for 0/1 parameters (~1.2V)
@@ -733,7 +733,7 @@ public:
             break;
           case LFSR: {
 
-              uint8_t _length, _probability, _myfirstbit;
+              int16_t _length, _probability, _myfirstbit;
               
               _length = get_turing_length();
               _probability = get_turing_probability();
@@ -758,8 +758,8 @@ public:
               
               // now update LFSR (even more):
               
-              uint8_t  _tap1 = get_tap1(); 
-              uint8_t  _tap2 = get_tap2(); 
+              int8_t  _tap1 = get_tap1(); 
+              int8_t  _tap2 = get_tap2(); 
 
               if (get_tap1_cv_source())
                 _tap1 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_tap1_cv_source() - 1)) + 64) >> 6;             
@@ -791,7 +791,7 @@ public:
             break;
           case EUCLID: {
 
-              uint8_t _n, _k, _offset;
+              int16_t _n, _k, _offset;
               
               _n = euclid_n();
               _k = euclid_k();
@@ -897,11 +897,11 @@ public:
                    break;
                   case _TURING: {
                   
-                     uint8_t _length = get_turing_length();
-                     uint8_t _probability = get_turing_probability();
+                     int16_t _length = get_turing_length();
+                     int16_t _probability = get_turing_probability();
 
                      if (get_turing_length_cv_source()) {
-                        _length += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_length_cv_source() - 1)) + 64) >> 6;   
+                        _length += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_length_cv_source() - 1)) + 64) >> 7;   
                         CONSTRAIN(_length, LFSR_MIN, LFSR_MAX);
                      }
 
@@ -928,6 +928,7 @@ public:
                   case _LOGISTIC: {
                      // ? not properly working
                      logistic_map_.set_seed(TU::ADC::value<ADC_CHANNEL_1>());
+                     
                      int32_t logistic_map_r = get_logistic_map_r();
                      
                      if (get_logistic_map_r_cv_source()) {
