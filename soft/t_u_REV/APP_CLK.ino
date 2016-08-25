@@ -5,13 +5,7 @@
 * - something's not quite right with LFSR mode, and logistic (DAC) mode.
 * - expand to div/16
 * - implement reset
-* - implement CV 
-* - menu details: 
-*    - constrain interdependent values
-*    - display clocks, patterns, etc
 * - DAC mode should have additional/internal trigger sources: channels 1-3, 5, and 6
-* - fix screensaver DAC channel [DAC mode]
-* - make screen saver nice ...
 *
 */
 
@@ -231,8 +225,16 @@ public:
     return values_[CHANNEL_SETTING_LFSR_TAP1];
   }
 
+  void set_tap1(uint8_t _t) {
+    apply_value(CHANNEL_SETTING_LFSR_TAP1, _t);
+  }
+
   uint8_t get_tap2() const {
     return values_[CHANNEL_SETTING_LFSR_TAP2];
+  }
+
+  void set_tap2(uint8_t _t) {
+    apply_value(CHANNEL_SETTING_LFSR_TAP2, _t);
   }
 
   uint8_t rand_n() const {
@@ -247,8 +249,16 @@ public:
     return values_[CHANNEL_SETTING_EUCLID_K];
   }
 
+  void set_euclid_k(uint8_t k) {
+    apply_value(CHANNEL_SETTING_EUCLID_K, k);
+  }
+
   uint8_t euclid_offset() const {
     return values_[CHANNEL_SETTING_EUCLID_OFFSET];
+  }
+
+  void set_euclid_offset(uint8_t o) {
+    apply_value(CHANNEL_SETTING_EUCLID_OFFSET, o);
   }
 
   uint8_t logic_type() const {
@@ -1573,11 +1583,52 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
               case CHANNEL_SETTING_MODE:
               case CHANNEL_SETTING_MODE4:  
               case CHANNEL_SETTING_DAC_MODE:
-               selected.update_enabled_settings(clocks_state.selected_channel);
-               clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
-               break;
+                 selected.update_enabled_settings(clocks_state.selected_channel);
+                 clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+              break;
+              // special cases:
+              case CHANNEL_SETTING_EUCLID_N:
+              case CHANNEL_SETTING_EUCLID_K: 
+              {
+                 uint8_t _n = selected.euclid_n();
+                 if (selected.euclid_k() > _n)
+                    selected.set_euclid_k(_n);
+                 if (selected.euclid_offset() > _n)
+                    selected.set_euclid_offset(_n);   
+              }
+              break;
+              case CHANNEL_SETTING_EUCLID_OFFSET: 
+              {
+                 uint8_t _n = selected.euclid_n();
+                 if (selected.euclid_offset() > _n)
+                    selected.set_euclid_offset(_n);
+              }
+              break;
+              case CHANNEL_SETTING_TURING_LENGTH: 
+              {
+                 uint8_t _len = selected.get_turing_length();
+                 if (selected.get_tap1() > _len)
+                    selected.set_tap1(_len);
+                 if (selected.get_tap2() > _len)
+                    selected.set_tap2(_len);   
+              }
+              break;
+              case CHANNEL_SETTING_LFSR_TAP1: 
+              {
+                 uint8_t _len = selected.get_turing_length();
+                 if (selected.get_tap1() > _len)
+                    selected.set_tap1(_len);
+              }
+              break;
+              case CHANNEL_SETTING_LFSR_TAP2: 
+              {
+                 uint8_t _len = selected.get_turing_length();
+                 if (selected.get_tap2() > _len)
+                    selected.set_tap2(_len);
+              }
+              break;  
              default:
-               break;
+              break;
             }
         }
       } else {
