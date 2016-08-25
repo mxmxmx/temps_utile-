@@ -513,7 +513,7 @@ public:
     menu_page_ = _page;  
   }
 
-  uint16_t get_zero(uint8_t channel) {
+  uint16_t get_zero(uint8_t channel) const {
 
     uint16_t _off = 0;
     if (channel == CLOCK_CHANNEL_4)
@@ -1756,16 +1756,38 @@ void CLOCKS_menu() {
 
 void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clock_channel) const {
 
-  uint16_t _square, _frame, _mode = get_mode();
+  uint16_t _square, _frame, _mode = get_mode4();
 
   _square = TU::OUTPUTS::state(clock_channel);
   _frame  = TU::OUTPUTS::value(clock_channel);
 
   // DAC needs special treatment:
-  if (clock_channel == CLOCK_CHANNEL_4 && _mode < DAC) {
-    _square = _square == ON ? 0x1 : 0x0;
-    _frame  = _frame  == ON ? 0x1 : 0x0;
+  if (clock_channel == CLOCK_CHANNEL_4) {
+
+    if (_mode < DAC) {
+      _square = _square == ON ? 0x1 : 0x0;
+      _frame  = _frame  == ON ? 0x1 : 0x0;
+    }
+    else { // display DAC values, ish; x/y coordinates slightly off ...
+      uint16_t _zero = get_zero(CLOCK_CHANNEL_4);
+      uint16_t _dac_value = _frame;
+      
+      if (_frame < _zero) {
+        // output negative
+        _dac_value = 16 - (_dac_value >> 7);
+        CONSTRAIN(_dac_value, 2, 16);
+        graphics.drawFrame(start_x + 5 - (_dac_value >> 1), 41 - (_dac_value >> 1), _dac_value, _dac_value);
+      }
+      else {
+        // positive output
+        _dac_value = ((_dac_value - _zero) >> 7);
+        CONSTRAIN(_dac_value, 2, 16);
+        graphics.drawRect(start_x + 5 - (_dac_value >> 1), 41 - (_dac_value >> 1), _dac_value, _dac_value);
+      }
+      return;
+    }
   }
+  
   // draw little square thingies ..     
   if (_square && _frame) {
     graphics.drawRect(start_x, 36, 10, 10);
