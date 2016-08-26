@@ -2,6 +2,7 @@
 *   TODO
 * - something's not quite right with logistic (DAC) mode ?
 * - expand to div/16
+* - mask (rotate sequence) CV
 * - implement reset in MULT/DIV mode ?
 * - DAC mode should have additional/internal trigger sources: channels 1-3, 5, and 6; and presumably there could be additional DAC modes
 *
