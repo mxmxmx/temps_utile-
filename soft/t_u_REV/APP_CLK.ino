@@ -1465,13 +1465,22 @@ size_t CLOCKS_restore(const void *storage) {
 void CLOCKS_handleAppEvent(TU::AppEvent event) {
   switch (event) {
     case TU::APP_EVENT_RESUME:
-      clocks_state.cursor.set_editing(false);
-      clocks_state.pattern_editor.Close();
-      break;
+        clocks_state.cursor.set_editing(false);
+        clocks_state.pattern_editor.Close();
+    break;
     case TU::APP_EVENT_SUSPEND:
     case TU::APP_EVENT_SCREENSAVER_ON:
     case TU::APP_EVENT_SCREENSAVER_OFF:
-      break;
+    {
+      Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+        if (selected.get_page() > PARAMETERS) {
+          selected.set_page(PARAMETERS);
+          selected.update_enabled_settings(clocks_state.selected_channel);
+          clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0); 
+          clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+        }
+    }
+    break;
   }
 }
 
