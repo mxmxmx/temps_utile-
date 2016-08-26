@@ -1,11 +1,9 @@
 /* 
 *   TODO
-* - prevent channels getting out of sync (mult/div) [-> offset]
-* - sync (left button long)
-* - something's not quite right with LFSR mode, and logistic (DAC) mode.
+* - something's not quite right with logistic (DAC) mode ?
 * - expand to div/16
-* - implement reset
-* - DAC mode should have additional/internal trigger sources: channels 1-3, 5, and 6
+* - implement reset in MULT/DIV mode ?
+* - DAC mode should have additional/internal trigger sources: channels 1-3, 5, and 6; and presumably there could be additional DAC modes
 *
 */
 
