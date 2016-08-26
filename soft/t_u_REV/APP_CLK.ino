@@ -318,6 +318,10 @@ public:
     return display_sequence_;
   }
 
+  int get_display_mask() const {
+    return display_mask_;
+  }
+
   void set_sequence(uint8_t seq) {
     apply_value(CHANNEL_SETTING_SEQUENCE, seq);
   }
@@ -488,10 +492,6 @@ public:
     }
   }
 
-  uint16_t get_rotated_mask() const {
-    return last_mask_;
-  }
-
   uint16_t get_clock_cnt() const {
     return clk_cnt_;
   }
@@ -571,6 +571,9 @@ public:
     pulse_width_in_ticks_ = get_pulsewidth() << 10;
      
     _ZERO = TU::calibration_data.dac.calibrated_Zero[0x0][0x0];
+
+    display_sequence_ = get_sequence();
+    display_mask_ = get_mask(display_sequence_);
     
     turing_machine_.Init();
     turing_machine_.Clock();
@@ -861,11 +864,16 @@ public:
               int16_t _seq = get_sequence();
               
               if (get_sequence_cv_source()) {
-                _seq += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_sequence_cv_source() - 1)) + 256) >> 9;             
+                _seq += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_sequence_cv_source() - 1)) + 255) >> 9;             
                 CONSTRAIN(_seq, 0, TU::Patterns::PATTERN_USER_LAST-1);
               }
+              
               display_sequence_ = _seq;
               uint16_t _mask = get_mask(_seq);
+
+              if (get_mask_cv_source())
+                _mask = update_sequence((TU::ADC::value(static_cast<ADC_CHANNEL>(get_mask_cv_source() - 1)) + 127) >> 8, _seq, _mask);
+              display_mask_ = _mask;
               
               if (clk_cnt_ >= get_sequence_length(_seq))
                 clk_cnt_ = 0; // reset counter
@@ -1268,20 +1276,14 @@ public:
   }
   
 
-  bool update_pattern(bool force, int32_t mask_rotate) {
-    const int pattern = get_sequence();
-    uint16_t mask = get_mask(pattern);
-    if (mask_rotate)
-      mask = TU::PatternEditor<Clock_channel>::RotateMask(mask, get_sequence_length(pattern), mask_rotate);
-
-    if (force || (last_pattern_ != pattern || last_mask_ != mask)) {
-
-      last_pattern_ = pattern;
-      last_mask_ = mask;
-      return true;
-    } else {
-      return false;
-    }
+  uint16_t update_sequence(int32_t mask_rotate_, uint8_t sequence_, uint16_t mask_) {
+    
+    const int sequence_num = sequence_;
+    uint16_t mask = mask_;
+    
+    if (mask_rotate_)
+      mask = TU::PatternEditor<Clock_channel>::RotateMask(mask, get_sequence_length(sequence_num), mask_rotate_);
+    return mask;
   }
 
   void RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clock_channel) const;
@@ -1302,9 +1304,8 @@ private:
   uint8_t prev_multiplier_;
   uint8_t prev_pulsewidth_;
   uint8_t logic_;
-  uint16_t last_pattern_;
-  uint16_t last_mask_;
   uint8_t display_sequence_;
+  uint16_t display_mask_;
   uint8_t menu_page_;
   uint8_t bpm_last_;
  
@@ -1436,7 +1437,7 @@ void CLOCKS_init() {
   clocks_state.Init();
   for (size_t i = 0; i < NUM_CHANNELS; ++i) {
     clock_channel[i].Init(static_cast<ChannelTriggerSource>(CHANNEL_TRIGGER_TR1));
-    clock_channel[i].update_pattern(true,0);
+    clock_channel[i].update_sequence(0, clock_channel[i].get_sequence(), clock_channel[i].get_mask(clock_channel[i].get_sequence()));
   }
   clocks_state.cursor.AdjustEnd(clock_channel[0].num_enabled_settings() - 1); 
 }
@@ -1855,7 +1856,7 @@ void CLOCKS_menu() {
       case CHANNEL_SETTING_MASK2:
       case CHANNEL_SETTING_MASK3:
       case CHANNEL_SETTING_MASK4:
-        menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_mask(channel.get_display_sequence()), channel.get_sequence_length(channel.get_display_sequence()));
+        menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_display_mask(), channel.get_sequence_length(channel.get_display_sequence()));
         list_item.DrawNoValue<false>(value, attr);
         break;
       case CHANNEL_SETTING_DUMMY:
