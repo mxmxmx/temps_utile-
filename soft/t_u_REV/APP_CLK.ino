@@ -630,6 +630,7 @@ public:
      else if (_clock_source == CHANNEL_TRIGGER_INTERNAL) {
 
           ticks_++;
+          _triggered = false;
           
           uint8_t _bpm = get_internal_tempo() - BPM_MIN; // substract min value
           
@@ -959,7 +960,7 @@ public:
                    break;
                   case _LOGISTIC: {
                      // ? not properly working; ask Tim .. 
-                     logistic_map_.set_seed(TU::ADC::value<ADC_CHANNEL_1>());
+                     logistic_map_.set_seed(123);
                      
                      int32_t logistic_map_r = get_logistic_map_r();
                      
@@ -967,7 +968,7 @@ public:
                         logistic_map_r += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logistic_map_r_cv_source() - 1)) + 16) >> 4;
                         CONSTRAIN(logistic_map_r, 0, 255);
                      } 
-              
+     
                      logistic_map_.set_r(logistic_map_r);
                      
                      int16_t _logistic_map_x = (static_cast<int16_t>(logistic_map_.Clock()) & 0xFFF) - 0x800; // +/- 2048
@@ -1343,7 +1344,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, TU::OUTPUTS::kHistoryDepth - 1, "hist. depth", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
   { 16, LFSR_MIN, LFSR_MAX, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 0, 255, "LFSR p(x)", NULL, settings::STORAGE_TYPE_U8 },
-  { 128, 1, 255, "logistic r", NULL, settings::STORAGE_TYPE_U8 },
+  { 128, 1, 255, "LGST(R)", NULL, settings::STORAGE_TYPE_U8 },
   { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 1
   { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 2
   { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 3
