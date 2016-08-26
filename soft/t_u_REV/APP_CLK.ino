@@ -526,6 +526,11 @@ public:
     apply_value(CHANNEL_SETTING_HISTORY_DEPTH_CV_SOURCE,0);
   }
 
+  void sync() {
+
+    clk_cnt_ = 0x0;
+  }
+  
   uint8_t get_page() const {
     return menu_page_;  
   }
@@ -595,6 +600,7 @@ public:
 
      // channel parameters:
      _clock_source = get_clock_source();
+ 
      
      if (get_clock_source_cv_source()){
         int16_t _toggle = TU::ADC::value(static_cast<ADC_CHANNEL>(get_clock_source_cv_source() - 1));
@@ -602,7 +608,7 @@ public:
         if (_toggle > TOGGLE_THRESHOLD && _clock_source <= CHANNEL_TRIGGER_TR2) 
           _clock_source = (~_clock_source) & 1u;
      }
-     
+ 
      _multiplier = get_mult();
 
      if (get_mult_cv_source()) {
@@ -704,6 +710,16 @@ public:
          if (_subticks < tickjitter_ || _subticks < prev_channel_frequency_in_ticks_) // reject, if jittery or skip quasi-double triggers when ext. frequency changes...
             return;
          clk_cnt_++;  
+         // reset ?
+         int8_t _reset_source = get_reset();
+         if (_reset_source <= CHANNEL_TRIGGER_TR2) {
+
+            if (!_reset_source && !digitalReadFast(TR1))
+              sync();
+            else if (!digitalReadFast(TR2))
+              sync();
+         }
+         
          _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
          TU::OUTPUTS::setState(clock_channel, _output);
      }
@@ -1158,7 +1174,7 @@ public:
             break;
       }
       *settings++ = CHANNEL_SETTING_CLOCK_CV_SOURCE;
-      if (mode == MULT || mode == SEQ || mode == EUCLID) // make # items the same...
+      if (mode == SEQ || mode == EUCLID) // make # items the same / reset source ...
         *settings++ = CHANNEL_SETTING_DUMMY;
        
     }
@@ -1240,7 +1256,7 @@ public:
     
         *settings++ = CHANNEL_SETTING_CLOCK;
         
-        if (mode == MULT || mode == EUCLID || mode == SEQ)
+        if (mode == EUCLID || mode == SEQ)
           *settings++ = CHANNEL_SETTING_RESET;
     }
     else if (menu_page_ == TEMPO) {
@@ -1736,11 +1752,14 @@ void CLOCKS_leftButton() {
     clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
     return;
   }
+  // sync:
+  for (int i = 0; i < NUM_CHANNELS; ++i) 
+        clock_channel[i].sync();
 }
 
 void CLOCKS_leftButtonLong() {
 
-  // sync
+  // ?
 }
 
 void CLOCKS_upButtonLong() {
