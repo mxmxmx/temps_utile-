@@ -697,6 +697,9 @@ public:
          
          // if so, reset ticks: 
          subticks_ = 0x0;
+         // if tempo changed, reset internal clock counter:
+         if (_tock)
+            ticks_ = 0x0;
          // count, only if ... 
          if (_subticks < tickjitter_ || _subticks < prev_channel_frequency_in_ticks_) // reject, if jittery or skip quasi-double triggers when ext. frequency changes...
             return;
