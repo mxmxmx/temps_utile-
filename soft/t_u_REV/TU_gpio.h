@@ -61,9 +61,8 @@
 #define encL2 21
 #define butL  23
 
-// NOTE: back side :(
 #define TU_GPIO_DEBUG_PIN1 30
-#define TU_GPIO_DEBUG_PIN2 29
+#define TU_GPIO_DEBUG_PIN2 29 // available on PCB
 
 #define TU_GPIO_BUTTON_PINMODE INPUT_PULLUP
 #define TU_GPIO_TRx_PINMODE INPUT_PULLUP

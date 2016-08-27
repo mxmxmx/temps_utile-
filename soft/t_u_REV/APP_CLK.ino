@@ -1,9 +1,28 @@
+// Copyright (c) 2015, 2016 Max Stadler, Patrick Dowling
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 /* 
 *   TODO
-* - something's not quite right with logistic (DAC) mode ?
-* - expand to div/16
-* - mask (rotate sequence) CV
-* - implement reset in MULT/DIV mode ?
+* - something's not quite right with logistic (DAC) mode ? maybe replace with Lorenz attractor and be done with it.
+* - expand to div/16 ? maybe
+* - reset in MULT/DIV mode ? maybe
 * - DAC mode should have additional/internal trigger sources: channels 1-3, 5, and 6; and presumably there could be additional DAC modes
 *
 */
@@ -28,11 +47,11 @@ const uint8_t RND_MAX = 31;     // max random (n)
 const uint8_t MULT_MAX = 14;    // max multiplier
 const uint8_t PULSEW_MAX = 255; // max pulse width [ms]
 const uint8_t BPM_MIN = 1;      // changes need changes in TU_BPM.h
-const uint8_t BPM_MAX = 255;
-const uint8_t LFSR_MAX = 31;  
-const uint8_t LFSR_MIN = 4; 
-const uint8_t EUCLID_N_MAX = 32;
-const uint16_t TOGGLE_THRESHOLD = 500; // ADC threshold for 0/1 parameters (~1.2V)
+const uint8_t BPM_MAX = 255;    // ditto
+const uint8_t LFSR_MAX = 31;    // max LFSR length
+const uint8_t LFSR_MIN = 4;     // min "
+const uint8_t EUCLID_N_MAX = 32; 
+const uint16_t TOGGLE_THRESHOLD = 500; // ADC threshold for 0/1 parameters (500 = ~1.2V)
 
 const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
 const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
@@ -70,6 +89,7 @@ enum ChannelSetting {
   CHANNEL_SETTING_MODE4,
   CHANNEL_SETTING_CLOCK,
   CHANNEL_SETTING_RESET,
+  CHANNEL_SETTING_FREEZE,
   CHANNEL_SETTING_MULT,
   CHANNEL_SETTING_PULSEWIDTH,
   CHANNEL_SETTING_INTERNAL_CLK,
@@ -134,7 +154,9 @@ enum ChannelTriggerSource {
   CHANNEL_TRIGGER_TR2,
   CHANNEL_TRIGGER_NONE,
   CHANNEL_TRIGGER_INTERNAL,
-  CHANNEL_TRIGGER_LAST
+  CHANNEL_TRIGGER_LAST,
+  CHANNEL_TRIGGER_FREEZE_HIGH = CHANNEL_TRIGGER_INTERNAL,
+  CHANNEL_TRIGGER_FREEZE_LOW = CHANNEL_TRIGGER_LAST
 };
 
 enum ChannelCV_Mapping {
@@ -218,8 +240,16 @@ public:
     return values_[CHANNEL_SETTING_INTERNAL_CLK];
   }
 
-  uint8_t get_reset() const {
+  uint8_t get_reset_source() const {
     return values_[CHANNEL_SETTING_RESET];
+  }
+
+  void set_reset_source(uint8_t src) {
+    apply_value(CHANNEL_SETTING_RESET, src);
+  }
+
+  uint8_t get_freeze_source() const {
+    return values_[CHANNEL_SETTING_FREEZE];
   }
 
   uint8_t get_tap1() const {
@@ -327,7 +357,7 @@ public:
   }
 
   uint8_t get_sequence_length(uint8_t _seq) const {
-
+    
     switch (_seq) {
 
     case 1:
@@ -467,11 +497,6 @@ public:
     }
   }
   
-  // wrappers for PatternEdit
-  void pattern_changed() {
-    force_update_ = true;
-  }
-
   void set_sequence_length(uint8_t len, uint8_t seq) {
 
     switch(seq) {
@@ -496,10 +521,27 @@ public:
     return clk_cnt_;
   }
 
-  void update_int_tempo(uint16_t _tempo) {
+  void update_internal_timer(uint16_t _tempo) {
       apply_value(CHANNEL_SETTING_INTERNAL_CLK, _tempo);
   }
 
+  uint8_t getTriggerState() const {
+    return clock_display_.getState();
+  }
+
+  uint32_t get_logistic_map_register() const {
+    return logistic_map_.get_register();
+  }
+
+  int num_enabled_settings() const {
+    return num_enabled_settings_;
+  }
+
+  // this seems superfluous now:
+  void pattern_changed() {
+    force_update_ = true;
+  }
+  
   void clear_CV_mapping() {
 
     apply_value(CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE, 0);
@@ -526,7 +568,6 @@ public:
   }
 
   void sync() {
-
     clk_cnt_ = 0x0;
   }
   
@@ -590,8 +631,11 @@ public:
     force_update_ = true;
   }
 
+  /* main channel update below: */
+   
   inline void Update(uint32_t triggers, CLOCK_CHANNEL clock_channel) {
 
+     // increment channel ticks .. 
      subticks_++; 
      
      int8_t _clock_source, _mode;
@@ -600,9 +644,9 @@ public:
      uint16_t _output = gpio_state_;
      uint32_t prev_channel_frequency_in_ticks_ = 0x0;
 
-     // channel parameters:
+     // core channel parameters -- 
+     // 1. clock source:
      _clock_source = get_clock_source();
- 
      
      if (get_clock_source_cv_source()){
         int16_t _toggle = TU::ADC::value(static_cast<ADC_CHANNEL>(get_clock_source_cv_source() - 1));
@@ -610,14 +654,14 @@ public:
         if (_toggle > TOGGLE_THRESHOLD && _clock_source <= CHANNEL_TRIGGER_TR2) 
           _clock_source = (~_clock_source) & 1u;
      }
- 
+     // 2. multiplication:
      _multiplier = get_mult();
 
      if (get_mult_cv_source()) {
         _multiplier += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_mult_cv_source() - 1)) + 127) >> 8;             
         CONSTRAIN(_multiplier, 0, MULT_MAX);
      }
-      
+     // 3. channel mode? 
      _mode = (clock_channel != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
      // clocked ?
      _none = CHANNEL_TRIGGER_NONE == _clock_source;
@@ -634,7 +678,7 @@ public:
             div_cnt_--;
          }
      }
-     // internal clock active?
+     // or else, internal clock active?
      else if (_clock_source == CHANNEL_TRIGGER_INTERNAL) {
 
           ticks_++;
@@ -666,14 +710,14 @@ public:
        _tock |= true;  
      prev_multiplier_ = _multiplier; 
 
-     // recalculate channel frequency and jitter-threshold:
+     // if so, recalculate channel frequency and corresponding jitter-thresholds:
      if (_tock) {
         prev_channel_frequency_in_ticks_ = channel_frequency_in_ticks_;
         channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 3; 
         tickjitter_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_JITTER);
         prev_channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(prev_channel_frequency_in_ticks_, TICK_SCALE);
      }
-     // limit to > 0
+     // limit frequency to > 0
      if (!channel_frequency_in_ticks_)  
         channel_frequency_in_ticks_ = 1u;  
     /*             
@@ -683,7 +727,8 @@ public:
      */
      uint32_t _subticks = subticks_;
 
-     if (_multiplier < 8 && _triggered && div_cnt_ <= 0) { // division, so we track
+     if (_multiplier < 8 && _triggered && div_cnt_ <= 0) { 
+        // division, so we track
         _sync = true;
         div_cnt_ = 8 - _multiplier; // /1 = 7 ; /2 = 6, /3 = 5 etc
         subticks_ = channel_frequency_in_ticks_; // force sync
@@ -693,8 +738,9 @@ public:
         TU::OUTPUTS::setState(clock_channel, OFF);
      }
      else if (_multiplier > 7 && _triggered)  {
+        // multiplication, force sync, if clocked:
         _sync = true;
-        subticks_ = channel_frequency_in_ticks_; // force sync, if clocked
+        subticks_ = channel_frequency_in_ticks_; 
      }
      else if (_multiplier > 7)
         _sync = true;   
@@ -705,37 +751,49 @@ public:
          
          // if so, reset ticks: 
          subticks_ = 0x0;
-         // if tempo changed, reset internal clock counter:
+         // if tempo changed, reset _internal_ clock counter:
          if (_tock)
             ticks_ = 0x0;
-         // count, only if ... 
-         if (_subticks < tickjitter_ || _subticks < prev_channel_frequency_in_ticks_) // reject, if jittery or skip quasi-double triggers when ext. frequency changes...
+         // reject, if clock is too jittery or skip quasi-double triggers when ext. frequency increases:
+         if (_subticks < tickjitter_ || _subticks < prev_channel_frequency_in_ticks_) 
             return;
+         // only then count clocks:  
          clk_cnt_++;  
-         // reset ?
-         int8_t _reset_source = get_reset();
-         if (_reset_source <= CHANNEL_TRIGGER_TR2) {
-
-            if (!_reset_source && !digitalReadFast(TR1))
-              sync();
-            else if (!digitalReadFast(TR2))
-              sync();
+         
+         // reset, or freeze ?
+         int8_t _reset_source = (_mode == SEQ || _mode == EUCLID) ? get_reset_source() : get_freeze_source();
+         
+         if (_reset_source != CHANNEL_TRIGGER_NONE) {
+          
+             if (_reset_source <= CHANNEL_TRIGGER_TR2) {
+    
+                if (!_reset_source && !digitalReadFast(TR1))
+                  sync();
+                else if (!digitalReadFast(TR2))
+                  sync();
+             }
+             else if (_reset_source == CHANNEL_TRIGGER_FREEZE_HIGH && !digitalReadFast(TR2))
+              return;
+             else if (_reset_source == CHANNEL_TRIGGER_FREEZE_LOW && digitalReadFast(TR2)) 
+              return;
          }
          
+         // finally, process trigger + output
          _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
          TU::OUTPUTS::setState(clock_channel, _output);
      }
   
-     // on/off...?
+     // if time has come, switch off clocks again:
      if (gpio_state_ && _mode != DAC) { 
-
+        
+        // pulsewidth setting -- 
         int16_t _pulsewidth = get_pulsewidth();
         // CV?
         if (get_pulsewidth_cv_source()) {
           _pulsewidth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_pulsewidth_cv_source() - 1)) + 16) >> 4;             
           CONSTRAIN(_pulsewidth, 1, PULSEW_MAX);
         }
-        // recalculate pulsewidth ? 
+        // recalculate (in ticks), if new pulsewidth setting:
         if (prev_pulsewidth_ != _pulsewidth || ! subticks_) {
             int32_t _fraction = signed_multiply_32x16b(TICKS_TO_MS, static_cast<int32_t>(_pulsewidth)); // = * 0.6667f
             _fraction = signed_saturate_rshift(_fraction, 16, 0);
@@ -743,7 +801,7 @@ public:
         }
         prev_pulsewidth_ = _pulsewidth;
         
-        // limit pulsewidth
+        // limit pulsewidth, if approaching frequency:
         if (pulse_width_in_ticks_ >= channel_frequency_in_ticks_) 
           pulse_width_in_ticks_ = (channel_frequency_in_ticks_ >> 1) | 1u;
           
@@ -762,6 +820,7 @@ public:
      TU::OUTPUTS::set(clock_channel, _output);
   } // end update
 
+  /* details re: trigger processing happens (mostly) here: */
   inline uint16_t process_clock_channel(uint8_t mode) {
  
       uint16_t _out = ON;
@@ -776,7 +835,7 @@ public:
             logic_ = true;
             break;
           case LFSR: {
-
+              // LFSR, sort of. mash-up of o_C and old TU firmware:
               int16_t _length, _probability, _myfirstbit;
               
               _length = get_turing_length();
@@ -797,11 +856,10 @@ public:
               
               uint32_t _shift_register = turing_machine_.Clock();
   
-              _myfirstbit =  _shift_register & 1u; // --> output
+              _myfirstbit =  _shift_register & 1u; // --> this is our output
               _out = _myfirstbit ? ON : OFF; // DAC needs special care ... 
               
               // now update LFSR (even more):
-              
               int8_t  _tap1 = get_tap1(); 
               int8_t  _tap2 = get_tap2(); 
 
@@ -816,14 +874,14 @@ public:
      
               _tap1 = (_shift_register >> _tap1) & 1u;  // bit at tap1
               _tap2 = (_shift_register >> _tap2) & 1u;  // bit at tap1
-  
+            
               _shift_register = (_shift_register >> 1) | ((_myfirstbit ^ _tap1 ^ _tap2) << (_length - 1)); 
               turing_machine_.set_shift_register(_shift_register);
             }
             break;
           case RANDOM: {
-            
-               int16_t _n = rand_n(); // threshold  
+               // get threshold setting:
+               int16_t _n = rand_n();   
                if (get_rand_n_cv_source()) {
                  _n += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_n_cv_source() - 1)) + 64) >> 6;             
                  CONSTRAIN(_n, 0, RND_MAX);
@@ -834,13 +892,13 @@ public:
             }
             break;
           case EUCLID: {
-
+              // simple euclidian algorithm, found on pd hurleur:
               int16_t _n, _k, _offset;
-              
+              // the three parameters:
               _n = euclid_n();
               _k = euclid_k();
               _offset = euclid_offset();
-
+              // CV -- 
               if (get_euclid_n_cv_source()) {
                 _n += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_n_cv_source() - 1)) + 64) >> 6;   
                 CONSTRAIN(_n, 1, EUCLID_N_MAX);
@@ -854,35 +912,37 @@ public:
           
               CONSTRAIN(_k, 1, _n);
               CONSTRAIN(_offset, 1, _n);
-                
+              // calculate output:  
               _out = ((clk_cnt_ + _offset) * _k) % _n;
               _out = (_out < _k) ? ON : OFF;
             }
             break;
           case SEQ: {
-
+              // sequencer mode, adapted from o_C scale edit:
               int16_t _seq = get_sequence();
               
               if (get_sequence_cv_source()) {
                 _seq += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_sequence_cv_source() - 1)) + 255) >> 9;             
                 CONSTRAIN(_seq, 0, TU::Patterns::PATTERN_USER_LAST-1);
               }
-              
+              // this is the sequence # (USER1-USER4):
               display_sequence_ = _seq;
+              // and corresponding pattern mask:
               uint16_t _mask = get_mask(_seq);
-
+              // rotate mask ?
               if (get_mask_cv_source())
                 _mask = update_sequence((TU::ADC::value(static_cast<ADC_CHANNEL>(get_mask_cv_source() - 1)) + 127) >> 8, _seq, _mask);
               display_mask_ = _mask;
-              
+              // reset counter ?
               if (clk_cnt_ >= get_sequence_length(_seq))
-                clk_cnt_ = 0; // reset counter
+                clk_cnt_ = 0; 
+              // output slot at current position:  
               _out = (_mask >> clk_cnt_) & 1u;
               _out = _out ? ON : OFF;
             }   
             break; 
           case DAC: {
-
+               // only available in channel 4: 
                int16_t _range = dac_range(); // 1-255
                int8_t _mode = dac_mode(); 
                
@@ -894,7 +954,7 @@ public:
                if (get_DAC_range_cv_source()) {
                 _range += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_range_cv_source() - 1)) + 16) >> 4;
                 CONSTRAIN(_range, 1, 255);              
-              }
+               }
 
                switch (_mode) {
 
@@ -1019,12 +1079,14 @@ public:
      if (!logic_)
        return;
      logic_ = false;  
-        
+
+     // else logic ... 
      uint16_t _out = OFF;
-     int8_t _op1, _op2, _type = logic_type();
-  
-     _op1 = logic_op1();
-     _op2 = logic_op2();
+     int8_t _op1, _op2, _type;
+     
+     _type = logic_type();
+     _op1  = logic_op1();
+     _op2  = logic_op2();
 
      if (get_logic_type_cv_source()) {
         _type += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logic_type_cv_source() - 1)) + 256) >> 9;             
@@ -1051,6 +1113,7 @@ public:
        _op2 = TU::OUTPUTS::value(_op2) & 1u;
      }
 
+     // and go through the options ...
      switch (_type) {
   
         case AND:  
@@ -1073,12 +1136,12 @@ public:
             break;
         default: 
             break;    
-    } // end op switch
+    } // end logic op switch
 
-    // write to output
+    // write to output:
     gpio_state_ = _out = (_out & 1u) ? ON : OFF;
     if (!_out && clock_channel == CLOCK_CHANNEL_4)
-       _out += _ZERO;
+      _out += _ZERO;
     TU::OUTPUTS::setState(clock_channel, _out); 
     TU::OUTPUTS::set(clock_channel, _out);  
   }
@@ -1091,18 +1154,7 @@ public:
     return sum / depth;
   }
   
-  uint8_t getTriggerState() const {
-    return clock_display_.getState();
-  }
-
-  uint32_t get_logistic_map_register() const {
-    return logistic_map_.get_register();
-  }
-
-  int num_enabled_settings() const {
-    return num_enabled_settings_;
-  }
-
+ 
   ChannelSetting enabled_setting_at(int index) const {
     return enabled_settings_[index];
   }
@@ -1181,8 +1233,8 @@ public:
             break;
       }
       *settings++ = CHANNEL_SETTING_CLOCK_CV_SOURCE;
-      if (mode == SEQ || mode == EUCLID) // make # items the same / reset source ...
-        *settings++ = CHANNEL_SETTING_DUMMY;
+      //if (mode == SEQ || mode == EUCLID) 
+      *settings++ = CHANNEL_SETTING_DUMMY; // make # items the same / no CV for reset source ...
        
     }
 
@@ -1265,6 +1317,8 @@ public:
         
         if (mode == EUCLID || mode == SEQ)
           *settings++ = CHANNEL_SETTING_RESET;
+        else
+          *settings++ = CHANNEL_SETTING_FREEZE;   
     }
     else if (menu_page_ == TEMPO) {
       
@@ -1321,8 +1375,8 @@ const char* const channel_trigger_sources[CHANNEL_TRIGGER_LAST] = {
   "TR1", "TR2", "none", "INT"
 };
 
-const char* const reset_trigger_sources[CHANNEL_TRIGGER_LAST] = {
-  "TR1", "TR2", "off", " "
+const char* const reset_trigger_sources[CHANNEL_TRIGGER_LAST+1] = {
+  "RST1", "RST2", "none", "= HI", "= LO"
 };
 
 const char* const multipliers[] = {
@@ -1332,16 +1386,14 @@ const char* const multipliers[] = {
 const char* const cv_sources[5] = {
   "--", "CV1", "CV2", "CV3", "CV4"
 };
-//const char* const clock_delays[] = {
-//  "off", "60us", "120us", "180us", "240us", "300us", "360us", "420us", "480us"
-//};
 
 SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
  
   { 0, 0, MODES - 2, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
   { 0, 0, MODES - 1, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
   { CHANNEL_TRIGGER_TR1, 0, CHANNEL_TRIGGER_LAST - 1, "clock src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
-  { CHANNEL_TRIGGER_TR2 + 1, 0, CHANNEL_TRIGGER_LAST - 1, "reset src", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
+  { CHANNEL_TRIGGER_TR2 + 1, 0, CHANNEL_TRIGGER_LAST, "reset/freeze", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
+  { CHANNEL_TRIGGER_NONE, CHANNEL_TRIGGER_NONE, CHANNEL_TRIGGER_LAST, "freeze (TR2)", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
   { 7, 0, MULT_MAX, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
   { 25, 1, PULSEW_MAX, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
   { 100, BPM_MIN, BPM_MAX, "BPM:", NULL, settings::STORAGE_TYPE_U8 },
@@ -1694,7 +1746,6 @@ void CLOCKS_upButton() {
 
 void CLOCKS_downButton() {
 
-  
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
 
   uint8_t _menu_page = selected.get_page();
@@ -1768,7 +1819,7 @@ void CLOCKS_leftButton() {
 
 void CLOCKS_leftButtonLong() {
 
-  // ?
+  // TODO: reset to defaults?
 }
 
 void CLOCKS_upButtonLong() {
@@ -1868,7 +1919,7 @@ void CLOCKS_menu() {
         break;
       case CHANNEL_SETTING_INTERNAL_CLK:
         for (int i = 0; i < 6; i++) 
-          clock_channel[i].update_int_tempo(value);
+          clock_channel[i].update_internal_timer(value);
         if (int_clock_used_ )  
           list_item.DrawDefault(value, attr);
         break; 
