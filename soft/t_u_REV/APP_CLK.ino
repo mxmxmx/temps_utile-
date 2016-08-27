@@ -89,7 +89,6 @@ enum ChannelSetting {
   CHANNEL_SETTING_MODE4,
   CHANNEL_SETTING_CLOCK,
   CHANNEL_SETTING_RESET,
-  CHANNEL_SETTING_FREEZE,
   CHANNEL_SETTING_MULT,
   CHANNEL_SETTING_PULSEWIDTH,
   CHANNEL_SETTING_INTERNAL_CLK,
@@ -246,10 +245,6 @@ public:
 
   void set_reset_source(uint8_t src) {
     apply_value(CHANNEL_SETTING_RESET, src);
-  }
-
-  uint8_t get_freeze_source() const {
-    return values_[CHANNEL_SETTING_FREEZE];
   }
 
   uint8_t get_tap1() const {
@@ -569,6 +564,7 @@ public:
 
   void sync() {
     clk_cnt_ = 0x0;
+    div_cnt_ = 0x0;
   }
   
   uint8_t get_page() const {
@@ -600,6 +596,8 @@ public:
     tickjitter_ = 100;
     clk_cnt_ = 0;
     clk_src_ = get_clock_source();
+    reset_ = false;
+    reset_counter_ = false;
     logic_ = false;
     menu_page_ = PARAMETERS;
  
@@ -638,7 +636,7 @@ public:
      // increment channel ticks .. 
      subticks_++; 
      
-     int8_t _clock_source, _mode;
+     int8_t _clock_source, _reset_source, _mode;
      int8_t _multiplier;
      bool _none, _triggered, _tock, _sync;
      uint16_t _output = gpio_state_;
@@ -700,11 +698,10 @@ public:
             ticks_ = 0x0;
             div_cnt_--;
           }
-     }
-     
+     }     
      // store clock source:
      clk_src_ = _clock_source;
-    
+ 
      // new multiplier ?
      if (prev_multiplier_ != _multiplier)
        _tock |= true;  
@@ -719,7 +716,24 @@ public:
      }
      // limit frequency to > 0
      if (!channel_frequency_in_ticks_)  
-        channel_frequency_in_ticks_ = 1u;  
+        channel_frequency_in_ticks_ = 1u;
+          
+     // reset? 
+     _reset_source = get_reset_source();
+     
+     if (_reset_source < CHANNEL_TRIGGER_NONE && reset_me_) {
+
+        uint8_t reset_state_ = !_reset_source ? digitalReadFast(TR1) : digitalReadFast(TR2);
+
+        // ?
+        if (reset_state_ < reset_) {
+           div_cnt_ = 0x0;
+           reset_counter_ = true; // reset counter below
+           reset_me_ = false;
+        }
+        reset_ = reset_state_;
+     } 
+       
     /*             
      *  brute force ugly sync hack:
      *  this, presumably, is needlessly complicated. 
@@ -754,30 +768,29 @@ public:
          // if tempo changed, reset _internal_ clock counter:
          if (_tock)
             ticks_ = 0x0;
-         // reject, if clock is too jittery or skip quasi-double triggers when ext. frequency increases:
-         if (_subticks < tickjitter_ || _subticks < prev_channel_frequency_in_ticks_) 
+     
+         //reject, if clock is too jittery or skip quasi-double triggers when ext. frequency increases:
+         if (_subticks < tickjitter_ || _subticks < prev_channel_frequency_in_ticks_ && reset_me_) 
             return;
          // only then count clocks:  
          clk_cnt_++;  
-         
-         // reset, or freeze ?
-         int8_t _reset_source = (_mode == SEQ || _mode == EUCLID) ? get_reset_source() : get_freeze_source();
-         
-         if (_reset_source != CHANNEL_TRIGGER_NONE) {
+
+         // reset counter ? (SEQ/Euclidian)
+         if (reset_counter_) {
+            clk_cnt_ = 0x0;
+            reset_counter_ = false;
+         }
+        
+         // freeze ?
+         if (_reset_source > CHANNEL_TRIGGER_NONE) {
           
-             if (_reset_source <= CHANNEL_TRIGGER_TR2) {
-    
-                if (!_reset_source && !digitalReadFast(TR1))
-                  sync();
-                else if (!digitalReadFast(TR2))
-                  sync();
-             }
-             else if (_reset_source == CHANNEL_TRIGGER_FREEZE_HIGH && !digitalReadFast(TR2))
+             if (_reset_source == CHANNEL_TRIGGER_FREEZE_HIGH && !digitalReadFast(TR2))
               return;
              else if (_reset_source == CHANNEL_TRIGGER_FREEZE_LOW && digitalReadFast(TR2)) 
               return;
          }
          
+         reset_me_ = true;
          // finally, process trigger + output
          _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
          TU::OUTPUTS::setState(clock_channel, _output);
@@ -1314,11 +1327,7 @@ public:
         } // end mode switch
     
         *settings++ = CHANNEL_SETTING_CLOCK;
-        
-        if (mode == EUCLID || mode == SEQ)
-          *settings++ = CHANNEL_SETTING_RESET;
-        else
-          *settings++ = CHANNEL_SETTING_FREEZE;   
+        *settings++ = CHANNEL_SETTING_RESET;  
     }
     else if (menu_page_ == TEMPO) {
       
@@ -1343,9 +1352,13 @@ public:
   void RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clock_channel) const;
   
 private:
+  uint16_t _sync_cnt;
   bool force_update_;
   uint16_t _ZERO;
   uint8_t clk_src_;
+  bool reset_;
+  bool reset_me_;
+  bool reset_counter_;
   uint32_t ticks_;
   uint32_t subticks_;
   uint32_t tickjitter_;
@@ -1376,7 +1389,7 @@ const char* const channel_trigger_sources[CHANNEL_TRIGGER_LAST] = {
 };
 
 const char* const reset_trigger_sources[CHANNEL_TRIGGER_LAST+1] = {
-  "RST1", "RST2", "none", "= HI", "= LO"
+  "RST1", "RST2", "none", "=HI2", "=LO2"
 };
 
 const char* const multipliers[] = {
@@ -1391,9 +1404,8 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
  
   { 0, 0, MODES - 2, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
   { 0, 0, MODES - 1, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
-  { CHANNEL_TRIGGER_TR1, 0, CHANNEL_TRIGGER_LAST - 1, "clock src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
-  { CHANNEL_TRIGGER_TR2 + 1, 0, CHANNEL_TRIGGER_LAST, "reset/freeze", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
-  { CHANNEL_TRIGGER_NONE, CHANNEL_TRIGGER_NONE, CHANNEL_TRIGGER_LAST, "freeze (TR2)", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
+  { CHANNEL_TRIGGER_TR1, 0, CHANNEL_TRIGGER_LAST, "clock src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
+  { CHANNEL_TRIGGER_NONE, 0, CHANNEL_TRIGGER_LAST, "reset/freeze", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
   { 7, 0, MULT_MAX, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
   { 25, 1, PULSEW_MAX, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
   { 100, BPM_MIN, BPM_MAX, "BPM:", NULL, settings::STORAGE_TYPE_U8 },
