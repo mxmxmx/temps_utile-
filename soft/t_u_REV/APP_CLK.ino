@@ -598,6 +598,7 @@ public:
     clk_src_ = get_clock_source();
     reset_ = false;
     reset_counter_ = false;
+    reset_me_ = false;
     logic_ = false;
     menu_page_ = PARAMETERS;
  
@@ -728,7 +729,7 @@ public:
         // ?
         if (reset_state_ < reset_) {
            div_cnt_ = 0x0;
-           reset_counter_ = true; // reset counter below
+           reset_counter_ = true; // reset clock counter below
            reset_me_ = false;
         }
         reset_ = reset_state_;
@@ -770,17 +771,15 @@ public:
             ticks_ = 0x0;
      
          //reject, if clock is too jittery or skip quasi-double triggers when ext. frequency increases:
-         if (_subticks < tickjitter_ || _subticks < prev_channel_frequency_in_ticks_ && reset_me_) 
+         if (_subticks < tickjitter_ || (_subticks < prev_channel_frequency_in_ticks_ && reset_me_)) 
             return;
          // only then count clocks:  
          clk_cnt_++;  
 
          // reset counter ? (SEQ/Euclidian)
-         if (reset_counter_) {
+         if (reset_counter_) 
             clk_cnt_ = 0x0;
-            reset_counter_ = false;
-         }
-        
+            
          // freeze ?
          if (_reset_source > CHANNEL_TRIGGER_NONE) {
           
@@ -789,8 +788,9 @@ public:
              else if (_reset_source == CHANNEL_TRIGGER_FREEZE_LOW && digitalReadFast(TR2)) 
               return;
          }
-         
+         // clear for reset:
          reset_me_ = true;
+         reset_counter_ = false;
          // finally, process trigger + output
          _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
          TU::OUTPUTS::setState(clock_channel, _output);
@@ -1630,7 +1630,6 @@ void CLOCKS_handleButtonEvent(const UI::Event &event) {
 
 void CLOCKS_handleEncoderEvent(const UI::Event &event) {
 
-  
   if (clocks_state.pattern_editor.active()) {
     clocks_state.pattern_editor.HandleEncoderEvent(event);
     return;
@@ -1774,6 +1773,9 @@ void CLOCKS_downButton() {
       selected.set_page(CV_SOURCES);
       clocks_state.cursor = clocks_state.cursor_state;  
     default:  
+      // don't get stuck: 
+      if (selected.enabled_setting_at(clocks_state.cursor_pos()) == CHANNEL_SETTING_RESET)
+        clocks_state.cursor.set_editing(false);
       selected.set_page(CV_SOURCES);
      break;
   }
@@ -1805,10 +1807,13 @@ void CLOCKS_rightButton() {
         clocks_state.pattern_editor.Edit(&selected, pattern);
       }
     }
-      break;
+    break;
+    case CHANNEL_SETTING_DUMMY:
+    case CHANNEL_SETTING_DUMMY_EMPTY:
+    break; 
     default:
-      clocks_state.cursor.toggle_editing();
-      break;
+     clocks_state.cursor.toggle_editing();
+    break;
   }
 
 }
@@ -1831,7 +1836,18 @@ void CLOCKS_leftButton() {
 
 void CLOCKS_leftButtonLong() {
 
-  // TODO: reset to defaults?
+  // reset to defaults ( = last saved settings), and clear all CV mappings.
+  // alternatively/presumably though this should reset everything to something more blank slate?
+  
+  for (int i = 0; i < NUM_CHANNELS; ++i) {
+    
+     clock_channel[i].InitDefaults();
+     clock_channel[i].clear_CV_mapping();
+  }
+  
+  Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+  selected.update_enabled_settings(clocks_state.selected_channel);
+  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
 }
 
 void CLOCKS_upButtonLong() {
