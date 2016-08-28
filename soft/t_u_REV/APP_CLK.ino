@@ -55,8 +55,8 @@ const uint16_t TOGGLE_THRESHOLD = 500; // ADC threshold for 0/1 parameters (500 
 
 const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
 const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
-const uint32_t TICK_JITTER = 0xFFFFFFF; // 1/16 : threshold/double triggers reject -> ext_frequency_in_ticks_
-const uint32_t TICK_SCALE  = 0xE6666666; // 0.9 for signed_multiply_32x32
+const uint32_t TICK_JITTER = 0xFFFFFFF;  // 1/16 : threshold/double triggers reject -> ext_frequency_in_ticks_
+const uint32_t TICK_SCALE  = 0xC0000000; // 0.75 for signed_multiply_32x32
                         
 
 extern const uint32_t BPM_microseconds_4th[];
