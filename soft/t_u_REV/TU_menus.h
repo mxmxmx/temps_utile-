@@ -225,7 +225,7 @@ typedef TitleBar<kDefaultMenuStartX, 2, 2> DualTitleBar;
 typedef TitleBar<kDefaultMenuStartX, 4, 6> QuadTitleBar;
 typedef TitleBar<kDefaultMenuStartX, 6, 8> SixTitleBar;
 
-// Essentially all O&C apps are built around a list of settings; these two
+// Essentially all TU apps are built around a list of settings; these two
 // wrappers and the cursor wrapper replace the original macro-based drawing.
 // start_x : Left edge of list (setting name column)
 // value_x : Left edge of value column (edit cursor placed left of this)

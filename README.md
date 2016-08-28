@@ -27,7 +27,7 @@ i/o:
 
   - euclidian (N (length), K (fill), offset)
 
-  - logic (operator (AND, OR, XOR, NAND, NOR), operand_1, operand_2)
+  - logic (operator (AND, OR, XOR, NAND, NOR, XNOR), operand_1, operand_2)
 
   - trigger sequencer (pattern length(4-16), 4 editable patterns/channel)
 

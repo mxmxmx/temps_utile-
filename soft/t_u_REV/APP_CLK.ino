@@ -20,10 +20,10 @@
 
 /* 
 *   TODO
-* - something's not quite right with logistic (DAC) mode ? maybe replace with Lorenz attractor and be done with it.
-* - expand to div/16 ? maybe
-* - reset in MULT/DIV mode ? maybe
+* - expand to div/16 ? ... maybe
 * - DAC mode should have additional/internal trigger sources: channels 1-3, 5, and 6; and presumably there could be additional DAC modes
+* - BPM, 8th
+* - trigger delay / configure latency (re: reset)
 *
 */
 
@@ -56,8 +56,7 @@ const uint16_t TOGGLE_THRESHOLD = 500; // ADC threshold for 0/1 parameters (500 
 const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
 const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
 const uint32_t TICK_JITTER = 0xFFFFFFF;  // 1/16 : threshold/double triggers reject -> ext_frequency_in_ticks_
-const uint32_t TICK_SCALE  = 0xC0000000; // 0.75 for signed_multiply_32x32
-                        
+const uint8_t MULT_BY_ONE = 7; // default multiplication                        
 
 extern const uint32_t BPM_microseconds_4th[];
 
@@ -227,7 +226,7 @@ public:
     apply_value(CHANNEL_SETTING_CLOCK, _src);
   }
   
-  int8_t get_mult() const {
+  int8_t get_multiplier() const {
     return values_[CHANNEL_SETTING_MULT];
   }
 
@@ -235,7 +234,7 @@ public:
     return values_[CHANNEL_SETTING_PULSEWIDTH];
   }
 
-  uint16_t get_internal_tempo() const {
+  uint16_t get_internal_timer() const {
     return values_[CHANNEL_SETTING_INTERNAL_CLK];
   }
 
@@ -593,7 +592,7 @@ public:
     gpio_state_ = OFF;
     ticks_ = 0;
     subticks_ = 0;
-    tickjitter_ = 100;
+    tickjitter_ = 10000;
     clk_cnt_ = 0;
     clk_src_ = get_clock_source();
     reset_ = false;
@@ -602,7 +601,7 @@ public:
     logic_ = false;
     menu_page_ = PARAMETERS;
  
-    prev_multiplier_ = get_mult();
+    prev_multiplier_ = get_multiplier();
     prev_pulsewidth_ = get_pulsewidth();
     bpm_last_ = 0;
     
@@ -654,7 +653,7 @@ public:
           _clock_source = (~_clock_source) & 1u;
      }
      // 2. multiplication:
-     _multiplier = get_mult();
+     _multiplier = get_multiplier();
 
      if (get_mult_cv_source()) {
         _multiplier += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_mult_cv_source() - 1)) + 127) >> 8;             
@@ -683,7 +682,7 @@ public:
           ticks_++;
           _triggered = false;
           
-          uint8_t _bpm = get_internal_tempo() - BPM_MIN; // substract min value
+          uint8_t _bpm = get_internal_timer() - BPM_MIN; // substract min value
           
           if (_bpm != bpm_last_ || clk_src_ != _clock_source) {
             // new BPM value, recalculate channel frequency below ... 
@@ -710,10 +709,9 @@ public:
 
      // if so, recalculate channel frequency and corresponding jitter-thresholds:
      if (_tock) {
-        prev_channel_frequency_in_ticks_ = channel_frequency_in_ticks_;
+        prev_channel_frequency_in_ticks_ = (channel_frequency_in_ticks_ >> 1);
         channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 3; 
         tickjitter_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_JITTER);
-        prev_channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(prev_channel_frequency_in_ticks_, TICK_SCALE);
      }
      // limit frequency to > 0
      if (!channel_frequency_in_ticks_)  
@@ -742,22 +740,22 @@ public:
      */
      uint32_t _subticks = subticks_;
 
-     if (_multiplier < 8 && _triggered && div_cnt_ <= 0) { 
+     if (_multiplier <= MULT_BY_ONE && _triggered && div_cnt_ <= 0) { 
         // division, so we track
         _sync = true;
         div_cnt_ = 8 - _multiplier; // /1 = 7 ; /2 = 6, /3 = 5 etc
         subticks_ = channel_frequency_in_ticks_; // force sync
      }
-     else if (_multiplier < 8 && _triggered) {
+     else if (_multiplier <= MULT_BY_ONE && _triggered) {
         // division, mute output:
         TU::OUTPUTS::setState(clock_channel, OFF);
      }
-     else if (_multiplier > 7 && _triggered)  {
+     else if (_multiplier > MULT_BY_ONE && _triggered)  {
         // multiplication, force sync, if clocked:
         _sync = true;
         subticks_ = channel_frequency_in_ticks_; 
      }
-     else if (_multiplier > 7)
+     else if (_multiplier > MULT_BY_ONE)
         _sync = true;   
      // end of ugly hack
      
@@ -773,6 +771,7 @@ public:
          //reject, if clock is too jittery or skip quasi-double triggers when ext. frequency increases:
          if (_subticks < tickjitter_ || (_subticks < prev_channel_frequency_in_ticks_ && reset_me_)) 
             return;
+            
          // only then count clocks:  
          clk_cnt_++;  
 
@@ -1058,7 +1057,6 @@ public:
                    }
                    break;
                   case _LOGISTIC: {
-                     // ? not properly working; ask Tim .. 
                      logistic_map_.set_seed(123);
                      
                      int32_t logistic_map_r = get_logistic_map_r();
@@ -1405,8 +1403,8 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, MODES - 2, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
   { 0, 0, MODES - 1, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
   { CHANNEL_TRIGGER_TR1, 0, CHANNEL_TRIGGER_LAST, "clock src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
-  { CHANNEL_TRIGGER_NONE, 0, CHANNEL_TRIGGER_LAST, "reset/freeze", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
-  { 7, 0, MULT_MAX, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
+  { CHANNEL_TRIGGER_NONE, 0, CHANNEL_TRIGGER_LAST, "reset/mute", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
+  { MULT_BY_ONE, 0, MULT_MAX, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
   { 25, 1, PULSEW_MAX, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
   { 100, BPM_MIN, BPM_MAX, "BPM:", NULL, settings::STORAGE_TYPE_U8 },
   //
@@ -1425,9 +1423,9 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, 1, "track -->", TU::Strings::binary_tracking, settings::STORAGE_TYPE_U4 },
   { 0, 0, 255, "rnd hist.", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
   { 0, 0, TU::OUTPUTS::kHistoryDepth - 1, "hist. depth", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
-  { 16, LFSR_MIN, LFSR_MAX, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },
+  { LFSR_MIN<<1, LFSR_MIN, LFSR_MAX, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 0, 255, "LFSR p(x)", NULL, settings::STORAGE_TYPE_U8 },
-  { 128, 1, 255, "LGST(R)", NULL, settings::STORAGE_TYPE_U8 },
+  { 1, 1, 255, "LGST(R)", NULL, settings::STORAGE_TYPE_U8 },
   { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 1
   { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 2
   { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 3
@@ -1835,18 +1833,14 @@ void CLOCKS_leftButton() {
 }
 
 void CLOCKS_leftButtonLong() {
-
-  // reset to defaults ( = last saved settings), and clear all CV mappings.
-  // alternatively/presumably though this should reset everything to something more blank slate?
-  
-  for (int i = 0; i < NUM_CHANNELS; ++i) {
     
-     clock_channel[i].InitDefaults();
-     clock_channel[i].clear_CV_mapping();
-  }
-  
+  for (int i = 0; i < NUM_CHANNELS; ++i) 
+        clock_channel[i].InitDefaults(); 
+    
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+  selected.set_page(PARAMETERS);
   selected.update_enabled_settings(clocks_state.selected_channel);
+  clocks_state.cursor.set_editing(false);
   clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
 }
 

@@ -123,8 +123,8 @@ const char *default_help_r = "[R] => Adjust";
 const char *select_help    = "[R] => Select";
 
 const CalibrationStep calibration_steps[CALIBRATION_STEP_LAST] = {
-  { HELLO, "O&C Calibration", "Use defaults? ", select_help, start_footer, CALIBRATE_NONE, 0, TU::Strings::no_yes, 0, 1 },
-  { CENTER_DISPLAY, "Center Display", "Pixel offset ", default_help_r, default_footer, CALIBRATE_DISPLAY, 0, nullptr, 0, 2 },
+  { HELLO, "T_U calibration", "use defaults? ", select_help, start_footer, CALIBRATE_NONE, 0, TU::Strings::no_yes, 0, 1 },
+  { CENTER_DISPLAY, "center display", "pixel offset ", default_help_r, default_footer, CALIBRATE_DISPLAY, 0, nullptr, 0, 2 },
 
   { DAC_ZERO, "DAC 0.0 volts", "--> 0.0V ", default_help_r, default_footer, CALIBRATE_DAC_ZERO, 0, nullptr, 0, OUTPUTS::MAX_VALUE },
   
