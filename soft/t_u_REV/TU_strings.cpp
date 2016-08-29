@@ -24,7 +24,8 @@ namespace TU {
   const char * const binary_tracking[] = { "P_W", "state"};
 
   extern const char * const pulsewidth_ms[] = {
-    "0ms", "1ms","2ms","3ms","4ms","5ms","6ms","7ms","8ms","9ms","10ms",
+    "echo",
+    "1ms","2ms","3ms","4ms","5ms","6ms","7ms","8ms","9ms","10ms",
     "11ms","12ms","13ms","14ms","15ms","16ms","17ms","18ms","19ms","20ms",
     "21ms","22ms","23ms","24ms","25ms","26ms","27ms","28ms","29ms","30ms",
     "31ms","32ms","33ms","34ms","35ms","36ms","37ms","38ms","39ms","40ms",
