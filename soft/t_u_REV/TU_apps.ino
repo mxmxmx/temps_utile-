@@ -304,7 +304,8 @@ void Ui::AppSettings() {
         continue;
 
       if (UI::EVENT_ENCODER == event.type && CONTROL_ENCODER_R == event.control) {
-        cursor.Scroll(event.value);
+        //there's only one app; so "scroll" is commented out for the time being, to prevent things from crashing:
+        //cursor.Scroll(event.value);
       } else if (CONTROL_BUTTON_R == event.control) {
         save = event.type == UI::EVENT_BUTTON_LONG_PRESS;
         change_app = true;
