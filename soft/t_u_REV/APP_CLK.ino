@@ -818,8 +818,8 @@ public:
         }
         prev_pulsewidth_ = _pulsewidth;
         
-        // limit pulsewidth, if approaching frequency:
-        if (pulse_width_in_ticks_ >= channel_frequency_in_ticks_) 
+        // limit pulsewidth, if approaching half duty cycle:
+        if (pulse_width_in_ticks_ >= channel_frequency_in_ticks_>>1) 
           pulse_width_in_ticks_ = (channel_frequency_in_ticks_ >> 1) | 1u;
           
         // turn off output? 
