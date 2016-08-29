@@ -13,6 +13,7 @@ namespace TU {
     extern const char * const dac_modes[];
     extern const char * const logic_tracking[];
     extern const char * const binary_tracking[];
+    extern const char * const pulsewidth_ms[];
   };
 };
 

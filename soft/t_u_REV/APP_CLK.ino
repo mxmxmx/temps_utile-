@@ -804,22 +804,44 @@ public:
      if (gpio_state_ && _mode != DAC) { 
         
         // pulsewidth setting -- 
+        bool _gates = false;
         int16_t _pulsewidth = get_pulsewidth();
+        
+        if (_pulsewidth == PULSEW_MAX)
+          _gates = true;
         // CV?
         if (get_pulsewidth_cv_source()) {
-          _pulsewidth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_pulsewidth_cv_source() - 1)) + 16) >> 4;             
-          CONSTRAIN(_pulsewidth, 1, PULSEW_MAX);
+          
+          if (!_gates) {           
+            _pulsewidth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_pulsewidth_cv_source() - 1)) + 16) >> 4; 
+            CONSTRAIN(_pulsewidth, 1, PULSEW_MAX);
+          }
+          else {
+            // CV for 50% duty cycle:
+            _pulsewidth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_pulsewidth_cv_source() - 1)) + 8) >> 3;
+            CONSTRAIN(_pulsewidth, 1, (PULSEW_MAX<<1) - 55);  // incl margin, max < 2x mult. see below 
+          }
         }
         // recalculate (in ticks), if new pulsewidth setting:
         if (prev_pulsewidth_ != _pulsewidth || ! subticks_) {
-            int32_t _fraction = signed_multiply_32x16b(TICKS_TO_MS, static_cast<int32_t>(_pulsewidth)); // = * 0.6667f
-            _fraction = signed_saturate_rshift(_fraction, 16, 0);
-            pulse_width_in_ticks_  = (_pulsewidth << 4) + _fraction;
+            if (!_gates) {
+              int32_t _fraction = signed_multiply_32x16b(TICKS_TO_MS, static_cast<int32_t>(_pulsewidth)); // = * 0.6667f
+              _fraction = signed_saturate_rshift(_fraction, 16, 0);
+              pulse_width_in_ticks_  = (_pulsewidth << 4) + _fraction;
+            }
+            else { // put out gates/half duty cycle:
+              pulse_width_in_ticks_ = channel_frequency_in_ticks_ >> 1;
+              
+              if (_pulsewidth != PULSEW_MAX) { // CV?
+                pulse_width_in_ticks_ = signed_multiply_32x16b(static_cast<int32_t>(_pulsewidth) << 8, pulse_width_in_ticks_); // 
+                pulse_width_in_ticks_ = signed_saturate_rshift(pulse_width_in_ticks_, 16, 0);
+              }
+            }
         }
         prev_pulsewidth_ = _pulsewidth;
         
         // limit pulsewidth, if approaching half duty cycle:
-        if (pulse_width_in_ticks_ >= channel_frequency_in_ticks_>>1) 
+        if (!_gates && pulse_width_in_ticks_ >= channel_frequency_in_ticks_>>1) 
           pulse_width_in_ticks_ = (channel_frequency_in_ticks_ >> 1) | 1u;
           
         // turn off output? 
@@ -1410,7 +1432,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { CHANNEL_TRIGGER_TR1, 0, CHANNEL_TRIGGER_LAST, "clock src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
   { CHANNEL_TRIGGER_NONE, 0, CHANNEL_TRIGGER_LAST, "reset/mute", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
   { MULT_BY_ONE, 0, MULT_MAX, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
-  { 25, 1, PULSEW_MAX, "pulsewidth", NULL, settings::STORAGE_TYPE_U8 },
+  { 25, 1, PULSEW_MAX, "pulsewidth", TU::Strings::pulsewidth_ms, settings::STORAGE_TYPE_U8 },
   { 100, BPM_MIN, BPM_MAX, "BPM:", NULL, settings::STORAGE_TYPE_U8 },
   //
   { 0, 0, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
@@ -1929,7 +1951,7 @@ void CLOCKS_menu() {
     const settings::value_attr &attr = Clock_channel::value_attr(setting);
 
     switch (setting) {
-      
+
       case CHANNEL_SETTING_MASK1:
       case CHANNEL_SETTING_MASK2:
       case CHANNEL_SETTING_MASK3:
@@ -1947,7 +1969,7 @@ void CLOCKS_menu() {
       case CHANNEL_SETTING_INTERNAL_CLK:
         for (int i = 0; i < 6; i++) 
           clock_channel[i].update_internal_timer(value);
-        if (int_clock_used_ )  
+        if (int_clock_used_)  
           list_item.DrawDefault(value, attr);
         break; 
       default:
