@@ -56,6 +56,7 @@ const uint16_t TOGGLE_THRESHOLD = 500; // ADC threshold for 0/1 parameters (500 
 const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
 const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
 const uint32_t TICK_JITTER = 0xFFFFFFF;  // 1/16 : threshold/double triggers reject -> ext_frequency_in_ticks_
+const uint32_t TICK_SCALE  = 0xC0000000; // 0.75 for signed_multiply_32x32
 const uint8_t MULT_BY_ONE = 7; // default multiplication                        
 
 extern const uint32_t BPM_microseconds_4th[];
@@ -709,9 +710,13 @@ public:
 
      // if so, recalculate channel frequency and corresponding jitter-thresholds:
      if (_tock) {
-        prev_channel_frequency_in_ticks_ = (channel_frequency_in_ticks_ >> 1);
+
+        // when multiplying, skip too closely spaced triggers:
+        if (_multiplier > MULT_BY_ONE) 
+           prev_channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_SCALE);
+        // new frequency:    
         channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 3; 
-        tickjitter_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_JITTER);
+        tickjitter_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_JITTER);  
      }
      // limit frequency to > 0
      if (!channel_frequency_in_ticks_)  
