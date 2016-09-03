@@ -22,6 +22,7 @@ public:
     mask_ = 0;
     cursor_pos_ = 0;
     num_slots_ = 0;
+    edit_this_sequence_ = 0;
   }
 
   bool active() const {
@@ -62,6 +63,7 @@ private:
   Pattern *mutable_pattern_;
 
   uint16_t mask_;
+  int8_t edit_this_sequence_;
   size_t cursor_pos_;
   size_t num_slots_;
 
@@ -73,13 +75,15 @@ private:
   void invert_mask(); 
 
   void apply_mask(uint16_t mask) {
+    
     if (mask_ != mask) {
       mask_ = mask;
-      owner_->update_pattern_mask(mask_);
+      owner_->update_pattern_mask(mask_, edit_this_sequence_);
     }
+    if (owner_->get_sequence() == edit_this_sequence_)
+      owner_->pattern_changed(mask);
   }
-
-  void reset_pattern();
+  
   //void change_slot(size_t pos, int delta, bool notify);
   void handleButtonLeft(const UI::Event &event);
   void handleButtonUp(const UI::Event &event);
@@ -106,6 +110,14 @@ void PatternEditor<Owner>::Draw() {
 
   x += 2;
   y += 3;
+
+  graphics.setPrintPos(x, y);
+  
+  uint8_t id = edit_this_sequence_;
+  
+  if (edit_this_sequence_ == owner_->get_sequence())
+    id += 4;
+  graphics.print(TU::Strings::seq_id[id]);
 
   graphics.setPrintPos(x, y + 24);
   
@@ -154,7 +166,7 @@ void PatternEditor<Owner>::HandleButtonEvent(const UI::Event &event) {
 
 template <typename Owner>
 void PatternEditor<Owner>::HandleEncoderEvent(const UI::Event &event) {
-  bool pattern_changed = false;
+ 
   uint16_t mask = mask_;
 
   if (TU::CONTROL_ENCODER_L == event.control) {
@@ -178,10 +190,9 @@ void PatternEditor<Owner>::HandleEncoderEvent(const UI::Event &event) {
             if (0 == (mask & ~(0xffff < num_slots_)))
               mask |= 0x1;
           }
-          uint8_t seq = owner_->get_sequence();
-          owner_->set_sequence_length(num_slots_, seq);
+          owner_->set_sequence_length(num_slots_, edit_this_sequence_);
           cursor_pos_ = num_slots_;
-          handled = pattern_changed = true;
+          handled = true;
         }
       }
     }
@@ -190,11 +201,8 @@ void PatternEditor<Owner>::HandleEncoderEvent(const UI::Event &event) {
       mask = RotateMask(mask_, num_slots_, event.value);
     }
   }
-
   // This isn't entirely atomic
   apply_mask(mask);
-  if (pattern_changed)
-    owner_->pattern_changed();
 }
 
 template <typename Owner>
@@ -209,13 +217,27 @@ void PatternEditor<Owner>::move_cursor(int offset) {
 template <typename Owner>
 void PatternEditor<Owner>::handleButtonUp(const UI::Event &event) {
 
-    invert_mask();
+    // next pattern / edit 'offline':
+    edit_this_sequence_++;
+    if (edit_this_sequence_ > TU::Patterns::PATTERN_USER_LAST-1)
+      edit_this_sequence_ = 0;
+      
+    cursor_pos_ = 0;
+    num_slots_ = owner_->get_sequence_length(edit_this_sequence_);
+    mask_ = owner_->get_mask(edit_this_sequence_);
 }
 
 template <typename Owner>
 void PatternEditor<Owner>::handleButtonDown(const UI::Event &event) {
   
-    invert_mask();
+    // next pattern / edit 'offline':
+    edit_this_sequence_--;
+    if (edit_this_sequence_ < 0)
+      edit_this_sequence_ = TU::Patterns::PATTERN_USER_LAST-1;
+      
+    cursor_pos_ = 0;
+    num_slots_ = owner_->get_sequence_length(edit_this_sequence_);
+    mask_ = owner_->get_mask(edit_this_sequence_);
 }
 
 template <typename Owner>
@@ -233,6 +255,7 @@ void PatternEditor<Owner>::handleButtonLeft(const UI::Event &) {
     }
     apply_mask(mask);
   }
+   
 }
 
 template <typename Owner>
@@ -261,21 +284,11 @@ template <typename Owner>
 }
 
 template <typename Owner>
-void PatternEditor<Owner>::reset_pattern() {
-  Serial.println("Resetting pattern ... ");
-
-  *mutable_pattern_ = TU::Patterns::GetPattern(TU::Patterns::PATTERN_DEFAULT);
-  num_slots_ = owner_->get_sequence_length();
-  cursor_pos_ = num_slots_;
-  mask_ = ~(0xfff << num_slots_);
-  apply_mask(mask_);
-}
-
-template <typename Owner>
 void PatternEditor<Owner>::BeginEditing() {
 
   cursor_pos_ = 0;
   uint8_t seq = owner_->get_sequence();
+  edit_this_sequence_ = seq;
   num_slots_ = owner_->get_sequence_length(seq);
   mask_ = owner_->get_mask(seq);
 }

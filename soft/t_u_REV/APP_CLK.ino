@@ -343,6 +343,10 @@ public:
     return display_sequence_;
   }
 
+  void set_display_sequence(uint8_t seq) {
+    display_sequence_ = seq;
+  }
+
   int get_display_mask() const {
     return display_mask_;
   }
@@ -454,9 +458,9 @@ public:
     return values_[CHANNEL_SETTING_HISTORY_DEPTH_CV_SOURCE];
   }
   
-  void update_pattern_mask(uint16_t mask) {
+  void update_pattern_mask(uint16_t mask, uint8_t sequence) {
 
-    switch(get_sequence()) {
+    switch(sequence) {
       
     case 1:
       apply_value(CHANNEL_SETTING_MASK2, mask);
@@ -473,9 +477,9 @@ public:
     }
   }
   
-  int get_mask(uint8_t _mask) const {
+  int get_mask(uint8_t _this_sequence) const {
 
-    switch(_mask) {
+    switch(_this_sequence) {
       
     case 1:
       return values_[CHANNEL_SETTING_MASK2];
@@ -532,9 +536,9 @@ public:
     return num_enabled_settings_;
   }
 
-  // this seems superfluous now:
-  void pattern_changed() {
+  void pattern_changed(uint16_t mask) {
     force_update_ = true;
+    display_mask_ = mask;
   }
   
   void clear_CV_mapping() {
@@ -612,8 +616,9 @@ public:
      
     _ZERO = TU::calibration_data.dac.calibrated_Zero[0x0][0x0];
 
+    // WTF? get_mask doesn't return the saved mask
     display_sequence_ = get_sequence();
-    display_mask_ = get_mask(display_sequence_);
+    display_mask_ = 0; // get_mask(display_sequence_);
     
     turing_machine_.Init();
     turing_machine_.Clock();
@@ -1543,11 +1548,9 @@ void CLOCKS_init() {
   ext_frequency[CHANNEL_TRIGGER_NONE] = 0xFFFFFFFF;
 
   clocks_state.Init();
-  for (size_t i = 0; i < NUM_CHANNELS; ++i) {
+  for (size_t i = 0; i < NUM_CHANNELS; ++i) 
     clock_channel[i].Init(static_cast<ChannelTriggerSource>(CHANNEL_TRIGGER_TR1));
-    clock_channel[i].update_sequence(0, clock_channel[i].get_sequence(), clock_channel[i].get_mask(clock_channel[i].get_sequence()));
-  }
-  clocks_state.cursor.AdjustEnd(clock_channel[0].num_enabled_settings() - 1); 
+  clocks_state.cursor.AdjustEnd(clock_channel[0].num_enabled_settings() - 1);
 }
 
 size_t CLOCKS_storageSize() {
@@ -1715,17 +1718,26 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
           ChannelSetting setting = selected.enabled_setting_at(clocks_state.cursor_pos());
           
            if (CHANNEL_SETTING_MASK1 != setting || CHANNEL_SETTING_MASK2 != setting || CHANNEL_SETTING_MASK3 != setting || CHANNEL_SETTING_MASK4 != setting) {
+            
             if (selected.change_value(setting, event.value))
              selected.force_update();
 
             switch (setting) {
+
+              case CHANNEL_SETTING_SEQUENCE:
+              {
+                  uint8_t seq = selected.get_sequence();
+                  selected.pattern_changed(selected.get_mask(seq));
+                  selected.set_display_sequence(seq);
+              }
+              break;
               case CHANNEL_SETTING_MODE:
               case CHANNEL_SETTING_MODE4:  
               case CHANNEL_SETTING_DAC_MODE:
                  selected.update_enabled_settings(clocks_state.selected_channel);
                  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
               break;
-              // special cases:
+                   // special cases:
               case CHANNEL_SETTING_EUCLID_N:
               case CHANNEL_SETTING_EUCLID_K: 
               {

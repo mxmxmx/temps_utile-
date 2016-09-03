@@ -4,6 +4,7 @@
 namespace TU {
 
   namespace Strings {
+    extern const char * const seq_id[];
     extern const char * const trigger_input_names[];
     extern const char * const cv_input_names[];
     extern const char * const no_yes[];
