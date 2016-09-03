@@ -1675,7 +1675,8 @@ void CLOCKS_handleButtonEvent(const UI::Event &event) {
         CLOCKS_downButtonLong();
         break;
        case TU::CONTROL_BUTTON_L:
-        CLOCKS_leftButtonLong();
+        if (!(clocks_state.pattern_editor.active()))
+          CLOCKS_leftButtonLong();
         break;  
       default:
         break;
