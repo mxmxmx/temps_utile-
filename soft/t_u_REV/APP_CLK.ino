@@ -120,6 +120,7 @@ enum ChannelSetting {
   CHANNEL_SETTING_SEQUENCE_LEN2,
   CHANNEL_SETTING_SEQUENCE_LEN3,
   CHANNEL_SETTING_SEQUENCE_LEN4,
+  CHANNEL_SETTING_SEQUENCE_PLAYMODE,
   // cv sources
   CHANNEL_SETTING_MULT_CV_SOURCE,
   CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE,
@@ -337,6 +338,10 @@ public:
 
   int get_sequence() const {
     return values_[CHANNEL_SETTING_SEQUENCE];
+  }
+
+  int get_playmode() const {
+    return values_[CHANNEL_SETTING_SEQUENCE_PLAYMODE];
   }
 
   int get_display_sequence() const {
@@ -619,6 +624,7 @@ public:
     // WTF? get_mask doesn't return the saved mask
     display_sequence_ = get_sequence();
     display_mask_ = 0; // get_mask(display_sequence_);
+    sequence_last_ = display_sequence_;
     
     turing_machine_.Init();
     turing_machine_.Clock();
@@ -986,8 +992,27 @@ public:
               
               if (get_sequence_cv_source()) {
                 _seq += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_sequence_cv_source() - 1)) + 255) >> 9;             
-                CONSTRAIN(_seq, 0, TU::Patterns::PATTERN_USER_LAST-1);
+                CONSTRAIN(_seq, 0, TU::Patterns::PATTERN_USER_LAST-1); 
               }
+
+
+              uint8_t _playmode = get_playmode();
+              
+              if (_playmode) {
+
+                if (clk_cnt_ >= get_sequence_length(sequence_last_)) {
+
+                  sequence_cnt_++;
+                  sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
+                }
+                
+                if (sequence_last_ >= TU::Patterns::PATTERN_USER_LAST)
+                  sequence_last_ -= TU::Patterns::PATTERN_USER_LAST;
+              }
+              else 
+                sequence_last_ = _seq;
+                         
+              _seq = sequence_last_;
               // this is the sequence # (USER1-USER4):
               display_sequence_ = _seq;
               // and corresponding pattern mask:
@@ -1269,6 +1294,7 @@ public:
           case SEQ:
             *settings++ = CHANNEL_SETTING_SEQ_CV_SOURCE;
             *settings++ = CHANNEL_SETTING_MASK_CV_SOURCE;
+            *settings++ = CHANNEL_SETTING_DUMMY; // playmode CV
             break;
           case DAC: 
             *settings++ = CHANNEL_SETTING_DAC_MODE_CV_SOURCE; 
@@ -1347,6 +1373,7 @@ public:
               default:
               break;
            }
+            *settings++ = CHANNEL_SETTING_SEQUENCE_PLAYMODE;
            break;
           case DAC: 
             *settings++ = CHANNEL_SETTING_DAC_MODE; 
@@ -1422,6 +1449,8 @@ private:
   uint8_t logic_;
   uint8_t display_sequence_;
   uint16_t display_mask_;
+  int8_t sequence_last_;
+  int8_t sequence_cnt_;
   uint8_t menu_page_;
   uint8_t bpm_last_;
  
@@ -1486,6 +1515,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 2
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 3
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 4
+  { 0, 0, 3, "playmode", TU::Strings::seq_playmodes, settings::STORAGE_TYPE_U4 },
   // cv sources
   { 0, 0, 4, "mult/div    >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "pulsewidth  >>", cv_sources, settings::STORAGE_TYPE_U4 },
@@ -1726,9 +1756,11 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
 
               case CHANNEL_SETTING_SEQUENCE:
               {
-                  uint8_t seq = selected.get_sequence();
-                  selected.pattern_changed(selected.get_mask(seq));
-                  selected.set_display_sequence(seq);
+                if (!selected.get_playmode()) {
+                    uint8_t seq = selected.get_sequence();
+                    selected.pattern_changed(selected.get_mask(seq));
+                    selected.set_display_sequence(seq);
+                }
               }
               break;
               case CHANNEL_SETTING_MODE:

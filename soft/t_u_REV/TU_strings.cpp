@@ -4,8 +4,10 @@
 namespace TU {
 
   namespace Strings {
+
+  const char * const seq_playmodes[] = {" - ", "SEQ+1", "SEQ+2", "SEQ+3"};  
     
-const char * const seq_id[] = { "--> #1", "--> #2", "--> #3", "--> #4", "#1", "#2", "#3", "#4"};
+  const char * const seq_id[] = { "--> #1", "--> #2", "--> #3", "--> #4", "#1", "#2", "#3", "#4"};
 
   const char * const trigger_input_names[] = { "TR1", "TR2", "TR3", "TR4" };
 
