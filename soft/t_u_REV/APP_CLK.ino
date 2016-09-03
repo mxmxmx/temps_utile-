@@ -1450,7 +1450,7 @@ private:
   uint8_t display_sequence_;
   uint16_t display_mask_;
   int8_t sequence_last_;
-  int8_t sequence_cnt_;
+  int32_t sequence_cnt_;
   uint8_t menu_page_;
   uint8_t bpm_last_;
  
