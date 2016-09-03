@@ -999,13 +999,15 @@ public:
               uint8_t _playmode = get_playmode();
               
               if (_playmode) {
-
+                
+              // concatenate patterns:  
                 if (clk_cnt_ >= get_sequence_length(sequence_last_)) {
 
                   sequence_cnt_++;
                   sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
+                  clk_cnt_ = 0; 
                 }
-                
+               
                 if (sequence_last_ >= TU::Patterns::PATTERN_USER_LAST)
                   sequence_last_ -= TU::Patterns::PATTERN_USER_LAST;
               }
