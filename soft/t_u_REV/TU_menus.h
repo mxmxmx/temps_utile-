@@ -164,7 +164,7 @@ inline void DrawEditIcon(weegfx::coord_t x, weegfx::coord_t y, int value, const 
 }
 
 template <bool rtl, size_t max_bits, weegfx::coord_t height, weegfx::coord_t padding>
-void DrawMask(weegfx::coord_t x, weegfx::coord_t y, uint32_t mask, size_t count) {
+void DrawMask(weegfx::coord_t x, weegfx::coord_t y, uint32_t mask, size_t count, uint8_t clock_indicator) {
   weegfx::coord_t dx;
   if (count > max_bits) count = max_bits;
   if (rtl) {
@@ -180,6 +180,9 @@ void DrawMask(weegfx::coord_t x, weegfx::coord_t y, uint32_t mask, size_t count)
       graphics.drawRect(x, y + 1, 2, height);
     else
       graphics.drawRect(x, y + height, 2, 1);
+      
+    if (clock_indicator == i)  
+      graphics.drawRect(x, y + height + 2, 2, 2);
   }
 }
 

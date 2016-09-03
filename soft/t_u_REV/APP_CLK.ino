@@ -1987,7 +1987,7 @@ void CLOCKS_menu() {
       case CHANNEL_SETTING_MASK2:
       case CHANNEL_SETTING_MASK3:
       case CHANNEL_SETTING_MASK4:
-        menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_display_mask(), channel.get_sequence_length(channel.get_display_sequence()));
+        menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_display_mask(), channel.get_sequence_length(channel.get_display_sequence()), channel.get_clock_cnt());
         list_item.DrawNoValue<false>(value, attr);
         break;
       case CHANNEL_SETTING_DUMMY:
