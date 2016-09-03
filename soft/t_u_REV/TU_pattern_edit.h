@@ -36,12 +36,12 @@ public:
     if (pattern < TU::Patterns::PATTERN_USER_LAST) {
       pattern_ = mutable_pattern_ = &TU::user_patterns[pattern];
       pattern_name_ = TU::pattern_names_short[pattern];
-      Serial.print("Editing user pattern "); Serial.println(pattern_name_);
+      //Serial.print("Editing user pattern "); Serial.println(pattern_name_);
     } else {
       pattern_ = &TU::Patterns::GetPattern(pattern);
       mutable_pattern_ = nullptr;
       pattern_name_ = TU::pattern_names_short[pattern];
-      Serial.print("Editing const pattern "); Serial.println(pattern_name_);
+      //Serial.print("Editing const pattern "); Serial.println(pattern_name_);
     }
     owner_ = owner;
 
@@ -70,9 +70,9 @@ private:
   void BeginEditing();
 
   void move_cursor(int offset);
-
   void toggle_mask();
-  void invert_mask(); 
+  void invert_mask();
+  void clear_mask(); 
 
   void apply_mask(uint16_t mask) {
     
@@ -146,7 +146,8 @@ void PatternEditor<Owner>::Draw() {
 
 template <typename Owner>
 void PatternEditor<Owner>::HandleButtonEvent(const UI::Event &event) {
-  if (UI::EVENT_BUTTON_PRESS == event.type) {
+
+   if (UI::EVENT_BUTTON_PRESS == event.type) {
     switch (event.control) {
       case TU::CONTROL_BUTTON_UP:
         handleButtonUp(event);
@@ -156,11 +157,23 @@ void PatternEditor<Owner>::HandleButtonEvent(const UI::Event &event) {
         break;
       case TU::CONTROL_BUTTON_L:
         handleButtonLeft(event);
-        break;
+        break;    
       case TU::CONTROL_BUTTON_R:
         Close();
         break;
     }
+  }
+  else if (UI::EVENT_BUTTON_LONG_PRESS == event.type) {
+     switch (event.control) {
+      case TU::CONTROL_BUTTON_UP:
+        invert_mask();
+        break;
+      case TU::CONTROL_BUTTON_DOWN:
+        clear_mask();
+      break;
+      default:
+      break;
+     }
   }
 }
 
@@ -185,11 +198,15 @@ void PatternEditor<Owner>::HandleEncoderEvent(const UI::Event &event) {
           if (event.value > 0) {
             // Enable new slots by default
             mask |= ~(0xffff << (num_slots_ - cursor_pos_)) << cursor_pos_;
-          } else {
+          } 
+          // empty patterns are ok:
+          /*
+          else {
             // pattern might be shortened to where no slots are active in mask
             if (0 == (mask & ~(0xffff < num_slots_)))
               mask |= 0x1;
           }
+          */
           owner_->set_sequence_length(num_slots_, edit_this_sequence_);
           cursor_pos_ = num_slots_;
           handled = true;
@@ -246,27 +263,26 @@ void PatternEditor<Owner>::handleButtonLeft(const UI::Event &) {
   uint16_t mask = mask_;
 
   if (cursor_pos_ < num_slots_) {
-    // toggle slot active state; avoid 0 mask
-    if (mask & m) {
-      if ((mask & ~(0xffff << num_slots_)) != m)
-        mask &= ~m;
-    } else {
+    // toggle slot active state; allow 0 mask
+    if (mask & m)
+      mask &= ~m;
+    else 
       mask |= m;
-    }
     apply_mask(mask);
   }
-   
 }
 
 template <typename Owner>
 void PatternEditor<Owner>::invert_mask() {
   uint16_t m = ~(0xffffU << num_slots_);
-  uint16_t mask = mask_;
-  // Don't invert to zero
-  if ((mask & m) != m)
-    mask ^= m;
-  apply_mask(mask);
+  apply_mask(mask_ ^= m);
 }
+
+template <typename Owner>
+void PatternEditor<Owner>::clear_mask() {
+  apply_mask(0x00);
+}
+
 
 template <typename Owner>
 /*static*/ uint16_t PatternEditor<Owner>::RotateMask(uint16_t mask, int num_slots, int amount) {

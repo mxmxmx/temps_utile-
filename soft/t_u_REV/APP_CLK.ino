@@ -1506,10 +1506,10 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { LFSR_MIN<<1, LFSR_MIN, LFSR_MAX, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 0, 255, "LFSR p(x)", NULL, settings::STORAGE_TYPE_U8 },
   { 1, 1, 255, "LGST(R)", NULL, settings::STORAGE_TYPE_U8 },
-  { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 1
-  { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 2
-  { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 3
-  { 65535, 1, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 4
+  { 65535, 0, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 1
+  { 65535, 0, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 2
+  { 65535, 0, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 3
+  { 65535, 0, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 4
   { TU::Patterns::PATTERN_USER_0, 0, TU::Patterns::PATTERN_USER_LAST-1, "sequence #", TU::pattern_names_short, settings::STORAGE_TYPE_U8 },
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 1
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 2
