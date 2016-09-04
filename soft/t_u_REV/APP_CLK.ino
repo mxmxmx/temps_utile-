@@ -802,12 +802,8 @@ public:
          //reject, if clock is too jittery or skip quasi-double triggers when ext. frequency increases:
          if (_subticks < tickjitter_ || (_subticks < prev_channel_frequency_in_ticks_ && reset_me_)) 
             return;
-    
-         // reset counter ? (SEQ/Euclidian)
-         if (reset_counter_) 
-            clk_cnt_ = 0x0;
             
-         // freeze ?
+         // mute output?
          if (_reset_source > CHANNEL_TRIGGER_NONE) {
           
              if (_reset_source == CHANNEL_TRIGGER_FREEZE_HIGH && !digitalReadFast(TR2))
@@ -815,10 +811,14 @@ public:
              else if (_reset_source == CHANNEL_TRIGGER_FREEZE_LOW && digitalReadFast(TR2)) 
               return;
          }
-                 
+                     
          // only then count clocks:  
          clk_cnt_++;  
-
+         
+         // reset counter ? (SEQ/Euclidian)
+         if (reset_counter_) 
+            clk_cnt_ = 0x0;
+     
          // clear for reset:
          reset_me_ = true;
          reset_counter_ = false;
