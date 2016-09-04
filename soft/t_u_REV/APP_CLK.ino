@@ -626,6 +626,8 @@ public:
     display_sequence_ = get_sequence();
     display_mask_ = 0; // get_mask(display_sequence_);
     sequence_last_ = display_sequence_;
+    sequence_advance_ = false;
+    sequence_advance_state_ = false; 
     
     turing_machine_.Init();
     turing_machine_.Clock();
@@ -749,6 +751,18 @@ public:
         }
         reset_ = reset_state_;
      } 
+
+     // in sequencer mode, do we advance sequences by TR2?
+     if (_mode == SEQ && get_playmode() > 3) {
+
+        uint8_t _advance_trig = digitalReadFast(TR2);
+        // ?
+        if (_advance_trig < sequence_advance_state_) 
+          sequence_advance_ = true;
+          
+        sequence_advance_state_ = _advance_trig;  
+       
+     }
        
     /*             
      *  brute force ugly sync hack:
@@ -1000,13 +1014,19 @@ public:
               uint8_t _playmode = get_playmode();
               
               if (_playmode) {
-                
-              // concatenate patterns:  
-                if (clk_cnt_ >= get_sequence_length(sequence_last_)) {
 
+                // concatenate sequences:
+                if (_playmode <= 3 && clk_cnt_ >= get_sequence_length(sequence_last_)) {
                   sequence_cnt_++;
                   sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
                   clk_cnt_ = 0; 
+                }
+                else if (_playmode > 3 && sequence_advance_) {
+                  _playmode -= 3;
+                  sequence_cnt_++;
+                  sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
+                  clk_cnt_ = 0;
+                  sequence_advance_ = false; 
                 }
                
                 if (sequence_last_ >= TU::Patterns::PATTERN_USER_LAST)
@@ -1454,6 +1474,8 @@ private:
   uint16_t display_mask_;
   int8_t sequence_last_;
   int32_t sequence_cnt_;
+  int8_t sequence_advance_;
+  int8_t sequence_advance_state_;
   uint8_t menu_page_;
   uint8_t bpm_last_;
  
@@ -1518,7 +1540,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 2
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 3
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 4
-  { 0, 0, 3, "playmode", TU::Strings::seq_playmodes, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 6, "playmode", TU::Strings::seq_playmodes, settings::STORAGE_TYPE_U4 },
   // cv sources
   { 0, 0, 4, "mult/div    >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "pulsewidth  >>", cv_sources, settings::STORAGE_TYPE_U4 },

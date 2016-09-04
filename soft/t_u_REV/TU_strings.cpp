@@ -5,7 +5,7 @@ namespace TU {
 
   namespace Strings {
 
-  const char * const seq_playmodes[] = {" - ", "SEQ+1", "SEQ+2", "SEQ+3"};  
+  const char * const seq_playmodes[] = {" - ", "SEQ+1", "SEQ+2", "SEQ+3", "TR2+1", "TR2+2", "TR2+3"};  
     
   const char * const seq_id[] = { "--> #1", "--> #2", "--> #3", "--> #4", "#1", "#2", "#3", "#4"};
 

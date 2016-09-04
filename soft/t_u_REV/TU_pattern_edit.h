@@ -197,14 +197,13 @@ void PatternEditor<Owner>::HandleEncoderEvent(const UI::Event &event) {
           num_slots_ = num_slots;
            if (event.value > 0) {
             // erase  slots when expanding?
-            // alternative behaviour, to fill them, might be more desirable .. ?
             if (TU::ui.read_immediate(TU::CONTROL_BUTTON_L)) 
                mask &= ~(~(0xffff << (num_slots_ - cursor_pos_)) << cursor_pos_);
-             //mask |= ~(0xffff << (num_slots_ - cursor_pos_)) << cursor_pos_; // fill
+             //mask |= ~(0xffff << (num_slots_ - cursor_pos_)) << cursor_pos_; // alternative behaviour would be to fill them
           } 
-          // empty patterns are o~k:
+          // empty patterns are ok -- 
           /*
-          else {~
+          else {
             // pattern might be shortened to where no slots are active in mask
             if (0 == (mask & ~(0xffff < num_slots_)))
               mask |= 0x1;
