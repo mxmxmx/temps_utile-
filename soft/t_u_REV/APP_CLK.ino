@@ -836,7 +836,7 @@ public:
         // pulsewidth setting -- 
         int16_t _pulsewidth = get_pulsewidth();
 
-        if (_pulsewidth || _multiplier > MULT_BY_ONE) {
+        if (_pulsewidth || _multiplier > MULT_BY_ONE || _clock_source == CHANNEL_TRIGGER_INTERNAL) {
 
             bool _gates = false;
 
