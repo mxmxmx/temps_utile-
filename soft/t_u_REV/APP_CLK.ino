@@ -543,7 +543,8 @@ public:
 
   void pattern_changed(uint16_t mask) {
     force_update_ = true;
-    display_mask_ = mask;
+    if (get_sequence() == sequence_last_)
+      display_mask_ = mask;
   }
   
   void clear_CV_mapping() {
@@ -1667,7 +1668,7 @@ void CLOCKS_isr() {
 }
 
 void CLOCKS_handleButtonEvent(const UI::Event &event) {
-
+  
   if (UI::EVENT_BUTTON_LONG_PRESS == event.type) {
      switch (event.control) {
       case TU::CONTROL_BUTTON_UP:
