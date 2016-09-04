@@ -47,7 +47,7 @@ const uint8_t RND_MAX = 31;     // max random (n)
 const uint8_t MULT_MAX = 14;    // max multiplier
 const uint8_t PULSEW_MAX = 255; // max pulse width [ms]
 const uint8_t BPM_MIN = 1;      // changes need changes in TU_BPM.h
-const uint8_t BPM_MAX = 255;    // ditto
+const int16_t BPM_MAX = 320;    // ditto
 const uint8_t LFSR_MAX = 31;    // max LFSR length
 const uint8_t LFSR_MIN = 4;     // min "
 const uint8_t EUCLID_N_MAX = 32; 
@@ -697,7 +697,7 @@ public:
           ticks_++;
           _triggered = false;
           
-          uint8_t _bpm = get_internal_timer() - BPM_MIN; // substract min value
+          uint16_t _bpm = get_internal_timer() - BPM_MIN; // substract min value
           
           if (_bpm != bpm_last_ || clk_src_ != _clock_source) {
             // new BPM value, recalculate channel frequency below ... 
@@ -803,7 +803,7 @@ public:
          if (_subticks < tickjitter_ || (_subticks < prev_channel_frequency_in_ticks_ && reset_me_)) 
             return;
             
-         // mute output?
+         // mute output ?
          if (_reset_source > CHANNEL_TRIGGER_NONE) {
           
              if (_reset_source == CHANNEL_TRIGGER_FREEZE_HIGH && !digitalReadFast(TR2))
@@ -1478,7 +1478,7 @@ private:
   int8_t sequence_advance_;
   int8_t sequence_advance_state_;
   uint8_t menu_page_;
-  uint8_t bpm_last_;
+  uint16_t bpm_last_;
  
   util::TuringShiftRegister turing_machine_;
   util::LogisticMap logistic_map_;
@@ -1512,7 +1512,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { CHANNEL_TRIGGER_NONE, 0, CHANNEL_TRIGGER_LAST, "reset/mute", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
   { MULT_BY_ONE, 0, MULT_MAX, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
   { 25, 0, PULSEW_MAX, "pulsewidth", TU::Strings::pulsewidth_ms, settings::STORAGE_TYPE_U8 },
-  { 100, BPM_MIN, BPM_MAX, "BPM:", NULL, settings::STORAGE_TYPE_U8 },
+  { 100, BPM_MIN, BPM_MAX, "BPM:", NULL, settings::STORAGE_TYPE_U16 },
   //
   { 0, 0, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, 31, "LFSR tap2",NULL, settings::STORAGE_TYPE_U8 },
