@@ -75,7 +75,7 @@ private:
   void clear_mask(); 
 
   void apply_mask(uint16_t mask) {
-    
+ 
     if (mask_ != mask) {
       mask_ = mask;
       owner_->update_pattern_mask(mask_, edit_this_sequence_);
@@ -278,7 +278,8 @@ void PatternEditor<Owner>::handleButtonLeft(const UI::Event &) {
 template <typename Owner>
 void PatternEditor<Owner>::invert_mask() {
   uint16_t m = ~(0xffffU << num_slots_);
-  apply_mask(mask_ ^= m);
+  uint16_t mask = mask_ ^ m;
+  apply_mask(mask);
 }
 
 template <typename Owner>

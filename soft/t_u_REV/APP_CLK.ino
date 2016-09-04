@@ -466,7 +466,7 @@ public:
   void update_pattern_mask(uint16_t mask, uint8_t sequence) {
 
     switch(sequence) {
-      
+   
     case 1:
       apply_value(CHANNEL_SETTING_MASK2, mask);
       break;
@@ -1684,12 +1684,12 @@ void CLOCKS_handleButtonEvent(const UI::Event &event) {
         break;
      }
   }
-
+  
   if (clocks_state.pattern_editor.active()) {
     clocks_state.pattern_editor.HandleButtonEvent(event);
     return;
   }
-  
+ 
   if (UI::EVENT_BUTTON_PRESS == event.type) {
     switch (event.control) {
       case TU::CONTROL_BUTTON_UP:
@@ -1763,7 +1763,7 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
                     uint8_t seq = selected.get_sequence();
                     selected.pattern_changed(selected.get_mask(seq));
                     selected.set_display_sequence(seq);
-                }
+                } 
               }
               break;
               case CHANNEL_SETTING_MODE:
