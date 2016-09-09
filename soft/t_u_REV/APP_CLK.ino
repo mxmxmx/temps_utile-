@@ -874,16 +874,12 @@ public:
               _gates = true;
             // CV?
             if (get_pulsewidth_cv_source()) {
-              
-              if (!_gates) {           
-                _pulsewidth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_pulsewidth_cv_source() - 1)) + 16) >> 4; 
+
+              _pulsewidth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_pulsewidth_cv_source() - 1)) + 8) >> 3; 
+              if (!_gates)          
                 CONSTRAIN(_pulsewidth, 1, PULSEW_MAX);
-              }
-              else {
-                // CV for 50% duty cycle:
-                _pulsewidth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_pulsewidth_cv_source() - 1)) + 8) >> 3;
+              else // CV for 50% duty cycle: 
                 CONSTRAIN(_pulsewidth, 1, (PULSEW_MAX<<1) - 55);  // incl margin, max < 2x mult. see below 
-              }
             }
             // recalculate (in ticks), if new pulsewidth setting:
             if (prev_pulsewidth_ != _pulsewidth || ! subticks_) {
