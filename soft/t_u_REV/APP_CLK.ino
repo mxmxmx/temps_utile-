@@ -1530,7 +1530,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
  
   { 0, 0, MODES - 2, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
   { 0, 0, MODES - 1, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
-  { CHANNEL_TRIGGER_TR1, 0, CHANNEL_TRIGGER_LAST, "clock src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
+  { CHANNEL_TRIGGER_TR1, 0, CHANNEL_TRIGGER_LAST-1, "clock src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
   { CHANNEL_TRIGGER_NONE, 0, CHANNEL_TRIGGER_LAST, "reset/mute", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
   { MULT_BY_ONE, 0, MULT_MAX, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
   { 25, 0, PULSEW_MAX, "pulsewidth", TU::Strings::pulsewidth_ms, settings::STORAGE_TYPE_U8 },
