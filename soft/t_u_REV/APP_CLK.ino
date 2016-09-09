@@ -18,14 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-/* 
-*   TODO
-* - expand to div/16 ? ... maybe
-* - DAC mode should have additional/internal trigger sources: channels 1-3, 5, and 6; and presumably there could be additional DAC modes
-* - BPM, 8th
-* - trigger delay / configure latency (re: reset)
-*
-*/
 
 #include "util/util_settings.h"
 #include "util/util_turing.h"
@@ -44,7 +36,8 @@ namespace menu = TU::menu;
 const uint8_t MODES = 7;        // # clock modes
 const uint8_t DAC_MODES = 4;    // # DAC submodes
 const uint8_t RND_MAX = 31;     // max random (n)
-const uint8_t MULT_MAX = 14;    // max multiplier
+const uint8_t MULT_MAX = 18;    // max multiplier
+const uint8_t MULT_BY_ONE = 11; // default multiplication  
 const uint8_t PULSEW_MAX = 255; // max pulse width [ms]
 const uint8_t BPM_MIN = 1;      // changes need changes in TU_BPM.h
 const int16_t BPM_MAX = 320;    // ditto
@@ -56,8 +49,7 @@ const uint16_t TOGGLE_THRESHOLD = 500; // ADC threshold for 0/1 parameters (500 
 const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
 const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
 const uint32_t TICK_JITTER = 0xFFFFFFF;  // 1/16 : threshold/double triggers reject -> ext_frequency_in_ticks_
-const uint32_t TICK_SCALE  = 0xC0000000; // 0.75 for signed_multiply_32x32
-const uint8_t MULT_BY_ONE = 7; // default multiplication                        
+const uint32_t TICK_SCALE  = 0xC0000000; // 0.75 for signed_multiply_32x32                      
 
 extern const uint32_t BPM_microseconds_4th[];
 
@@ -65,23 +57,50 @@ uint32_t ticks_src1 = 0; // main clock frequency (top)
 uint32_t ticks_src2 = 0; // sec. clock frequency (bottom)
 
 const uint64_t multipliers_[] = {
+  
+  0xFFFFFFFF, // x1
+  0x80000000, // x2
+  0x55555555, // x3
+  0x40000000, // x4
+  0x33333333, // x5
+  0x2AAAAAAB, // x6
+  0x24924925, // x7
+  0x20000000  // x8
 
-  0x100000000,// /8
-  0xE0000000, // /7
-  0xC0000000, // /6
-  0xA0000000, // /5
-  0x80000000, // /4
-  0x60000000, // /3
-  0x40000000, // /2
-  0x20000000, // x1
-  0x10000000, // x2
-  0xAAAAAAB,  // x3
-  0x8000000,  // x4
-  0x6666667,  // x5
-  0x5555556,  // x6
-  0x4924926,  // x7
-  0x4000000   // x8
-}; // = multiplier / 8.0f * 2^32
+}; // = 2^32 / multiplier
+
+const uint64_t pw_scale_[] = {
+  
+  0xFFFFFFFF, // /64
+  0xC0000000, // /48
+  0x80000000, // /32
+  0x40000000, // /16
+  0x20000000, // /8
+  0x1C000000, // /7
+  0x18000000, // /6
+  0x14000000, // /5
+  0x10000000, // /4
+  0xC000000,  // /3
+  0x8000000,  // /2
+  0x4000000,  // x1
+
+}; // = 2^32 * divisor / 64
+
+const uint8_t divisors_[] = {
+
+   64,
+   48,
+   32,
+   16,
+   8,
+   7,
+   6,
+   5,
+   4,
+   3,
+   2,
+   1
+};
 
 enum ChannelSetting { 
   // shared
@@ -726,10 +745,17 @@ public:
      if (_tock) {
 
         // when multiplying, skip too closely spaced triggers:
-        if (_multiplier > MULT_BY_ONE) 
+        if (_multiplier > MULT_BY_ONE) {
            prev_channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_SCALE);
-        // new frequency:    
-        channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier]) << 3; 
+           // new frequency:    
+           channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier-MULT_BY_ONE]); 
+        }
+        else {
+           prev_channel_frequency_in_ticks_ = 0x0;
+           // new frequency (used for pulsewidth):
+           channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, pw_scale_[_multiplier]) << 6;
+        }
+           
         tickjitter_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_JITTER);  
      }
      // limit frequency to > 0
@@ -774,7 +800,7 @@ public:
      if (_multiplier <= MULT_BY_ONE && _triggered && div_cnt_ <= 0) { 
         // division, so we track
         _sync = true;
-        div_cnt_ = 8 - _multiplier; // /1 = 7 ; /2 = 6, /3 = 5 etc
+        div_cnt_ = divisors_[_multiplier]; 
         subticks_ = channel_frequency_in_ticks_; // force sync
      }
      else if (_multiplier <= MULT_BY_ONE && _triggered) {
@@ -1497,7 +1523,7 @@ const char* const reset_trigger_sources[CHANNEL_TRIGGER_LAST+1] = {
 };
 
 const char* const multipliers[] = {
-  "/8", "/7", "/6", "/5", "/4", "/3", "/2", "-", "x2", "x3", "x4", "x5", "x6", "x7", "x8"
+  "/64", "/48", "/32", "/16", "/8", "/7", "/6", "/5", "/4", "/3", "/2", "-", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "QN24", "QN96"
 };
 
 const char* const cv_sources[5] = {
