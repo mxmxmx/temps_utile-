@@ -15,7 +15,7 @@
 
 | value | # | part | note |
 | ---: | ---: | --- |  --- |
-|100R |		 4x | 279-1623096-1 | 1% |
+|100R |		 4x | 603-RC0805FR-07100RL | 1% |
 | 510R |         2x | 603-RC0805JR-07510RL | or simply use **1k**, value not critical |
 | 1k  |       7x | 603-RC0805FR-071KL | 1% |
 | 1k2  |         1x | 71-CRCW08051K20FKEA | 1% |
