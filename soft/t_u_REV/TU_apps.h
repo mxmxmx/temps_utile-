@@ -24,7 +24,7 @@
 #define TU_APP_H_
 
 #include "UI/ui_events.h"
-#include "util/util_misc.h"
+#include "src/util_misc.h"
 
 namespace TU {
 

@@ -5,7 +5,7 @@
 #include "TU_debug.h"
 #include "TU_menus.h"
 #include "TU_ui.h"
-#include "util/util_misc.h"
+#include "src/util_misc.h"
 #include "extern/dspinst.h"
 
 // extern void CLOCKS_debug();

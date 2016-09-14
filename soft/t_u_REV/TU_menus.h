@@ -25,10 +25,10 @@
 #ifndef TU_MENUS_H
 #define TU_MENUS_H
 
-#include "drivers/weegfx.h"
+#include "src/weegfx.h"
+#include "src/util_misc.h"
 #include "TU_bitmaps.h"
 #include "util/util_macros.h"
-#include "util/util_misc.h"
 #include "util/util_settings.h"
 
 namespace TU {

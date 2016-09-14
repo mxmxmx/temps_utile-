@@ -1794,9 +1794,10 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
        }
     
        if (clocks_state.editing()) {
+        
           ChannelSetting setting = selected.enabled_setting_at(clocks_state.cursor_pos());
           
-           if (CHANNEL_SETTING_MASK1 != setting || CHANNEL_SETTING_MASK2 != setting || CHANNEL_SETTING_MASK3 != setting || CHANNEL_SETTING_MASK4 != setting) {
+          if (CHANNEL_SETTING_MASK1 != setting || CHANNEL_SETTING_MASK2 != setting || CHANNEL_SETTING_MASK3 != setting || CHANNEL_SETTING_MASK4 != setting) {
             
             if (selected.change_value(setting, event.value))
              selected.force_update();
@@ -2086,6 +2087,7 @@ void CLOCKS_menu() {
         break; 
       default:
         list_item.DrawDefault(value, attr);
+        break;
     }
   }
 

@@ -9,7 +9,7 @@
 #include "TU_menus.h"
 #include "TU_ui.h"
 #include "TU_version.h"
-#include "drivers/display.h"
+#include "src/display.h"
 
 extern uint_fast8_t MENU_REDRAW;
 

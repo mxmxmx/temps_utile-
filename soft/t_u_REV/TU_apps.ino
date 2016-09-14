@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include "TU_apps.h"
+#include "src/util_misc.h"
 
 #define DECLARE_APP(a, b, name, prefix, isr) \
 { TWOCC<a,b>::value, name, \

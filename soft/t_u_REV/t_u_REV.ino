@@ -37,7 +37,7 @@
 #include "TU_menus.h"
 #include "TU_ui.h"
 #include "TU_version.h"
-#include "drivers/display.h"
+#include "src/display.h"
 #include "util/util_debugpins.h"
 #include "TU_BPM.h"
 

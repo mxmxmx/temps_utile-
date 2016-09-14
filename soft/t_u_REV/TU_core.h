@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "TU_config.h"
 #include "util/util_debugpins.h"
-#include "drivers/display.h"
+#include "src/display.h"
 
 namespace TU {
   namespace CORE {
