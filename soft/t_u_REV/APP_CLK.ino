@@ -55,6 +55,7 @@ extern const uint32_t BPM_microseconds_4th[];
 
 uint32_t ticks_src1 = 0; // main clock frequency (top)
 uint32_t ticks_src2 = 0; // sec. clock frequency (bottom)
+bool RESYNC = true;      // resync internal timers
 
 const uint64_t multipliers_[] = {
   
@@ -595,6 +596,10 @@ public:
     clk_cnt_ = 0x0;
     div_cnt_ = 0x0;
   }
+
+  void reset_ticks_internal() {
+    ticks_ = 0x0;
+  }
   
   uint8_t get_page() const {
     return menu_page_;  
@@ -713,6 +718,9 @@ public:
      // or else, internal clock active?
      else if (_clock_source == CHANNEL_TRIGGER_INTERNAL) {
 
+           // resync? 
+          if (_clock_source != clk_src_)
+            RESYNC = true;
           ticks_++;
           _triggered = false;
           
@@ -1682,7 +1690,18 @@ void CLOCKS_isr() {
 
   ticks_src1++; // src #1 ticks
   ticks_src2++; // src #2 ticks
-   
+
+  // resync internal timers?
+  if (RESYNC) {
+    clock_channel[0].reset_ticks_internal();
+    clock_channel[1].reset_ticks_internal();
+    clock_channel[2].reset_ticks_internal();
+    clock_channel[3].reset_ticks_internal();
+    clock_channel[4].reset_ticks_internal();
+    clock_channel[5].reset_ticks_internal();
+    RESYNC = false;
+  }
+    
   uint32_t triggers = TU::DigitalInputs::clocked();  
 
   // clocked? reset ; better use ARM_DWT_CYCCNT ?
