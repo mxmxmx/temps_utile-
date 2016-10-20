@@ -858,7 +858,9 @@ public:
          reset_counter_ = false;
          // finally, process trigger + output
          _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
-         TU::OUTPUTS::setState(clock_channel, _output);
+         if (_triggered) {
+           TU::OUTPUTS::setState(clock_channel, _output);
+         }
      }
   
      /*
