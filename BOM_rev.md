@@ -1,4 +1,4 @@
-#/* BOM for temps utile, rev1, rev1.b */
+#/* BOM for temps utile, rev1, rev1.b, rev1.c */
 
 ###OLED:
 

@@ -1,7 +1,7 @@
 temps_utile-
 ============
 
-teensy 3.x trigger generator w/ 128x64 oled display.
+teensy 3.2 trigger generator w/ 128x64 oled display.
 
 - info/build guide: https://github.com/mxmxmx/temps_utile-/wiki/Temps-Utile
 
