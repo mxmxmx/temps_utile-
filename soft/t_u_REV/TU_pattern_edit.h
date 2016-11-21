@@ -128,6 +128,8 @@ void PatternEditor<Owner>::Draw() {
 
   x += 2; y += 10;
   uint16_t mask = mask_;
+  uint8_t clock_pos = owner_->get_clock_cnt();
+  
   for (size_t i = 0; i < num_slots; ++i, x += 7, mask >>= 1) {
     if (mask & 0x1)
       graphics.drawRect(x, y, 4, 8);
@@ -136,6 +138,9 @@ void PatternEditor<Owner>::Draw() {
 
     if (i == cursor_pos_)
       graphics.drawFrame(x - 2, y - 2, 8, 12);
+    // draw clock
+    if (i == clock_pos && (owner_->get_current_sequence() == edit_this_sequence_))  
+      graphics.drawRect(x, y + 10, 2, 2);
   }
   if (mutable_pattern_) {
     graphics.drawBitmap8(x, y, 4, bitmap_end_marker4x8);
