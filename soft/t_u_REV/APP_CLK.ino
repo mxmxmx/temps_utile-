@@ -545,6 +545,10 @@ public:
     return clk_cnt_;
   }
 
+  uint16_t get_current_sequence() const {
+    return sequence_last_;
+  }
+
   void update_internal_timer(uint16_t _tempo) {
       apply_value(CHANNEL_SETTING_INTERNAL_CLK, _tempo);
   }
