@@ -211,6 +211,12 @@ enum CLOCKSTATES {
   ON = 4095
 };
 
+enum DISPLAYSTATES {
+  _OFF,
+  _ONBEAT,
+  _ACTIVE
+};
+
 enum LOGICMODES {
   AND,
   OR,
@@ -629,6 +635,7 @@ public:
 
     force_update_ = true;
     gpio_state_ = OFF;
+    display_state_ = _OFF;
     ticks_ = 0;
     subticks_ = 0;
     tickjitter_ = 10000;
@@ -818,6 +825,7 @@ public:
      else if (_multiplier <= MULT_BY_ONE && _triggered) {
         // division, mute output:
         TU::OUTPUTS::setState(clock_channel, OFF);
+        display_state_ = _OFF; // for display
      }
      else if (_multiplier > MULT_BY_ONE && _triggered)  {
         // multiplication, force sync, if clocked:
@@ -862,6 +870,7 @@ public:
          reset_counter_ = false;
          // finally, process trigger + output
          _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
+         display_state_ = _ACTIVE;
          if (_triggered) {
            TU::OUTPUTS::setState(clock_channel, _output);
          }
@@ -918,8 +927,10 @@ public:
               pulse_width_in_ticks_ = (channel_frequency_in_ticks_ >> 1) | 1u;
               
             // turn off output? 
-            if (subticks_ >= pulse_width_in_ticks_) 
+            if (subticks_ >= pulse_width_in_ticks_) {
               _output = gpio_state_ = OFF;
+              display_state_ = _ONBEAT;
+            }
             else // keep on 
               _output = ON; 
          }
@@ -1504,6 +1515,7 @@ private:
   uint32_t channel_frequency_in_ticks_;
   uint32_t pulse_width_in_ticks_;
   uint16_t gpio_state_;
+  uint16_t display_state_;
   uint8_t prev_multiplier_;
   uint8_t prev_pulsewidth_;
   uint8_t logic_;
@@ -2122,21 +2134,10 @@ void CLOCKS_menu() {
 
 void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clock_channel) const {
 
-  uint16_t _square, _frame, _mode = get_mode4();
-
-  _square = TU::OUTPUTS::state(clock_channel);
-  _frame  = TU::OUTPUTS::value(clock_channel);
-
   // DAC needs special treatment:
-  if (clock_channel == CLOCK_CHANNEL_4) {
-
-    if (_mode < DAC) {
-      _square = _square == ON ? 0x1 : 0x0;
-      _frame  = _frame  == ON ? 0x1 : 0x0;
-    }
-    else { // display DAC values, ish; x/y coordinates slightly off ...
+    if (clock_channel == CLOCK_CHANNEL_4 && get_mode4() == DAC) { // display DAC values, ish; x/y coordinates slightly off ...
       
-      uint16_t _dac_value = _frame;
+      uint16_t _dac_value = TU::OUTPUTS::value(clock_channel);
       
       if (_dac_value < 2047) {
         // output negative
@@ -2152,14 +2153,13 @@ void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clo
       }
       return;
     }
-  }
   
   // draw little square thingies ..     
-  if (_square && _frame) {
+  if (gpio_state_ && display_state_ == _ACTIVE) {
     graphics.drawRect(start_x, 36, 10, 10);
     graphics.drawFrame(start_x-2, 34, 14, 14);
   }
-  else if (_square)
+  else if (display_state_ == _ONBEAT)
     graphics.drawRect(start_x, 36, 10, 10);
   else
    graphics.drawRect(start_x+3, 39, 4, 4);
