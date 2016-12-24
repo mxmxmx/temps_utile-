@@ -39,7 +39,7 @@
 | 18n   | 1x | 81-GRM21B5C1H183JA1L | (NP0/C0G) (50V)|
 | 100nF | 9x | 80-C0805C104K5R | (25V or better)|
 | 470nF | 5x | 603-CC805ZRY5V9BB474 | (25V or better) |
-| 1uF   | 2x | 581-08055C105K4Z2A | (25V or better)|
+| 1uF   | 2x | 581-08055G105ZAT2A | (25V or better)|
 | 10uF  | 1x | 81-GRM21BR61E106KA3L | (16V or better; may be 1206)|
 
 ###SMD caps (0603):
@@ -56,15 +56,15 @@
 | MMBT3904 | SOT-23 | 2x | 512-MMBT3904 | NPN |
 | 1N5817 | DO-41 | 2x | 621-1N5817 | Schottky, reverse voltage protection|
 | LM1117-5v0 | SOT-223 | 1x | 511-LD1117S50 | 5v LDO |
-| LM4040-5.0 | SOT-23 |  1x |  926-LM4040DIM350NOPB | prec. voltage reference, 5v0|
+| LM4040-5.0 | SOT-23 |  1x |  926-LM4040DIM350NOPB | precision voltage reference, 5v0|
 | fixed inductor, 10uH | 1206 | 1x | 81-LQH31MN100K03L | > 25mA |
 
 ###misc **through-hole/mechanical**:
 
 | what | package | # | part | note |
 | --- | --- | ---: | --- | --- |
-| 22uF | 2.5mm | 2x | 647-UPM1V220MDD1TD |  electrolytic, 35v | 
-| 470nF | 5mm |  1x | 505-MKS2C034701CJI00 | film/ceramic, 35v | 
+| 22uF | 2.5mm | 2x | 647-UPM1V220MDD1TD |  electrolytic, 35V+ | 
+| 470nF | 5mm |  1x | 505-MKS2C034701CJSSD | film/ceramic, 35V+ | 
 | 78L33 |  TO-92 | 1x | 511-L78L33ACZ | 3v3 regulator |
 |  jacks | - | 12x | [PJ301M-12](https://www.thonk.co.uk/shop/3-5mm-jacks/) | 'thonkiconn' (or kobiconn) | 
 | encoder w/ switch | 9mm | 2x | 652-PEC11R-4220F-S24  | 20mm, D-shaft **(‡)** |
@@ -76,7 +76,7 @@
 | teensy 3.x | - | 1x | oshpark / mouser #: 485-2756  | cut the usb/power trace! |
 | OLED, 1.3" | 7 pin | 1x | SH1106, 128x64 | `GND - VCC - D0 - D1 - RST - DC - CS` **(see note above)** |
 | spacer | 10mm, 3M | 1x | 855-R30-1611000 | - | 
-| jumpers | - | 2x | - | for `DAC` and `J`, use a piece of wire |
+| jumpers | - | 1x | - | for `DAC`: use a piece of wire |
 
  
 - (‡) rotary encoder w/ switch: alternatives include mouser # 652-PEC11R-4215F-S24 (15 mm, 'D' shaft); 652-PEC11R-4215K-S24 (15 mm shaft, knurled); 652-PEC11R-4220F-S24 (20 mm, 'D'), 652-PEC11R-4220K-S24 (20 mm, knurled), etc)
