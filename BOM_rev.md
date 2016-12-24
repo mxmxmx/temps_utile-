@@ -40,7 +40,7 @@
 | 100nF | 9x | 80-C0805C104K5R | (25V or better)|
 | 470nF | 5x | 603-CC805ZRY5V9BB474 | (25V or better) |
 | 1uF   | 2x | 581-08055C105K4Z2A | (25V or better)|
-| 10uF  | 1x | 81-GRM21BR6YA106KE3L | (16V or better; may be 1206)|
+| 10uF  | 1x | 81-GRM21BR61E106KA3L | (16V or better; may be 1206)|
 
 ###SMD caps (0603):
 | value | # | part | note |
