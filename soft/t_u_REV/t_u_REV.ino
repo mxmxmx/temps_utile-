@@ -96,12 +96,12 @@ void FASTRUN CORE_timer_ISR() {
 /*       ---------------------------------------------------------         */
 
 void setup() {
-  
-  delay(10);
+ 
+  delay(500);
   NVIC_SET_PRIORITY(IRQ_PORTB, 0); // TR1 = 0 = PTB16
   TU::OUTPUTS::SPI_Init();
 
-  delay(500);
+  delay(50);
   SERIAL_PRINTLN("* t_u BOOTING...");
   SERIAL_PRINTLN("* %s", TU_VERSION);
 
@@ -109,7 +109,7 @@ void setup() {
   TU::DigitalInputs::Init();
   TU::ADC::Init(&TU::calibration_data.adc); // Yes, it's using the calibration_data before it's loaded...
   TU::OUTPUTS::Init(&TU::calibration_data.dac);
-
+   
   display::Init();
 
   GRAPHICS_BEGIN_FRAME(true);
@@ -137,7 +137,7 @@ void setup() {
   // Display splash screen and optional calibration
   bool reset_settings = false;
   ui_mode = TU::ui.Splashscreen(reset_settings);
-
+  
   if (ui_mode == TU::UI_MODE_CALIBRATE) {
     TU::ui.Calibrate();
     ui_mode = TU::UI_MODE_MENU;
