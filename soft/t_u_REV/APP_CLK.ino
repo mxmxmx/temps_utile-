@@ -651,8 +651,8 @@ public:
     prev_pulsewidth_ = get_pulsewidth();
     bpm_last_ = 0;
     
-    ext_frequency_in_ticks_ = get_pulsewidth() << 15; // init to something...
-    channel_frequency_in_ticks_ = get_pulsewidth() << 15;
+    ext_frequency_in_ticks_ = 0xFFFFFFFF;
+    channel_frequency_in_ticks_ = 0xFFFFFFFF;
     pulse_width_in_ticks_ = get_pulsewidth() << 10;
      
     _ZERO = TU::calibration_data.dac.calibrated_Zero[0x0][0x0];
