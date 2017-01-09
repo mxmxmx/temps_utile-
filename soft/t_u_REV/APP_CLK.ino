@@ -605,6 +605,7 @@ public:
   void sync() {
     clk_cnt_ = 0x0;
     div_cnt_ = 0x0;
+    RESYNC = true;
   }
 
   void reset_ticks_internal() {
@@ -1994,7 +1995,8 @@ void CLOCKS_rightButton() {
 }
 
 void CLOCKS_leftButton() {
- 
+
+  /*
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
 
   if (selected.get_page() == TEMPO) {
@@ -2004,6 +2006,7 @@ void CLOCKS_leftButton() {
     clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1); 
     return;
   }
+  */
   // sync:
   for (int i = 0; i < NUM_CHANNELS; ++i) 
         clock_channel[i].sync();
