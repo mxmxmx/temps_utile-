@@ -647,8 +647,8 @@ public:
     reset_me_ = false;
     logic_ = false;
     menu_page_ = PARAMETERS;
- 
-    prev_multiplier_ = get_multiplier();
+
+    pending_multiplier_ = prev_multiplier_ = get_multiplier();
     prev_pulsewidth_ = get_pulsewidth();
     bpm_last_ = 0;
     
@@ -730,36 +730,40 @@ public:
      // or else, internal clock active?
      else if (_clock_source == CHANNEL_TRIGGER_INTERNAL) {
 
-           // resync? 
+           // resync?
           if (_clock_source != clk_src_)
             RESYNC = true;
           ticks_++;
           _triggered = false;
-          
+
           uint16_t _bpm = get_internal_timer() - BPM_MIN; // substract min value
-          
+
           if (_bpm != bpm_last_ || clk_src_ != _clock_source) {
-            // new BPM value, recalculate channel frequency below ... 
+            // new BPM value, recalculate channel frequency below ...
             ext_frequency_in_ticks_ = BPM_microseconds_4th[_bpm];
             _tock = true;
           }
           // store current bpm value
-          bpm_last_ = _bpm; 
-          
+          bpm_last_ = _bpm;
+
           // simulate clock ... ?
           if (ticks_ > ext_frequency_in_ticks_) {
             _triggered |= true;
             ticks_ = 0x0;
             div_cnt_--;
           }
-     }     
+     }
      // store clock source:
      clk_src_ = _clock_source;
- 
+
      // new multiplier ?
-     if (prev_multiplier_ != _multiplier)
-       _tock |= true;  
-     prev_multiplier_ = _multiplier; 
+     if (prev_multiplier_ != _multiplier) {
+        pending_multiplier_ = _multiplier; // we need to wait for a new trigger to execute this
+     }
+     if (_triggered && pending_multiplier_ != prev_multiplier_) {
+        _tock |= true;
+        prev_multiplier_ = pending_multiplier_ = _multiplier;
+     }
 
      // if so, recalculate channel frequency and corresponding jitter-thresholds:
      if (_tock) {
@@ -1519,6 +1523,7 @@ private:
   uint16_t display_state_;
   uint8_t prev_multiplier_;
   uint8_t prev_pulsewidth_;
+  uint8_t pending_multiplier_;
   uint8_t logic_;
   uint8_t display_sequence_;
   uint16_t display_mask_;
