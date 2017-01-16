@@ -243,7 +243,9 @@ enum MENUPAGES {
   TEMPO
 };
 
-uint64_t ext_frequency[CHANNEL_TRIGGER_LAST];
+static uint64_t ext_frequency[CHANNEL_TRIGGER_LAST];
+static uint64_t int_frequency;
+static uint64_t pending_int_frequency;
 
 class Clock_channel : public settings::SettingsBase<Clock_channel, CHANNEL_SETTING_LAST> {
 public:
@@ -1749,6 +1751,14 @@ void CLOCKS_isr() {
     ticks_src2 = 0x0;
   }
 
+  // update this once in the same thread as the processing to avoid race conditions and sync problems
+  if (pending_int_frequency != int_frequency) {
+    int_frequency = pending_int_frequency;
+    for (int i = 0; i < 6; i++) {
+      clock_channel[i].update_internal_timer(int_frequency);
+    }
+  }
+
   // update channels:
   clock_channel[0].Update(triggers, CLOCK_CHANNEL_1);
   clock_channel[1].Update(triggers, CLOCK_CHANNEL_2);
@@ -2136,8 +2146,7 @@ void CLOCKS_menu() {
         CLOCKS_screensaver();
         break;
       case CHANNEL_SETTING_INTERNAL_CLK:
-        for (int i = 0; i < 6; i++)
-          clock_channel[i].update_internal_timer(value);
+        pending_int_frequency = value;
         if (int_clock_used_)
           list_item.DrawDefault(value, attr);
         break;
