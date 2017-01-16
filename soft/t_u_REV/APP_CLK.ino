@@ -773,6 +773,7 @@ public:
      if (_triggered && pending_multiplier_ != prev_multiplier_) {
         _tock |= true;
         prev_multiplier_ = pending_multiplier_ = _multiplier;
+        // div_cnt_ = 0x0; // uncomment to force a reset on division, I think it is more musical without the reset
      }
 
      // if so, recalculate channel frequency and corresponding jitter-thresholds:
