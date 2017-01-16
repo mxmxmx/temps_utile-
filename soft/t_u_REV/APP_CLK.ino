@@ -756,7 +756,7 @@ public:
           bpm_last_ = _bpm;
 
           // simulate clock ... ?
-          if (ticks_ > ext_frequency_in_ticks_) {
+          if (ticks_ >= ext_frequency_in_ticks_) {
             _triggered |= true;
             ticks_ = 0x0;
             div_cnt_--;
