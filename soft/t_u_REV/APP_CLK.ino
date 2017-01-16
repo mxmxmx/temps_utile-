@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-
 #include "util/util_settings.h"
 #include "util/util_turing.h"
 #include "util/util_logistic_map.h"
@@ -33,31 +32,31 @@
 
 namespace menu = TU::menu;
 
-const uint8_t MODES = 7;        // # clock modes
-const uint8_t DAC_MODES = 4;    // # DAC submodes
-const uint8_t RND_MAX = 31;     // max random (n)
-const uint8_t MULT_MAX = 26;    // max multiplier
-const uint8_t MULT_BY_ONE = 13; // default multiplication
-const uint8_t PULSEW_MAX = 255; // max pulse width [ms]
-const uint8_t BPM_MIN = 1;      // changes need changes in TU_BPM.h
-const int16_t BPM_MAX = 320;    // ditto
-const uint8_t LFSR_MAX = 31;    // max LFSR length
-const uint8_t LFSR_MIN = 4;     // min "
-const uint8_t EUCLID_N_MAX = 32;
-const uint16_t TOGGLE_THRESHOLD = 500; // ADC threshold for 0/1 parameters (500 = ~1.2V)
+static const uint8_t MODES = 7;        // # clock modes
+static const uint8_t DAC_MODES = 4;    // # DAC submodes
+static const uint8_t RND_MAX = 31;     // max random (n)
+static const uint8_t MULT_MAX = 26;    // max multiplier
+static const uint8_t MULT_BY_ONE = 13; // default multiplication
+static const uint8_t PULSEW_MAX = 255; // max pulse width [ms]
+static const uint8_t BPM_MIN = 1;      // changes need changes in TU_BPM.h
+static const int16_t BPM_MAX = 320;    // ditto
+static const uint8_t LFSR_MAX = 31;    // max LFSR length
+static const uint8_t LFSR_MIN = 4;     // min "
+static const uint8_t EUCLID_N_MAX = 32;
+static const uint16_t TOGGLE_THRESHOLD = 500; // ADC threshold for 0/1 parameters (500 = ~1.2V)
 
-const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
-const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
-const uint32_t TICK_JITTER = 0xFFFFFFF;  // 1/16 : threshold/double triggers reject -> ext_frequency_in_ticks_
-const uint32_t TICK_SCALE  = 0xC0000000; // 0.75 for signed_multiply_32x32
+static const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16b
+static const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
+static const uint32_t TICK_JITTER = 0xFFFFFFF;  // 1/16 : threshold/double triggers reject -> ext_frequency_in_ticks_
+static const uint32_t TICK_SCALE  = 0xC0000000; // 0.75 for signed_multiply_32x32
 
 extern const uint32_t BPM_microseconds_4th[];
 
-uint32_t ticks_src1 = 0; // main clock frequency (top)
-uint32_t ticks_src2 = 0; // sec. clock frequency (bottom)
-bool RESYNC = true;      // resync internal timers
+static uint32_t ticks_src1 = 0; // main clock frequency (top)
+static uint32_t ticks_src2 = 0; // sec. clock frequency (bottom)
+static bool RESYNC = true;      // resync internal timers
 
-const uint64_t multipliers_[] = {
+static const uint64_t multipliers_[] = {
 
   0xFFFFFFFF, // x1
   0x80000000, // x2
@@ -76,7 +75,7 @@ const uint64_t multipliers_[] = {
 
 }; // = 2^32 / multiplier
 
-const uint64_t pw_scale_[] = {
+static const uint64_t pw_scale_[] = {
 
   0xFFFFFFFF, // /64
   0xC0000000, // /48
@@ -95,7 +94,7 @@ const uint64_t pw_scale_[] = {
 
 }; // = 2^32 * divisor / 64
 
-const uint8_t divisors_[] = {
+static const uint8_t divisors_[] = {
 
    64,
    48,
@@ -1561,7 +1560,10 @@ const char* const reset_trigger_sources[CHANNEL_TRIGGER_LAST+1] = {
 };
 
 const char* const multipliers[] = {
-  "/64", "/48", "/32", "/24", "/16", "/12", "/8", "/7", "/6", "/5", "/4", "/3", "/2", "-", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x12", "x16", "x24", "x32", "x48", "x64", "QN24", "QN96"
+  "/64", "/48", "/32", "/24", "/16", "/12", "/8", "/7", "/6", "/5", "/4", "/3", "/2",
+  "-",
+  "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x12", "x16", "x24", "x32", "x48", "x64",
+  "QN24", "QN96"
 };
 
 const char* const cv_sources[5] = {
