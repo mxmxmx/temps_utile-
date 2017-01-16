@@ -849,8 +849,9 @@ public:
         _sync = true;
         subticks_ = channel_frequency_in_ticks_;
      }
-     else if (_multiplier > MULT_BY_ONE)
+     else {
         _sync = true;
+     }
      // end of ugly hack
 
      // time to output ?
