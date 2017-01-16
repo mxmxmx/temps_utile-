@@ -620,7 +620,7 @@ public:
   }
 
   void reset_ticks_internal() {
-    ticks_ = 0x0;
+    ticks_ = subticks_ = 0x0;
   }
 
   uint8_t get_page() const {
@@ -648,8 +648,7 @@ public:
     force_update_ = true;
     gpio_state_ = OFF;
     display_state_ = _OFF;
-    ticks_ = 0;
-    subticks_ = 0;
+    reset_ticks_internal();
     tickjitter_ = 10000;
     clk_cnt_ = 0;
     clk_src_ = get_clock_source();
@@ -742,8 +741,9 @@ public:
      else if (_clock_source == CHANNEL_TRIGGER_INTERNAL) {
 
            // resync?
-          if (_clock_source != clk_src_)
+          if (_clock_source != clk_src_) {
             RESYNC = true;
+          }
           ticks_++;
           _triggered = false;
 
@@ -760,7 +760,7 @@ public:
           // simulate clock ... ?
           if (ticks_ >= ext_frequency_in_ticks_) {
             _triggered |= true;
-            ticks_ = 0x0;
+            reset_ticks_internal();
             div_cnt_--;
           }
      }
@@ -831,8 +831,6 @@ public:
      *  this, presumably, is needlessly complicated.
      *  but seems to work ok-ish, w/o too much jitter and missing clocks...
      */
-     uint32_t _subticks = subticks_;
-
      if (_multiplier <= MULT_BY_ONE && _triggered && div_cnt_ <= 0) {
         // division, so we track
         _sync = true;
@@ -857,15 +855,12 @@ public:
      // time to output ?
      if (subticks_ >= channel_frequency_in_ticks_ && _sync) {
 
-         // if so, reset ticks:
-         subticks_ = 0x0;
-         // if tempo changed, reset _internal_ clock counter:
-         if (_tock)
-            ticks_ = 0x0;
-
          //reject, if clock is too jittery or skip quasi-double triggers when ext. frequency increases:
-         if (_subticks < tickjitter_ || (_subticks < prev_channel_frequency_in_ticks_ && reset_me_))
+         if (subticks_ < tickjitter_ || (subticks_ < prev_channel_frequency_in_ticks_ && reset_me_))
             return;
+
+         // otherwise, reset subticks (but leave ticks alone)and prepare output:
+         subticks_ = 0x0;
 
          // mute output ?
          if (_reset_source > CHANNEL_TRIGGER_NONE) {
