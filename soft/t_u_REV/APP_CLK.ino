@@ -731,7 +731,12 @@ public:
     // new tick frequency, external:
     if (_clock_source <= CHANNEL_TRIGGER_TR2) {
 
-      if (_triggered || clk_src_ != _clock_source) {
+      // resync?
+      if (_clock_source != clk_src_) {
+        RESYNC = true;
+      }
+
+      if (_triggered || _clock_source != clk_src_) {
         ext_frequency_in_ticks_ = ext_frequency[_clock_source];
         _tock = true;
         div_cnt_--;
@@ -742,8 +747,10 @@ public:
 
       // resync?
       if (_clock_source != clk_src_) {
+        _tock = true;
         RESYNC = true;
       }
+
       ticks_++;
       _triggered = false;
 
