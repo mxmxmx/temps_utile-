@@ -54,7 +54,7 @@ extern const uint32_t BPM_microseconds_4th[];
 
 static uint32_t ticks_src1 = 0; // main clock frequency (top)
 static uint32_t ticks_src2 = 0; // sec. clock frequency (bottom)
-static bool RESYNC = true;      // resync internal timers
+static uint32_t ticks_internal = 0; // sec. clock frequency (bottom)
 
 static const uint64_t multipliers_[] = {
 
@@ -243,6 +243,8 @@ enum MENUPAGES {
 };
 
 uint64_t ext_frequency[CHANNEL_TRIGGER_LAST];
+uint64_t int_frequency;
+uint64_t pending_int_frequency;
 
 class Clock_channel : public settings::SettingsBase<Clock_channel, CHANNEL_SETTING_LAST> {
 public:
@@ -614,11 +616,6 @@ public:
   void sync() {
     clk_cnt_ = 0x0;
     div_cnt_ = 0x0;
-    RESYNC = true;
-  }
-
-  void reset_ticks_internal() {
-    ticks_ = 0x0;
   }
 
   uint8_t get_page() const {
@@ -646,7 +643,6 @@ public:
     force_update_ = true;
     gpio_state_ = OFF;
     display_state_ = _OFF;
-    ticks_ = 0;
     subticks_ = 0;
     tickjitter_ = 10000;
     clk_cnt_ = 0;
@@ -723,12 +719,12 @@ public:
      _mode = (clock_channel != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
      // clocked ?
      _none = CHANNEL_TRIGGER_NONE == _clock_source;
-     _triggered = !_none && (triggers & DIGITAL_INPUT_MASK(_clock_source - CHANNEL_TRIGGER_TR1));
+     _triggered = !_none && (triggers & (0x1 << _clock_source));
      _tock = false;
      _sync = false;
 
-     // new tick frequency, external:
-     if (_clock_source <= CHANNEL_TRIGGER_TR2) {
+     // new tick frequency, external or internal:
+     if (!_none && _clock_source <= CHANNEL_TRIGGER_INTERNAL) {
 
          if (_triggered || clk_src_ != _clock_source) {
             ext_frequency_in_ticks_ = ext_frequency[_clock_source];
@@ -736,32 +732,7 @@ public:
             div_cnt_--;
          }
      }
-     // or else, internal clock active?
-     else if (_clock_source == CHANNEL_TRIGGER_INTERNAL) {
 
-           // resync?
-          if (_clock_source != clk_src_)
-            RESYNC = true;
-          ticks_++;
-          _triggered = false;
-
-          uint16_t _bpm = get_internal_timer() - BPM_MIN; // substract min value
-
-          if (_bpm != bpm_last_ || clk_src_ != _clock_source) {
-            // new BPM value, recalculate channel frequency below ...
-            ext_frequency_in_ticks_ = BPM_microseconds_4th[_bpm];
-            _tock = true;
-          }
-          // store current bpm value
-          bpm_last_ = _bpm;
-
-          // simulate clock ... ?
-          if (ticks_ >= ext_frequency_in_ticks_) {
-            _triggered |= true;
-            ticks_ = 0x0;
-            div_cnt_--;
-          }
-     }
      // store clock source:
      clk_src_ = _clock_source;
 
@@ -855,9 +826,6 @@ public:
 
          // if so, reset ticks:
          subticks_ = 0x0;
-         // if tempo changed, reset _internal_ clock counter:
-         if (_tock)
-            ticks_ = 0x0;
 
          //reject, if clock is too jittery or skip quasi-double triggers when ext. frequency increases:
          if (_subticks < tickjitter_ || (_subticks < prev_channel_frequency_in_ticks_ && reset_me_))
@@ -1578,6 +1546,8 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { CHANNEL_TRIGGER_NONE, 0, CHANNEL_TRIGGER_LAST, "reset/mute", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
   { MULT_BY_ONE, 0, MULT_MAX, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
   { 25, 0, PULSEW_MAX, "pulsewidth", TU::Strings::pulsewidth_ms, settings::STORAGE_TYPE_U8 },
+  // note that BPM is a channel setting, although it's a global value.
+  // when recalling, we just grab the value for channel 0
   { 100, BPM_MIN, BPM_MAX, "BPM:", NULL, settings::STORAGE_TYPE_U16 },
   //
   { 0, 0, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
@@ -1668,6 +1638,9 @@ void CLOCKS_init() {
   ext_frequency[CHANNEL_TRIGGER_TR1]  = 0xFFFFFFFF;
   ext_frequency[CHANNEL_TRIGGER_TR2]  = 0xFFFFFFFF;
   ext_frequency[CHANNEL_TRIGGER_NONE] = 0xFFFFFFFF;
+  ext_frequency[CHANNEL_TRIGGER_INTERNAL] = 0xFFFFFFFF;
+
+  int_frequency = pending_int_frequency = 0xFFFFFFFF;
 
   clocks_state.Init();
   for (size_t i = 0; i < NUM_CHANNELS; ++i)
@@ -1694,6 +1667,10 @@ size_t CLOCKS_restore(const void *storage) {
     clock_channel[i].update_enabled_settings(i);
   }
   clocks_state.cursor.AdjustEnd(clock_channel[0].num_enabled_settings() - 1);
+
+  // TODO: maybe this should be a global value in the storage block to save memory, not a big deal, though
+  ext_frequency[CHANNEL_TRIGGER_INTERNAL] = BPM_microseconds_4th[clock_channel[0].get_internal_timer() - BPM_MIN];
+
   return used;
 }
 
@@ -1726,28 +1703,34 @@ void CLOCKS_isr() {
 
   ticks_src1++; // src #1 ticks
   ticks_src2++; // src #2 ticks
-
-  // resync internal timers?
-  if (RESYNC) {
-    clock_channel[0].reset_ticks_internal();
-    clock_channel[1].reset_ticks_internal();
-    clock_channel[2].reset_ticks_internal();
-    clock_channel[3].reset_ticks_internal();
-    clock_channel[4].reset_ticks_internal();
-    clock_channel[5].reset_ticks_internal();
-    RESYNC = false;
-  }
+  ticks_internal++; // internal clock ticks
 
   uint32_t triggers = TU::DigitalInputs::clocked();
 
   // clocked? reset ; better use ARM_DWT_CYCCNT ?
-  if (triggers == 1)  {
+  if (triggers & (1 << CHANNEL_TRIGGER_TR1))  {
     ext_frequency[CHANNEL_TRIGGER_TR1] = ticks_src1;
     ticks_src1 = 0x0;
   }
-  if (triggers == 2) {
+
+  if (triggers & (1 << CHANNEL_TRIGGER_TR2)) {
     ext_frequency[CHANNEL_TRIGGER_TR2] = ticks_src2;
     ticks_src2 = 0x0;
+  }
+
+  // update this once in the same thread as the processing to avoid race conditions and sync problems
+  if (pending_int_frequency != int_frequency) {
+    int_frequency = pending_int_frequency;
+    ext_frequency[CHANNEL_TRIGGER_INTERNAL] = BPM_microseconds_4th[int_frequency - BPM_MIN];
+    // following is only needed for save/recall of settings
+    for (int i = 0; i < 6; i++) {
+      clock_channel[i].update_internal_timer(int_frequency);
+    }
+  }
+
+  if (ticks_internal >= ext_frequency[CHANNEL_TRIGGER_INTERNAL]) {
+    triggers |= (1 << CHANNEL_TRIGGER_INTERNAL);
+    ticks_internal = 0x0;
   }
 
   // update channels:
@@ -2137,8 +2120,7 @@ void CLOCKS_menu() {
         CLOCKS_screensaver();
         break;
       case CHANNEL_SETTING_INTERNAL_CLK:
-        for (int i = 0; i < 6; i++)
-          clock_channel[i].update_internal_timer(value);
+        pending_int_frequency = value;
         if (int_clock_used_)
           list_item.DrawDefault(value, attr);
         break;
