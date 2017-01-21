@@ -582,12 +582,16 @@ public:
     return num_enabled_settings_;
   }
 
-  void pattern_changed(uint16_t mask) {
-    force_update_ = true;
-    if (get_sequence() == sequence_last_)
+  void pattern_changed(uint16_t mask, bool force) {
+    force_update_ = force;
+    if (force)
       display_mask_ = mask;
   }
 
+  void reset_sequence() {
+    sequence_reset_ = true;
+  }        
+  
   void clear_CV_mapping() {
 
     apply_value(CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE, 0);
@@ -663,9 +667,8 @@ public:
 
     _ZERO = TU::calibration_data.dac.calibrated_Zero[0x0][0x0];
 
-    // WTF? get_mask doesn't return the saved mask
     display_sequence_ = get_sequence();
-    display_mask_ = 0; // get_mask(display_sequence_);
+    display_mask_ = get_mask(display_sequence_);
     sequence_last_ = display_sequence_;
     sequence_advance_ = false;
     sequence_advance_state_ = false;
@@ -1052,6 +1055,13 @@ public:
             clk_cnt_ = 0;
           }
           else if (_playmode > 3 && sequence_advance_) {
+            
+            if (sequence_reset_) {
+              // manual change?
+              sequence_reset_ = false;
+              sequence_last_ = _seq;
+            }
+            
             _playmode -= 3;
             sequence_cnt_++;
             sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
@@ -1508,6 +1518,7 @@ private:
   int32_t sequence_cnt_;
   int8_t sequence_advance_;
   int8_t sequence_advance_state_;
+  int8_t sequence_reset_;
   uint8_t menu_page_;
   uint16_t bpm_last_;
 
@@ -1660,11 +1671,16 @@ size_t CLOCKS_save(void *storage) {
   }
   return used;
 }
+
 size_t CLOCKS_restore(const void *storage) {
-  size_t used = 0;
+  
+  size_t used = 0;  
   for (size_t i = 0; i < NUM_CHANNELS; ++i) {
     used += clock_channel[i].Restore(static_cast<const char*>(storage) + used);
     clock_channel[i].update_enabled_settings(i);
+    // update display sequence + mask:
+    clock_channel[i].set_display_sequence(clock_channel[i].get_sequence()); 
+    clock_channel[i].pattern_changed(clock_channel[i].get_mask(clock_channel[i].get_sequence()), true);
   }
   clocks_state.cursor.AdjustEnd(clock_channel[0].num_enabled_settings() - 1);
 
@@ -1846,9 +1862,11 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
           {
             if (!selected.get_playmode()) {
               uint8_t seq = selected.get_sequence();
-              selected.pattern_changed(selected.get_mask(seq));
+              selected.pattern_changed(selected.get_mask(seq), true);
               selected.set_display_sequence(seq);
             }
+            // force update, when TR+1 etc
+            selected.reset_sequence();
           }
             break;
           case CHANNEL_SETTING_MODE:

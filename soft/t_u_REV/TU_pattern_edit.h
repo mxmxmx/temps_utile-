@@ -80,8 +80,9 @@ private:
       mask_ = mask;
       owner_->update_pattern_mask(mask_, edit_this_sequence_);
     }
-    if (owner_->get_sequence() == edit_this_sequence_)
-      owner_->pattern_changed(mask);
+    
+    bool force_update = (owner_->get_current_sequence() == edit_this_sequence_);
+    owner_->pattern_changed(mask, force_update);
   }
   
   //void change_slot(size_t pos, int delta, bool notify);
