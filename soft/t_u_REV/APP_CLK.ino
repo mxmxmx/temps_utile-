@@ -96,20 +96,20 @@ static const uint64_t pw_scale_[] = {
 
 static const uint8_t divisors_[] = {
 
-   64,
-   48,
-   32,
-   24,
-   16,
-   12,
-   8,
-   7,
-   6,
-   5,
-   4,
-   3,
-   2,
-   1
+  64,
+  48,
+  32,
+  24,
+  16,
+  12,
+  8,
+  7,
+  6,
+  5,
+  4,
+  3,
+  2,
+  1
 };
 
 enum ChannelSetting {
@@ -401,16 +401,16 @@ public:
 
     switch (_seq) {
 
-    case 1:
+      case 1:
     return values_[CHANNEL_SETTING_SEQUENCE_LEN2];
     break;
-    case 2:
+      case 2:
     return values_[CHANNEL_SETTING_SEQUENCE_LEN3];
     break;
-    case 3:
+      case 3:
     return values_[CHANNEL_SETTING_SEQUENCE_LEN4];
     break;
-    default:
+      default:
     return values_[CHANNEL_SETTING_SEQUENCE_LEN1];
     break;
     }
@@ -504,18 +504,18 @@ public:
 
     switch(sequence) {
 
-    case 1:
-      apply_value(CHANNEL_SETTING_MASK2, mask);
-      break;
-    case 2:
-      apply_value(CHANNEL_SETTING_MASK3, mask);
-      break;
-    case 3:
-      apply_value(CHANNEL_SETTING_MASK4, mask);
-      break;
-    default:
-      apply_value(CHANNEL_SETTING_MASK1, mask);
-      break;
+      case 1:
+        apply_value(CHANNEL_SETTING_MASK2, mask);
+        break;
+      case 2:
+        apply_value(CHANNEL_SETTING_MASK3, mask);
+        break;
+      case 3:
+        apply_value(CHANNEL_SETTING_MASK4, mask);
+        break;
+      default:
+        apply_value(CHANNEL_SETTING_MASK1, mask);
+        break;
     }
   }
 
@@ -523,18 +523,18 @@ public:
 
     switch(_this_sequence) {
 
-    case 1:
-      return values_[CHANNEL_SETTING_MASK2];
-      break;
-    case 2:
-      return values_[CHANNEL_SETTING_MASK3];
-      break;
-    case 3:
-      return values_[CHANNEL_SETTING_MASK4];
-      break;
-    default:
-      return values_[CHANNEL_SETTING_MASK1];
-      break;
+      case 1:
+        return values_[CHANNEL_SETTING_MASK2];
+        break;
+      case 2:
+        return values_[CHANNEL_SETTING_MASK3];
+        break;
+      case 3:
+        return values_[CHANNEL_SETTING_MASK4];
+        break;
+      default:
+        return values_[CHANNEL_SETTING_MASK1];
+        break;
     }
   }
 
@@ -542,19 +542,19 @@ public:
 
     switch(seq) {
       case 0:
-      apply_value(CHANNEL_SETTING_SEQUENCE_LEN1, len);
-      break;
+        apply_value(CHANNEL_SETTING_SEQUENCE_LEN1, len);
+        break;
       case 1:
-      apply_value(CHANNEL_SETTING_SEQUENCE_LEN2, len);
-      break;
+        apply_value(CHANNEL_SETTING_SEQUENCE_LEN2, len);
+        break;
       case 2:
-      apply_value(CHANNEL_SETTING_SEQUENCE_LEN3, len);
-      break;
+        apply_value(CHANNEL_SETTING_SEQUENCE_LEN3, len);
+        break;
       case 3:
-      apply_value(CHANNEL_SETTING_SEQUENCE_LEN4, len);
-      break;
+        apply_value(CHANNEL_SETTING_SEQUENCE_LEN4, len);
+        break;
       default:
-      break;
+        break;
     }
   }
 
@@ -567,7 +567,7 @@ public:
   }
 
   void update_internal_timer(uint16_t _tempo) {
-      apply_value(CHANNEL_SETTING_INTERNAL_CLK, _tempo);
+    apply_value(CHANNEL_SETTING_INTERNAL_CLK, _tempo);
   }
 
   uint8_t getTriggerState() const {
@@ -689,593 +689,593 @@ public:
 
   inline void Update(uint32_t triggers, CLOCK_CHANNEL clock_channel) {
 
-     // increment channel ticks ..
-     subticks_++;
+    // increment channel ticks ..
+    subticks_++;
 
-     int8_t _clock_source, _reset_source, _mode;
-     int8_t _multiplier;
-     bool _none, _triggered, _tock, _sync;
-     uint16_t _output = gpio_state_;
-     uint32_t prev_channel_frequency_in_ticks_ = 0x0;
+    int8_t _clock_source, _reset_source, _mode;
+    int8_t _multiplier;
+    bool _none, _triggered, _tock, _sync;
+    uint16_t _output = gpio_state_;
+    uint32_t prev_channel_frequency_in_ticks_ = 0x0;
 
-     // core channel parameters --
-     // 1. clock source:
-     _clock_source = get_clock_source();
+    // core channel parameters --
+    // 1. clock source:
+    _clock_source = get_clock_source();
 
-     if (get_clock_source_cv_source()){
-        int16_t _toggle = TU::ADC::value(static_cast<ADC_CHANNEL>(get_clock_source_cv_source() - 1));
+    if (get_clock_source_cv_source()){
+      int16_t _toggle = TU::ADC::value(static_cast<ADC_CHANNEL>(get_clock_source_cv_source() - 1));
 
-        if (_toggle > TOGGLE_THRESHOLD && _clock_source <= CHANNEL_TRIGGER_TR2)
-          _clock_source = (~_clock_source) & 1u;
-     }
-     // 2. multiplication:
-     _multiplier = get_multiplier();
+      if (_toggle > TOGGLE_THRESHOLD && _clock_source <= CHANNEL_TRIGGER_TR2)
+        _clock_source = (~_clock_source) & 1u;
+    }
+    // 2. multiplication:
+    _multiplier = get_multiplier();
 
-     if (get_mult_cv_source()) {
-        _multiplier += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_mult_cv_source() - 1)) + 255) >> 7;
-        CONSTRAIN(_multiplier, 0, MULT_MAX);
-     }
-     // 3. channel mode?
-     _mode = (clock_channel != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
-     // clocked ?
-     _none = CHANNEL_TRIGGER_NONE == _clock_source;
-     _triggered = !_none && (triggers & (0x1 << _clock_source));
-     _tock = false;
-     _sync = false;
+    if (get_mult_cv_source()) {
+      _multiplier += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_mult_cv_source() - 1)) + 255) >> 7;
+      CONSTRAIN(_multiplier, 0, MULT_MAX);
+    }
+    // 3. channel mode?
+    _mode = (clock_channel != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
+    // clocked ?
+    _none = CHANNEL_TRIGGER_NONE == _clock_source;
+    _triggered = !_none && (triggers & (0x1 << _clock_source));
+    _tock = false;
+    _sync = false;
 
-     // new tick frequency, external or internal:
-     if (!_none && _clock_source <= CHANNEL_TRIGGER_INTERNAL) {
+    // new tick frequency, external or internal:
+    if (!_none && _clock_source <= CHANNEL_TRIGGER_INTERNAL) {
 
-         if (_triggered || clk_src_ != _clock_source) {
-            ext_frequency_in_ticks_ = ext_frequency[_clock_source];
-            _tock = true;
-            div_cnt_--;
-         }
-     }
+      if (_triggered || clk_src_ != _clock_source) {
+        ext_frequency_in_ticks_ = ext_frequency[_clock_source];
+        _tock = true;
+        div_cnt_--;
+      }
+    }
 
-     // store clock source:
-     clk_src_ = _clock_source;
+    // store clock source:
+    clk_src_ = _clock_source;
 
-     // new multiplier ?
-     if (prev_multiplier_ != _multiplier) {
-        pending_multiplier_ = _multiplier; // we need to wait for a new trigger to execute this
-     }
-     if (_triggered && pending_multiplier_ != prev_multiplier_) {
-        _tock |= true;
-        prev_multiplier_ = pending_multiplier_ = _multiplier;
-     }
+    // new multiplier ?
+    if (prev_multiplier_ != _multiplier) {
+      pending_multiplier_ = _multiplier; // we need to wait for a new trigger to execute this
+    }
+    if (_triggered && pending_multiplier_ != prev_multiplier_) {
+      _tock |= true;
+      prev_multiplier_ = pending_multiplier_ = _multiplier;
+    }
 
-     // if so, recalculate channel frequency and corresponding jitter-thresholds:
-     if (_tock) {
+    // if so, recalculate channel frequency and corresponding jitter-thresholds:
+    if (_tock) {
 
-        // when multiplying, skip too closely spaced triggers:
-        if (_multiplier > MULT_BY_ONE) {
-           prev_channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_SCALE);
-           // new frequency:
-           channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier-MULT_BY_ONE]);
-        }
-        else {
-           prev_channel_frequency_in_ticks_ = 0x0;
-           // new frequency (used for pulsewidth):
-           channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, pw_scale_[_multiplier]) << 6;
-        }
+      // when multiplying, skip too closely spaced triggers:
+      if (_multiplier > MULT_BY_ONE) {
+        prev_channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_SCALE);
+        // new frequency:
+        channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier-MULT_BY_ONE]);
+      }
+      else {
+        prev_channel_frequency_in_ticks_ = 0x0;
+        // new frequency (used for pulsewidth):
+        channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, pw_scale_[_multiplier]) << 6;
+      }
 
-        tickjitter_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_JITTER);
-     }
-     // limit frequency to > 0
-     if (!channel_frequency_in_ticks_)
-        channel_frequency_in_ticks_ = 1u;
+      tickjitter_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_JITTER);
+    }
+    // limit frequency to > 0
+    if (!channel_frequency_in_ticks_)
+      channel_frequency_in_ticks_ = 1u;
 
-     // reset?
-     _reset_source = get_reset_source();
+    // reset?
+    _reset_source = get_reset_source();
 
-     if (_reset_source < CHANNEL_TRIGGER_NONE && reset_me_) {
+    if (_reset_source < CHANNEL_TRIGGER_NONE && reset_me_) {
 
-        uint8_t reset_state_ = !_reset_source ? digitalReadFast(TR1) : digitalReadFast(TR2);
+      uint8_t reset_state_ = !_reset_source ? digitalReadFast(TR1) : digitalReadFast(TR2);
 
-        // ?
-        if (reset_state_ < reset_) {
-           div_cnt_ = 0x0;
-           reset_counter_ = true; // reset clock counter below
-           reset_me_ = false;
-        }
-        reset_ = reset_state_;
-     }
+      // ?
+      if (reset_state_ < reset_) {
+        div_cnt_ = 0x0;
+        reset_counter_ = true; // reset clock counter below
+        reset_me_ = false;
+      }
+      reset_ = reset_state_;
+    }
 
-     // in sequencer mode, do we advance sequences by TR2?
-     if (_mode == SEQ && get_playmode() > 3) {
+    // in sequencer mode, do we advance sequences by TR2?
+    if (_mode == SEQ && get_playmode() > 3) {
 
-        uint8_t _advance_trig = digitalReadFast(TR2);
-        // ?
-        if (_advance_trig < sequence_advance_state_)
-          sequence_advance_ = true;
+      uint8_t _advance_trig = digitalReadFast(TR2);
+      // ?
+      if (_advance_trig < sequence_advance_state_)
+        sequence_advance_ = true;
 
-        sequence_advance_state_ = _advance_trig;
+      sequence_advance_state_ = _advance_trig;
 
-     }
+    }
 
     /*
      *  brute force ugly sync hack:
      *  this, presumably, is needlessly complicated.
      *  but seems to work ok-ish, w/o too much jitter and missing clocks...
      */
-     uint32_t _subticks = subticks_;
+    uint32_t _subticks = subticks_;
 
-     if (_multiplier <= MULT_BY_ONE && _triggered && div_cnt_ <= 0) {
-        // division, so we track
-        _sync = true;
-        div_cnt_ = divisors_[_multiplier];
-        subticks_ = channel_frequency_in_ticks_; // force sync
-     }
-     else if (_multiplier <= MULT_BY_ONE && _triggered) {
-        // division, mute output:
-        TU::OUTPUTS::setState(clock_channel, OFF);
-        display_state_ = _OFF; // for display
-     }
-     else if (_multiplier > MULT_BY_ONE && _triggered)  {
-        // multiplication, force sync, if clocked:
-        _sync = true;
-        subticks_ = channel_frequency_in_ticks_;
-     }
-     else if (_multiplier > MULT_BY_ONE)
-        _sync = true;
-     // end of ugly hack
+    if (_multiplier <= MULT_BY_ONE && _triggered && div_cnt_ <= 0) {
+      // division, so we track
+      _sync = true;
+      div_cnt_ = divisors_[_multiplier];
+      subticks_ = channel_frequency_in_ticks_; // force sync
+    }
+    else if (_multiplier <= MULT_BY_ONE && _triggered) {
+      // division, mute output:
+      TU::OUTPUTS::setState(clock_channel, OFF);
+      display_state_ = _OFF; // for display
+    }
+    else if (_multiplier > MULT_BY_ONE && _triggered)  {
+      // multiplication, force sync, if clocked:
+      _sync = true;
+      subticks_ = channel_frequency_in_ticks_;
+    }
+    else if (_multiplier > MULT_BY_ONE)
+      _sync = true;
+    // end of ugly hack
 
-     // time to output ?
-     if (subticks_ >= channel_frequency_in_ticks_ && _sync) {
+    // time to output ?
+    if (subticks_ >= channel_frequency_in_ticks_ && _sync) {
 
-         // if so, reset ticks:
-         subticks_ = 0x0;
+      // if so, reset ticks:
+      subticks_ = 0x0;
 
-         //reject, if clock is too jittery or skip quasi-double triggers when ext. frequency increases:
-         if (_subticks < tickjitter_ || (_subticks < prev_channel_frequency_in_ticks_ && reset_me_))
-            return;
+      //reject, if clock is too jittery or skip quasi-double triggers when ext. frequency increases:
+      if (_subticks < tickjitter_ || (_subticks < prev_channel_frequency_in_ticks_ && reset_me_))
+        return;
 
-         // mute output ?
-         if (_reset_source > CHANNEL_TRIGGER_NONE) {
+      // mute output ?
+      if (_reset_source > CHANNEL_TRIGGER_NONE) {
 
-             if (_reset_source == CHANNEL_TRIGGER_FREEZE_HIGH && !digitalReadFast(TR2))
-              return;
-             else if (_reset_source == CHANNEL_TRIGGER_FREEZE_LOW && digitalReadFast(TR2))
-              return;
-         }
+        if (_reset_source == CHANNEL_TRIGGER_FREEZE_HIGH && !digitalReadFast(TR2))
+          return;
+        else if (_reset_source == CHANNEL_TRIGGER_FREEZE_LOW && digitalReadFast(TR2))
+          return;
+      }
 
-         // only then count clocks:
-         clk_cnt_++;
+      // only then count clocks:
+      clk_cnt_++;
 
-         // reset counter ? (SEQ/Euclidian)
-         if (reset_counter_)
-            clk_cnt_ = 0x0;
+      // reset counter ? (SEQ/Euclidian)
+      if (reset_counter_)
+        clk_cnt_ = 0x0;
 
-         // clear for reset:
-         reset_me_ = true;
-         reset_counter_ = false;
-         // finally, process trigger + output
-         _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
-         display_state_ = _ACTIVE;
-         if (_triggered) {
-           TU::OUTPUTS::setState(clock_channel, _output);
-         }
-     }
+      // clear for reset:
+      reset_me_ = true;
+      reset_counter_ = false;
+      // finally, process trigger + output
+      _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
+      display_state_ = _ACTIVE;
+      if (_triggered) {
+        TU::OUTPUTS::setState(clock_channel, _output);
+      }
+    }
 
-     /*
-      *  below: pulsewidth stuff
-      */
+    /*
+     *  below: pulsewidth stuff
+     */
 
-     if (gpio_state_ && _mode != DAC) {
+    if (gpio_state_ && _mode != DAC) {
 
-        // pulsewidth setting --
-        int16_t _pulsewidth = get_pulsewidth();
+      // pulsewidth setting --
+      int16_t _pulsewidth = get_pulsewidth();
 
-        if (_pulsewidth || _multiplier > MULT_BY_ONE || _clock_source == CHANNEL_TRIGGER_INTERNAL) {
+      if (_pulsewidth || _multiplier > MULT_BY_ONE || _clock_source == CHANNEL_TRIGGER_INTERNAL) {
 
-            bool _gates = false;
+        bool _gates = false;
 
-            // do we echo && multiply? if so, do half-duty cycle:
-            if (!_pulsewidth)
-                _pulsewidth = PULSEW_MAX;
+        // do we echo && multiply? if so, do half-duty cycle:
+        if (!_pulsewidth)
+          _pulsewidth = PULSEW_MAX;
 
-            if (_pulsewidth == PULSEW_MAX)
-              _gates = true;
-            // CV?
-            if (get_pulsewidth_cv_source()) {
+        if (_pulsewidth == PULSEW_MAX)
+          _gates = true;
+        // CV?
+        if (get_pulsewidth_cv_source()) {
 
-              _pulsewidth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_pulsewidth_cv_source() - 1)) + 8) >> 3;
-              if (!_gates)
-                CONSTRAIN(_pulsewidth, 1, PULSEW_MAX);
-              else // CV for 50% duty cycle:
-                CONSTRAIN(_pulsewidth, 1, (PULSEW_MAX<<1) - 55);  // incl margin, max < 2x mult. see below
+          _pulsewidth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_pulsewidth_cv_source() - 1)) + 8) >> 3;
+          if (!_gates)
+            CONSTRAIN(_pulsewidth, 1, PULSEW_MAX);
+          else // CV for 50% duty cycle:
+            CONSTRAIN(_pulsewidth, 1, (PULSEW_MAX<<1) - 55);  // incl margin, max < 2x mult. see below
+        }
+        // recalculate (in ticks), if new pulsewidth setting:
+        if (prev_pulsewidth_ != _pulsewidth || ! subticks_) {
+          if (!_gates) {
+            int32_t _fraction = signed_multiply_32x16b(TICKS_TO_MS, static_cast<int32_t>(_pulsewidth)); // = * 0.6667f
+            _fraction = signed_saturate_rshift(_fraction, 16, 0);
+            pulse_width_in_ticks_  = (_pulsewidth << 4) + _fraction;
+          }
+          else { // put out gates/half duty cycle:
+            pulse_width_in_ticks_ = channel_frequency_in_ticks_ >> 1;
+
+            if (_pulsewidth != PULSEW_MAX) { // CV?
+              pulse_width_in_ticks_ = signed_multiply_32x16b(static_cast<int32_t>(_pulsewidth) << 8, pulse_width_in_ticks_); //
+              pulse_width_in_ticks_ = signed_saturate_rshift(pulse_width_in_ticks_, 16, 0);
             }
-            // recalculate (in ticks), if new pulsewidth setting:
-            if (prev_pulsewidth_ != _pulsewidth || ! subticks_) {
-                if (!_gates) {
-                  int32_t _fraction = signed_multiply_32x16b(TICKS_TO_MS, static_cast<int32_t>(_pulsewidth)); // = * 0.6667f
-                  _fraction = signed_saturate_rshift(_fraction, 16, 0);
-                  pulse_width_in_ticks_  = (_pulsewidth << 4) + _fraction;
-                }
-                else { // put out gates/half duty cycle:
-                  pulse_width_in_ticks_ = channel_frequency_in_ticks_ >> 1;
+          }
+        }
+        prev_pulsewidth_ = _pulsewidth;
 
-                  if (_pulsewidth != PULSEW_MAX) { // CV?
-                    pulse_width_in_ticks_ = signed_multiply_32x16b(static_cast<int32_t>(_pulsewidth) << 8, pulse_width_in_ticks_); //
-                    pulse_width_in_ticks_ = signed_saturate_rshift(pulse_width_in_ticks_, 16, 0);
-                  }
-                }
-            }
-            prev_pulsewidth_ = _pulsewidth;
+        // limit pulsewidth, if approaching half duty cycle:
+        if (!_gates && pulse_width_in_ticks_ >= channel_frequency_in_ticks_>>1)
+          pulse_width_in_ticks_ = (channel_frequency_in_ticks_ >> 1) | 1u;
 
-            // limit pulsewidth, if approaching half duty cycle:
-            if (!_gates && pulse_width_in_ticks_ >= channel_frequency_in_ticks_>>1)
-              pulse_width_in_ticks_ = (channel_frequency_in_ticks_ >> 1) | 1u;
+        // turn off output?
+        if (subticks_ >= pulse_width_in_ticks_) {
+          _output = gpio_state_ = OFF;
+          display_state_ = _ONBEAT;
+        }
+        else // keep on
+          _output = ON;
+      }
+      else {
+        // we simply echo the pulsewidth:
+        bool _state = (_clock_source == CHANNEL_TRIGGER_TR1) ? !digitalReadFast(TR1) : !digitalReadFast(TR2);
 
-            // turn off output?
-            if (subticks_ >= pulse_width_in_ticks_) {
-              _output = gpio_state_ = OFF;
-              display_state_ = _ONBEAT;
-            }
-            else // keep on
-              _output = ON;
-         }
-         else {
-            // we simply echo the pulsewidth:
-            bool _state = (_clock_source == CHANNEL_TRIGGER_TR1) ? !digitalReadFast(TR1) : !digitalReadFast(TR2);
+        if (_state)
+          _output = ON;
+        else
+          _output = gpio_state_ = OFF;
+      }
+    }
+    // DAC channel needs extra treatment / zero offset:
+    if (clock_channel == CLOCK_CHANNEL_4 && _mode != DAC && gpio_state_ == OFF)
+      _output += _ZERO;
 
-            if (_state)
-              _output = ON;
-            else
-              _output = gpio_state_ = OFF;
-         }
-     }
-     // DAC channel needs extra treatment / zero offset:
-     if (clock_channel == CLOCK_CHANNEL_4 && _mode != DAC && gpio_state_ == OFF)
-       _output += _ZERO;
-
-     // update (physical) outputs:
-     TU::OUTPUTS::set(clock_channel, _output);
+    // update (physical) outputs:
+    TU::OUTPUTS::set(clock_channel, _output);
   } // end update
 
   /* details re: trigger processing happens (mostly) here: */
   inline uint16_t process_clock_channel(uint8_t mode) {
 
-      uint16_t _out = ON;
-      logic_ = false;
+    uint16_t _out = ON;
+    logic_ = false;
 
-      switch (mode) {
+    switch (mode) {
 
-          case MULT:
-            break;
-          case LOGIC:
-          // logic happens elsewhere.
-            logic_ = true;
-            break;
-          case LFSR: {
-              // LFSR, sort of. mash-up of o_C and old TU firmware:
-              int16_t _length, _probability, _myfirstbit;
+      case MULT:
+        break;
+      case LOGIC:
+        // logic happens elsewhere.
+        logic_ = true;
+        break;
+      case LFSR: {
+        // LFSR, sort of. mash-up of o_C and old TU firmware:
+        int16_t _length, _probability, _myfirstbit;
 
-              _length = get_turing_length();
-              _probability = get_turing_probability();
+        _length = get_turing_length();
+        _probability = get_turing_probability();
 
-              if (get_turing_length_cv_source()) {
-                _length += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_length_cv_source() - 1)) + 64) >> 6;
-                CONSTRAIN(_length, LFSR_MIN, LFSR_MAX);
-              }
+        if (get_turing_length_cv_source()) {
+          _length += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_length_cv_source() - 1)) + 64) >> 6;
+          CONSTRAIN(_length, LFSR_MIN, LFSR_MAX);
+        }
 
-              if (get_turing_prob_cv_source()) {
-                _probability += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_prob_cv_source() - 1)) + 16) >> 4;
-                CONSTRAIN(_probability, 1, 255);
-              }
+        if (get_turing_prob_cv_source()) {
+          _probability += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_prob_cv_source() - 1)) + 16) >> 4;
+          CONSTRAIN(_probability, 1, 255);
+        }
 
-              turing_machine_.set_length(_length);
-              turing_machine_.set_probability(_probability);
+        turing_machine_.set_length(_length);
+        turing_machine_.set_probability(_probability);
 
-              uint32_t _shift_register = turing_machine_.Clock();
+        uint32_t _shift_register = turing_machine_.Clock();
 
-              _myfirstbit =  _shift_register & 1u; // --> this is our output
-              _out = _myfirstbit ? ON : OFF; // DAC needs special care ...
+        _myfirstbit =  _shift_register & 1u; // --> this is our output
+        _out = _myfirstbit ? ON : OFF; // DAC needs special care ...
 
-              // now update LFSR (even more):
-              int8_t  _tap1 = get_tap1();
-              int8_t  _tap2 = get_tap2();
+        // now update LFSR (even more):
+        int8_t  _tap1 = get_tap1();
+        int8_t  _tap2 = get_tap2();
 
-              if (get_tap1_cv_source())
-                _tap1 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_tap1_cv_source() - 1)) + 64) >> 6;
+        if (get_tap1_cv_source())
+          _tap1 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_tap1_cv_source() - 1)) + 64) >> 6;
 
-              if (get_tap2_cv_source())
-                _tap2 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_tap2_cv_source() - 1)) + 64) >> 6;
+        if (get_tap2_cv_source())
+          _tap2 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_tap2_cv_source() - 1)) + 64) >> 6;
 
-              CONSTRAIN(_tap1, 1, _length);
-              CONSTRAIN(_tap2, 1, _length);
+        CONSTRAIN(_tap1, 1, _length);
+        CONSTRAIN(_tap2, 1, _length);
 
-              _tap1 = (_shift_register >> _tap1) & 1u;  // bit at tap1
-              _tap2 = (_shift_register >> _tap2) & 1u;  // bit at tap1
+        _tap1 = (_shift_register >> _tap1) & 1u;  // bit at tap1
+        _tap2 = (_shift_register >> _tap2) & 1u;  // bit at tap1
 
-              _shift_register = (_shift_register >> 1) | ((_myfirstbit ^ _tap1 ^ _tap2) << (_length - 1));
-              turing_machine_.set_shift_register(_shift_register);
-            }
-            break;
-          case RANDOM: {
-               // get threshold setting:
-               int16_t _n = rand_n();
-               if (get_rand_n_cv_source()) {
-                 _n += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_n_cv_source() - 1)) + 64) >> 6;
-                 CONSTRAIN(_n, 0, RND_MAX);
-               }
-
-               int16_t _rand_new = random(RND_MAX);
-               _out = _rand_new > _n ? ON : OFF; // DAC needs special care ...
-            }
-            break;
-          case EUCLID: {
-              // simple euclidian algorithm, found on pd hurleur:
-              int16_t _n, _k, _offset;
-              // the three parameters:
-              _n = euclid_n();
-              _k = euclid_k();
-              _offset = euclid_offset();
-              // CV --
-              if (get_euclid_n_cv_source()) {
-                _n += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_n_cv_source() - 1)) + 64) >> 6;
-                CONSTRAIN(_n, 1, EUCLID_N_MAX);
-              }
-
-              if (get_euclid_k_cv_source())
-                _k += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_k_cv_source() - 1)) + 64) >> 6;
-
-              if (get_euclid_offset_cv_source())
-                _offset += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_offset_cv_source() - 1)) + 64) >> 6;
-
-              CONSTRAIN(_k, 1, _n);
-              CONSTRAIN(_offset, 1, _n);
-              // calculate output:
-              _out = ((clk_cnt_ + _offset) * _k) % _n;
-              _out = (_out < _k) ? ON : OFF;
-            }
-            break;
-          case SEQ: {
-              // sequencer mode, adapted from o_C scale edit:
-              int16_t _seq = get_sequence();
-
-              if (get_sequence_cv_source()) {
-                _seq += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_sequence_cv_source() - 1)) + 255) >> 9;
-                CONSTRAIN(_seq, 0, TU::Patterns::PATTERN_USER_LAST-1);
-              }
-
-
-              uint8_t _playmode = get_playmode();
-
-              if (_playmode) {
-
-                // concatenate sequences:
-                if (_playmode <= 3 && clk_cnt_ >= get_sequence_length(sequence_last_)) {
-                  sequence_cnt_++;
-                  sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
-                  clk_cnt_ = 0;
-                }
-                else if (_playmode > 3 && sequence_advance_) {
-                  _playmode -= 3;
-                  sequence_cnt_++;
-                  sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
-                  clk_cnt_ = 0;
-                  sequence_advance_ = false;
-                }
-
-                if (sequence_last_ >= TU::Patterns::PATTERN_USER_LAST)
-                  sequence_last_ -= TU::Patterns::PATTERN_USER_LAST;
-              }
-              else
-                sequence_last_ = _seq;
-
-              _seq = sequence_last_;
-              // this is the sequence # (USER1-USER4):
-              display_sequence_ = _seq;
-              // and corresponding pattern mask:
-              uint16_t _mask = get_mask(_seq);
-              // rotate mask ?
-              if (get_mask_cv_source())
-                _mask = update_sequence((TU::ADC::value(static_cast<ADC_CHANNEL>(get_mask_cv_source() - 1)) + 127) >> 8, _seq, _mask);
-              display_mask_ = _mask;
-              // reset counter ?
-              if (clk_cnt_ >= get_sequence_length(_seq))
-                clk_cnt_ = 0;
-              // output slot at current position:
-              _out = (_mask >> clk_cnt_) & 1u;
-              _out = _out ? ON : OFF;
-            }
-            break;
-          case DAC: {
-               // only available in channel 4:
-               int16_t _range = dac_range(); // 1-255
-               int8_t _mode = dac_mode();
-
-               if (get_DAC_mode_cv_source()) {
-                _mode += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_mode_cv_source() - 1)) + 256) >> 9;
-                CONSTRAIN(_mode, 0, LAST_DACMODE-1);
-               }
-
-               if (get_DAC_range_cv_source()) {
-                _range += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_range_cv_source() - 1)) + 16) >> 4;
-                CONSTRAIN(_range, 1, 255);
-               }
-
-               switch (_mode) {
-
-                  case _BINARY: {
-
-                     uint8_t _binary = 0;
-                     // MSB .. LSB
-                     if (binary_tracking()) {
-                       _binary |= (TU::OUTPUTS::state(CLOCK_CHANNEL_1) & 1u) << 4;
-                       _binary |= (TU::OUTPUTS::state(CLOCK_CHANNEL_2) & 1u) << 3;
-                       _binary |= (TU::OUTPUTS::state(CLOCK_CHANNEL_3) & 1u) << 2;
-                       _binary |= (TU::OUTPUTS::state(CLOCK_CHANNEL_5) & 1u) << 1;
-                       _binary |= (TU::OUTPUTS::state(CLOCK_CHANNEL_6) & 1u);
-                     }
-                     else {
-                       _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_1) & 1u) << 4;
-                       _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_2) & 1u) << 3;
-                       _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_3) & 1u) << 2;
-                       _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_5) & 1u) << 1;
-                       _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_6) & 1u);
-                     }
-                     ++_binary; // 32 max
-
-                     int16_t _dac_code = (static_cast<int16_t>(_binary) << 7) - 0x800; // +/- 2048
-                     _dac_code = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _dac_code);
-                     _dac_code = signed_saturate_rshift(_dac_code, 16, 0);
-
-                     _out = _ZERO - _dac_code;
-                   }
-                   break;
-                  case _RANDOM: {
-
-                     uint16_t _history[TU::OUTPUTS::kHistoryDepth];
-                     int16_t _rand_history, _rand_new, _depth, _weight;
-
-                     _depth  = get_history_depth();
-                     _weight = get_history_weight();
-
-                     if (get_rand_history_d_cv_source()) {
-                         _depth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_history_d_cv_source() - 1)) + 256) >> 9;
-                         CONSTRAIN(_depth, 0, (int8_t) TU::OUTPUTS::kHistoryDepth - 1 );
-                     }
-                     if (get_rand_history_w_cv_source()) {
-                        _weight += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_history_w_cv_source() - 1)) + 16) >> 4;
-                        CONSTRAIN(_weight, 0, 255);
-                     }
-
-                     TU::OUTPUTS::getHistory<CLOCK_CHANNEL_4>(_history);
-
-                     _rand_history = calc_average(_history,_depth);
-                     _rand_history = signed_multiply_32x16b((static_cast<int32_t>(_weight) * 65535U) >> 8, _rand_history);
-                     _rand_history = signed_saturate_rshift(_rand_history, 16, 0);
-
-                     _rand_new = random(0xFFF) - 0x800; // +/- 2048
-                     _rand_new = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _rand_new);
-                     _rand_new = signed_saturate_rshift(_rand_new, 16, 0);
-                     _out = _ZERO - (_rand_new + _rand_history);
-                   }
-                   break;
-                  case _TURING: {
-
-                     int16_t _length = get_turing_length();
-                     int16_t _probability = get_turing_probability();
-
-                     if (get_turing_length_cv_source()) {
-                        _length += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_length_cv_source() - 1)) + 64) >> 7;
-                        CONSTRAIN(_length, LFSR_MIN, LFSR_MAX);
-                     }
-
-                     if (get_turing_prob_cv_source()) {
-                        _probability += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_prob_cv_source() - 1)) + 16) >> 4;
-                        CONSTRAIN(_probability, 1, 255);
-                     }
-
-                     turing_machine_.set_length(_length);
-                     turing_machine_.set_probability(_probability);
-
-                     int32_t _shift_register = (static_cast<int16_t>(turing_machine_.Clock()) & 0xFFF); //
-                     // return useful values for small values of _length:
-                     if (_length < 12) {
-                      _shift_register = _shift_register << (12 -_length);
-                      _shift_register = _shift_register & 0xFFF;
-                     }
-                     _shift_register -= 0x800; // +/- 2048
-                     _shift_register = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _shift_register);
-                     _shift_register = signed_saturate_rshift(_shift_register, 16, 0);
-                     _out = _ZERO - _shift_register;
-                   }
-                   break;
-                  case _LOGISTIC: {
-                     logistic_map_.set_seed(123);
-
-                     int32_t logistic_map_r = get_logistic_map_r();
-
-                     if (get_logistic_map_r_cv_source()) {
-                        logistic_map_r += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logistic_map_r_cv_source() - 1)) + 16) >> 4;
-                        CONSTRAIN(logistic_map_r, 0, 255);
-                     }
-
-                     logistic_map_.set_r(logistic_map_r);
-
-                     int16_t _logistic_map_x = (static_cast<int16_t>(logistic_map_.Clock()) & 0xFFF) - 0x800; // +/- 2048
-                     _logistic_map_x = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _logistic_map_x);
-                     _logistic_map_x = signed_saturate_rshift(_logistic_map_x, 16, 0);
-                     _out = _ZERO - _logistic_map_x;
-                  }
-                  break;
-                 default:
-                  break;
-               }   // end DAC mode switch
-            }
-            break;
-           default:
-            break; // end mode switch
+        _shift_register = (_shift_register >> 1) | ((_myfirstbit ^ _tap1 ^ _tap2) << (_length - 1));
+        turing_machine_.set_shift_register(_shift_register);
       }
-      return _out;
+        break;
+      case RANDOM: {
+        // get threshold setting:
+        int16_t _n = rand_n();
+        if (get_rand_n_cv_source()) {
+          _n += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_n_cv_source() - 1)) + 64) >> 6;
+          CONSTRAIN(_n, 0, RND_MAX);
+        }
+
+        int16_t _rand_new = random(RND_MAX);
+        _out = _rand_new > _n ? ON : OFF; // DAC needs special care ...
+      }
+        break;
+      case EUCLID: {
+        // simple euclidian algorithm, found on pd hurleur:
+        int16_t _n, _k, _offset;
+        // the three parameters:
+        _n = euclid_n();
+        _k = euclid_k();
+        _offset = euclid_offset();
+        // CV --
+        if (get_euclid_n_cv_source()) {
+          _n += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_n_cv_source() - 1)) + 64) >> 6;
+          CONSTRAIN(_n, 1, EUCLID_N_MAX);
+        }
+
+        if (get_euclid_k_cv_source())
+          _k += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_k_cv_source() - 1)) + 64) >> 6;
+
+        if (get_euclid_offset_cv_source())
+          _offset += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_offset_cv_source() - 1)) + 64) >> 6;
+
+        CONSTRAIN(_k, 1, _n);
+        CONSTRAIN(_offset, 1, _n);
+        // calculate output:
+        _out = ((clk_cnt_ + _offset) * _k) % _n;
+        _out = (_out < _k) ? ON : OFF;
+      }
+        break;
+      case SEQ: {
+        // sequencer mode, adapted from o_C scale edit:
+        int16_t _seq = get_sequence();
+
+        if (get_sequence_cv_source()) {
+          _seq += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_sequence_cv_source() - 1)) + 255) >> 9;
+          CONSTRAIN(_seq, 0, TU::Patterns::PATTERN_USER_LAST-1);
+        }
+
+
+        uint8_t _playmode = get_playmode();
+
+        if (_playmode) {
+
+          // concatenate sequences:
+          if (_playmode <= 3 && clk_cnt_ >= get_sequence_length(sequence_last_)) {
+            sequence_cnt_++;
+            sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
+            clk_cnt_ = 0;
+          }
+          else if (_playmode > 3 && sequence_advance_) {
+            _playmode -= 3;
+            sequence_cnt_++;
+            sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
+            clk_cnt_ = 0;
+            sequence_advance_ = false;
+          }
+
+          if (sequence_last_ >= TU::Patterns::PATTERN_USER_LAST)
+            sequence_last_ -= TU::Patterns::PATTERN_USER_LAST;
+        }
+        else
+          sequence_last_ = _seq;
+
+        _seq = sequence_last_;
+        // this is the sequence # (USER1-USER4):
+        display_sequence_ = _seq;
+        // and corresponding pattern mask:
+        uint16_t _mask = get_mask(_seq);
+        // rotate mask ?
+        if (get_mask_cv_source())
+          _mask = update_sequence((TU::ADC::value(static_cast<ADC_CHANNEL>(get_mask_cv_source() - 1)) + 127) >> 8, _seq, _mask);
+        display_mask_ = _mask;
+        // reset counter ?
+        if (clk_cnt_ >= get_sequence_length(_seq))
+          clk_cnt_ = 0;
+        // output slot at current position:
+        _out = (_mask >> clk_cnt_) & 1u;
+        _out = _out ? ON : OFF;
+      }
+        break;
+      case DAC: {
+        // only available in channel 4:
+        int16_t _range = dac_range(); // 1-255
+        int8_t _mode = dac_mode();
+
+        if (get_DAC_mode_cv_source()) {
+          _mode += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_mode_cv_source() - 1)) + 256) >> 9;
+          CONSTRAIN(_mode, 0, LAST_DACMODE-1);
+        }
+
+        if (get_DAC_range_cv_source()) {
+          _range += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_range_cv_source() - 1)) + 16) >> 4;
+          CONSTRAIN(_range, 1, 255);
+        }
+
+        switch (_mode) {
+
+          case _BINARY: {
+
+            uint8_t _binary = 0;
+            // MSB .. LSB
+            if (binary_tracking()) {
+              _binary |= (TU::OUTPUTS::state(CLOCK_CHANNEL_1) & 1u) << 4;
+              _binary |= (TU::OUTPUTS::state(CLOCK_CHANNEL_2) & 1u) << 3;
+              _binary |= (TU::OUTPUTS::state(CLOCK_CHANNEL_3) & 1u) << 2;
+              _binary |= (TU::OUTPUTS::state(CLOCK_CHANNEL_5) & 1u) << 1;
+              _binary |= (TU::OUTPUTS::state(CLOCK_CHANNEL_6) & 1u);
+            }
+            else {
+              _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_1) & 1u) << 4;
+              _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_2) & 1u) << 3;
+              _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_3) & 1u) << 2;
+              _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_5) & 1u) << 1;
+              _binary |= (TU::OUTPUTS::value(CLOCK_CHANNEL_6) & 1u);
+            }
+            ++_binary; // 32 max
+
+            int16_t _dac_code = (static_cast<int16_t>(_binary) << 7) - 0x800; // +/- 2048
+            _dac_code = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _dac_code);
+            _dac_code = signed_saturate_rshift(_dac_code, 16, 0);
+
+            _out = _ZERO - _dac_code;
+          }
+            break;
+          case _RANDOM: {
+
+            uint16_t _history[TU::OUTPUTS::kHistoryDepth];
+            int16_t _rand_history, _rand_new, _depth, _weight;
+
+            _depth  = get_history_depth();
+            _weight = get_history_weight();
+
+            if (get_rand_history_d_cv_source()) {
+              _depth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_history_d_cv_source() - 1)) + 256) >> 9;
+              CONSTRAIN(_depth, 0, (int8_t) TU::OUTPUTS::kHistoryDepth - 1 );
+            }
+            if (get_rand_history_w_cv_source()) {
+              _weight += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_history_w_cv_source() - 1)) + 16) >> 4;
+              CONSTRAIN(_weight, 0, 255);
+            }
+
+            TU::OUTPUTS::getHistory<CLOCK_CHANNEL_4>(_history);
+
+            _rand_history = calc_average(_history,_depth);
+            _rand_history = signed_multiply_32x16b((static_cast<int32_t>(_weight) * 65535U) >> 8, _rand_history);
+            _rand_history = signed_saturate_rshift(_rand_history, 16, 0);
+
+            _rand_new = random(0xFFF) - 0x800; // +/- 2048
+            _rand_new = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _rand_new);
+            _rand_new = signed_saturate_rshift(_rand_new, 16, 0);
+            _out = _ZERO - (_rand_new + _rand_history);
+          }
+            break;
+          case _TURING: {
+
+            int16_t _length = get_turing_length();
+            int16_t _probability = get_turing_probability();
+
+            if (get_turing_length_cv_source()) {
+              _length += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_length_cv_source() - 1)) + 64) >> 7;
+              CONSTRAIN(_length, LFSR_MIN, LFSR_MAX);
+            }
+
+            if (get_turing_prob_cv_source()) {
+              _probability += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_prob_cv_source() - 1)) + 16) >> 4;
+              CONSTRAIN(_probability, 1, 255);
+            }
+
+            turing_machine_.set_length(_length);
+            turing_machine_.set_probability(_probability);
+
+            int32_t _shift_register = (static_cast<int16_t>(turing_machine_.Clock()) & 0xFFF); //
+                                                       // return useful values for small values of _length:
+            if (_length < 12) {
+              _shift_register = _shift_register << (12 -_length);
+              _shift_register = _shift_register & 0xFFF;
+            }
+            _shift_register -= 0x800; // +/- 2048
+            _shift_register = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _shift_register);
+            _shift_register = signed_saturate_rshift(_shift_register, 16, 0);
+            _out = _ZERO - _shift_register;
+          }
+            break;
+          case _LOGISTIC: {
+            logistic_map_.set_seed(123);
+
+            int32_t logistic_map_r = get_logistic_map_r();
+
+            if (get_logistic_map_r_cv_source()) {
+              logistic_map_r += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logistic_map_r_cv_source() - 1)) + 16) >> 4;
+              CONSTRAIN(logistic_map_r, 0, 255);
+            }
+
+            logistic_map_.set_r(logistic_map_r);
+
+            int16_t _logistic_map_x = (static_cast<int16_t>(logistic_map_.Clock()) & 0xFFF) - 0x800; // +/- 2048
+            _logistic_map_x = signed_multiply_32x16b((static_cast<int32_t>(_range) * 65535U) >> 8, _logistic_map_x);
+            _logistic_map_x = signed_saturate_rshift(_logistic_map_x, 16, 0);
+            _out = _ZERO - _logistic_map_x;
+          }
+            break;
+          default:
+            break;
+        }   // end DAC mode switch
+      }
+        break;
+      default:
+        break; // end mode switch
+    }
+    return _out;
   }
 
   inline void logic(CLOCK_CHANNEL clock_channel) {
 
-     if (!logic_)
-       return;
-     logic_ = false;
+    if (!logic_)
+      return;
+    logic_ = false;
 
-     // else logic ...
-     uint16_t _out = OFF;
-     int8_t _op1, _op2, _type;
+    // else logic ...
+    uint16_t _out = OFF;
+    int8_t _op1, _op2, _type;
 
-     _type = logic_type();
-     _op1  = logic_op1();
-     _op2  = logic_op2();
+    _type = logic_type();
+    _op1  = logic_op1();
+    _op2  = logic_op2();
 
-     if (get_logic_type_cv_source()) {
-        _type += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logic_type_cv_source() - 1)) + 256) >> 9;
-        CONSTRAIN(_type, 0, LOGICMODE_LAST-1);
-     }
+    if (get_logic_type_cv_source()) {
+      _type += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logic_type_cv_source() - 1)) + 256) >> 9;
+      CONSTRAIN(_type, 0, LOGICMODE_LAST-1);
+    }
 
-     if (get_logic_op1_cv_source())  {
-        _op1 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logic_op1_cv_source() - 1)) + 127) >> 8;
-        CONSTRAIN(_op1, 0, NUM_CHANNELS-1);
-     }
+    if (get_logic_op1_cv_source())  {
+      _op1 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logic_op1_cv_source() - 1)) + 127) >> 8;
+      CONSTRAIN(_op1, 0, NUM_CHANNELS-1);
+    }
 
-     if (get_logic_op2_cv_source()) {
-        _op2 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logic_op2_cv_source() - 1)) + 127) >> 8;
-        CONSTRAIN(_op2, 0, NUM_CHANNELS-1);
-     }
+    if (get_logic_op2_cv_source()) {
+      _op2 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logic_op2_cv_source() - 1)) + 127) >> 8;
+      CONSTRAIN(_op2, 0, NUM_CHANNELS-1);
+    }
 
-     // this doesn't care if CHANNEL_4 is in DAC mode (= mostly always true); but so what.
-     if (!logic_tracking()) {
-       _op1 = TU::OUTPUTS::state(_op1) & 1u;
-       _op2 = TU::OUTPUTS::state(_op2) & 1u;
-     }
-     else {
-       _op1 = TU::OUTPUTS::value(_op1) & 1u;
-       _op2 = TU::OUTPUTS::value(_op2) & 1u;
-     }
+    // this doesn't care if CHANNEL_4 is in DAC mode (= mostly always true); but so what.
+    if (!logic_tracking()) {
+      _op1 = TU::OUTPUTS::state(_op1) & 1u;
+      _op2 = TU::OUTPUTS::state(_op2) & 1u;
+    }
+    else {
+      _op1 = TU::OUTPUTS::value(_op1) & 1u;
+      _op2 = TU::OUTPUTS::value(_op2) & 1u;
+    }
 
-     // and go through the options ...
-     switch (_type) {
+    // and go through the options ...
+    switch (_type) {
 
-        case AND:
-            _out = _op1 & _op2;
-            break;
-        case OR:
-            _out = _op1 | _op2;
-            break;
-        case XOR:
-            _out = _op1 ^ _op2;
-            break;
-        case XNOR:
-            _out = ~(_op1 ^ _op2);
-            break;
-        case NAND:
-            _out = ~(_op1 & _op2);
-            break;
-        case NOR:
-            _out = ~(_op1 | _op2);
-            break;
-        default:
-            break;
+      case AND:
+        _out = _op1 & _op2;
+        break;
+      case OR:
+        _out = _op1 | _op2;
+        break;
+      case XOR:
+        _out = _op1 ^ _op2;
+        break;
+      case XNOR:
+        _out = ~(_op1 ^ _op2);
+        break;
+      case NAND:
+        _out = ~(_op1 & _op2);
+        break;
+      case NOR:
+        _out = ~(_op1 | _op2);
+        break;
+      default:
+        break;
     } // end logic op switch
 
     // write to output:
@@ -1324,54 +1324,54 @@ public:
 
       switch (mode) {
 
-          case LFSR:
-            *settings++ = CHANNEL_SETTING_TURING_LENGTH_CV_SOURCE;
-            *settings++ = CHANNEL_SETTING_TURING_PROB_CV_SOURCE;
-            *settings++ = CHANNEL_SETTING_LFSR_TAP1_CV_SOURCE;
-            *settings++ = CHANNEL_SETTING_LFSR_TAP2_CV_SOURCE;
-            break;
-          case EUCLID:
-            *settings++ = CHANNEL_SETTING_EUCLID_N_CV_SOURCE;
-            *settings++ = CHANNEL_SETTING_EUCLID_K_CV_SOURCE;
-            *settings++ = CHANNEL_SETTING_EUCLID_OFFSET_CV_SOURCE;
-            break;
-          case RANDOM:
-            *settings++ = CHANNEL_SETTING_RAND_N_CV_SOURCE;
-            break;
-          case LOGIC:
-            *settings++ = CHANNEL_SETTING_LOGIC_TYPE_CV_SOURCE;
-            *settings++ = CHANNEL_SETTING_LOGIC_OP1_CV_SOURCE;
-            *settings++ = CHANNEL_SETTING_LOGIC_OP2_CV_SOURCE;
-            *settings++ = CHANNEL_SETTING_DUMMY;
-            break;
-          case SEQ:
-            *settings++ = CHANNEL_SETTING_SEQ_CV_SOURCE;
-            *settings++ = CHANNEL_SETTING_MASK_CV_SOURCE;
-            *settings++ = CHANNEL_SETTING_DUMMY; // playmode CV
-            break;
-          case DAC:
-            *settings++ = CHANNEL_SETTING_DAC_MODE_CV_SOURCE;
-            *settings++ = CHANNEL_SETTING_DAC_RANGE_CV_SOURCE;
-            switch (dac_mode())  {
-              case _BINARY:
-                *settings++ = CHANNEL_SETTING_DUMMY;
-                break;
-              case _RANDOM:
-                *settings++ = CHANNEL_SETTING_HISTORY_WEIGHT_CV_SOURCE;
-                *settings++ = CHANNEL_SETTING_HISTORY_DEPTH_CV_SOURCE;
-                break;
-              case _TURING:
-                *settings++ = CHANNEL_SETTING_TURING_LENGTH_CV_SOURCE;
-                *settings++ = CHANNEL_SETTING_TURING_PROB_CV_SOURCE;
-                break;
-              case _LOGISTIC:
-                *settings++ = CHANNEL_SETTING_LOGISTIC_MAP_R_CV_SOURCE;
-                break;
-              default:
-                break;
-            }
-          default:
-            break;
+        case LFSR:
+          *settings++ = CHANNEL_SETTING_TURING_LENGTH_CV_SOURCE;
+          *settings++ = CHANNEL_SETTING_TURING_PROB_CV_SOURCE;
+          *settings++ = CHANNEL_SETTING_LFSR_TAP1_CV_SOURCE;
+          *settings++ = CHANNEL_SETTING_LFSR_TAP2_CV_SOURCE;
+          break;
+        case EUCLID:
+          *settings++ = CHANNEL_SETTING_EUCLID_N_CV_SOURCE;
+          *settings++ = CHANNEL_SETTING_EUCLID_K_CV_SOURCE;
+          *settings++ = CHANNEL_SETTING_EUCLID_OFFSET_CV_SOURCE;
+          break;
+        case RANDOM:
+          *settings++ = CHANNEL_SETTING_RAND_N_CV_SOURCE;
+          break;
+        case LOGIC:
+          *settings++ = CHANNEL_SETTING_LOGIC_TYPE_CV_SOURCE;
+          *settings++ = CHANNEL_SETTING_LOGIC_OP1_CV_SOURCE;
+          *settings++ = CHANNEL_SETTING_LOGIC_OP2_CV_SOURCE;
+          *settings++ = CHANNEL_SETTING_DUMMY;
+          break;
+        case SEQ:
+          *settings++ = CHANNEL_SETTING_SEQ_CV_SOURCE;
+          *settings++ = CHANNEL_SETTING_MASK_CV_SOURCE;
+          *settings++ = CHANNEL_SETTING_DUMMY; // playmode CV
+          break;
+        case DAC:
+          *settings++ = CHANNEL_SETTING_DAC_MODE_CV_SOURCE;
+          *settings++ = CHANNEL_SETTING_DAC_RANGE_CV_SOURCE;
+          switch (dac_mode())  {
+            case _BINARY:
+              *settings++ = CHANNEL_SETTING_DUMMY;
+              break;
+            case _RANDOM:
+              *settings++ = CHANNEL_SETTING_HISTORY_WEIGHT_CV_SOURCE;
+              *settings++ = CHANNEL_SETTING_HISTORY_DEPTH_CV_SOURCE;
+              break;
+            case _TURING:
+              *settings++ = CHANNEL_SETTING_TURING_LENGTH_CV_SOURCE;
+              *settings++ = CHANNEL_SETTING_TURING_PROB_CV_SOURCE;
+              break;
+            case _LOGISTIC:
+              *settings++ = CHANNEL_SETTING_LOGISTIC_MAP_R_CV_SOURCE;
+              break;
+            default:
+              break;
+          }
+        default:
+          break;
       }
       *settings++ = CHANNEL_SETTING_CLOCK_CV_SOURCE;
       //if (mode == SEQ || mode == EUCLID)
@@ -1381,82 +1381,82 @@ public:
 
     else if (menu_page_ == PARAMETERS) {
 
-        if (mode != DAC)
-          *settings++ = CHANNEL_SETTING_PULSEWIDTH;
-        *settings++ = CHANNEL_SETTING_MULT;
+      if (mode != DAC)
+        *settings++ = CHANNEL_SETTING_PULSEWIDTH;
+      *settings++ = CHANNEL_SETTING_MULT;
 
-        switch (mode) {
+      switch (mode) {
 
-          case LFSR:
-           *settings++ = CHANNEL_SETTING_TURING_LENGTH;
-           *settings++ = CHANNEL_SETTING_TURING_PROB;
-           *settings++ = CHANNEL_SETTING_LFSR_TAP1;
-           *settings++ = CHANNEL_SETTING_LFSR_TAP2;
-           break;
-          case EUCLID:
-           *settings++ = CHANNEL_SETTING_EUCLID_N;
-           *settings++ = CHANNEL_SETTING_EUCLID_K;
-           *settings++ = CHANNEL_SETTING_EUCLID_OFFSET;
-           break;
-          case RANDOM:
-           *settings++ = CHANNEL_SETTING_RAND_N;
-           break;
-          case LOGIC:
-           *settings++ = CHANNEL_SETTING_LOGIC_TYPE;
-           *settings++ = CHANNEL_SETTING_LOGIC_OP1;
-           *settings++ = CHANNEL_SETTING_LOGIC_OP2;
-           *settings++ = CHANNEL_SETTING_LOGIC_TRACK_WHAT;
-           break;
-          case SEQ:
-           *settings++ = CHANNEL_SETTING_SEQUENCE;
+        case LFSR:
+          *settings++ = CHANNEL_SETTING_TURING_LENGTH;
+          *settings++ = CHANNEL_SETTING_TURING_PROB;
+          *settings++ = CHANNEL_SETTING_LFSR_TAP1;
+          *settings++ = CHANNEL_SETTING_LFSR_TAP2;
+          break;
+        case EUCLID:
+          *settings++ = CHANNEL_SETTING_EUCLID_N;
+          *settings++ = CHANNEL_SETTING_EUCLID_K;
+          *settings++ = CHANNEL_SETTING_EUCLID_OFFSET;
+          break;
+        case RANDOM:
+          *settings++ = CHANNEL_SETTING_RAND_N;
+          break;
+        case LOGIC:
+          *settings++ = CHANNEL_SETTING_LOGIC_TYPE;
+          *settings++ = CHANNEL_SETTING_LOGIC_OP1;
+          *settings++ = CHANNEL_SETTING_LOGIC_OP2;
+          *settings++ = CHANNEL_SETTING_LOGIC_TRACK_WHAT;
+          break;
+        case SEQ:
+          *settings++ = CHANNEL_SETTING_SEQUENCE;
 
-           switch (get_sequence()) {
-              case 0:
+          switch (get_sequence()) {
+            case 0:
               *settings++ = CHANNEL_SETTING_MASK1;
               break;
-              case 1:
+            case 1:
               *settings++ = CHANNEL_SETTING_MASK2;
               break;
-              case 2:
+            case 2:
               *settings++ = CHANNEL_SETTING_MASK3;
               break;
-              case 3:
+            case 3:
               *settings++ = CHANNEL_SETTING_MASK4;
               break;
-              default:
+            default:
               break;
-           }
-            *settings++ = CHANNEL_SETTING_SEQUENCE_PLAYMODE;
-           break;
-          case DAC:
-            *settings++ = CHANNEL_SETTING_DAC_MODE;
-            *settings++ = CHANNEL_SETTING_DAC_RANGE;
-            switch (dac_mode())  {
+          }
+          *settings++ = CHANNEL_SETTING_SEQUENCE_PLAYMODE;
+          break;
+        case DAC:
+          *settings++ = CHANNEL_SETTING_DAC_MODE;
+          *settings++ = CHANNEL_SETTING_DAC_RANGE;
+          switch (dac_mode())  {
 
-              case _BINARY:
-                *settings++ = CHANNEL_SETTING_DAC_TRACK_WHAT;
-                break;
-              case _RANDOM:
-                *settings++ = CHANNEL_SETTING_HISTORY_WEIGHT;
-                *settings++ = CHANNEL_SETTING_HISTORY_DEPTH;
-                break;
-              case _TURING:
-                *settings++ = CHANNEL_SETTING_TURING_LENGTH;
-                *settings++ = CHANNEL_SETTING_TURING_PROB;
-                break;
-              case _LOGISTIC:
-                *settings++ = CHANNEL_SETTING_LOGISTIC_MAP_R;
-                break;
-              default:
-                break;
-            }
-           break;
-          default:
-           break;
-        } // end mode switch
+            case _BINARY:
+              *settings++ = CHANNEL_SETTING_DAC_TRACK_WHAT;
+              break;
+            case _RANDOM:
+              *settings++ = CHANNEL_SETTING_HISTORY_WEIGHT;
+              *settings++ = CHANNEL_SETTING_HISTORY_DEPTH;
+              break;
+            case _TURING:
+              *settings++ = CHANNEL_SETTING_TURING_LENGTH;
+              *settings++ = CHANNEL_SETTING_TURING_PROB;
+              break;
+            case _LOGISTIC:
+              *settings++ = CHANNEL_SETTING_LOGISTIC_MAP_R;
+              break;
+            default:
+              break;
+          }
+          break;
+        default:
+          break;
+      } // end mode switch
 
-        *settings++ = CHANNEL_SETTING_CLOCK;
-        *settings++ = CHANNEL_SETTING_RESET;
+      *settings++ = CHANNEL_SETTING_CLOCK;
+      *settings++ = CHANNEL_SETTING_RESET;
     }
     else if (menu_page_ == TEMPO) {
 
@@ -1677,22 +1677,22 @@ size_t CLOCKS_restore(const void *storage) {
 void CLOCKS_handleAppEvent(TU::AppEvent event) {
   switch (event) {
     case TU::APP_EVENT_RESUME:
-        clocks_state.cursor.set_editing(false);
-        clocks_state.pattern_editor.Close();
-    break;
+      clocks_state.cursor.set_editing(false);
+      clocks_state.pattern_editor.Close();
+      break;
     case TU::APP_EVENT_SUSPEND:
     case TU::APP_EVENT_SCREENSAVER_ON:
     case TU::APP_EVENT_SCREENSAVER_OFF:
     {
       Clock_channel &selected = clock_channel[clocks_state.selected_channel];
-        if (selected.get_page() > PARAMETERS) {
-          selected.set_page(PARAMETERS);
-          selected.update_enabled_settings(clocks_state.selected_channel);
-          clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
-          clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
-        }
+      if (selected.get_page() > PARAMETERS) {
+        selected.set_page(PARAMETERS);
+        selected.update_enabled_settings(clocks_state.selected_channel);
+        clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
+        clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+      }
     }
-    break;
+      break;
   }
 }
 
@@ -1753,20 +1753,20 @@ void CLOCKS_isr() {
 void CLOCKS_handleButtonEvent(const UI::Event &event) {
 
   if (UI::EVENT_BUTTON_LONG_PRESS == event.type) {
-     switch (event.control) {
+    switch (event.control) {
       case TU::CONTROL_BUTTON_UP:
-         CLOCKS_upButtonLong();
+        CLOCKS_upButtonLong();
         break;
       case TU::CONTROL_BUTTON_DOWN:
         CLOCKS_downButtonLong();
         break;
-       case TU::CONTROL_BUTTON_L:
+      case TU::CONTROL_BUTTON_L:
         if (!(clocks_state.pattern_editor.active()))
           CLOCKS_leftButtonLong();
         break;
       default:
         break;
-     }
+    }
   }
 
   if (clocks_state.pattern_editor.active()) {
@@ -1816,93 +1816,93 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
 
   } else if (TU::CONTROL_ENCODER_R == event.control) {
 
-       Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+    Clock_channel &selected = clock_channel[clocks_state.selected_channel];
 
-       if (selected.get_page() == TEMPO) {
+    if (selected.get_page() == TEMPO) {
 
-         uint16_t int_clock_used_ = 0x0;
-         for (int i = 0; i < NUM_CHANNELS; i++)
-              int_clock_used_ += selected.get_clock_source() == CHANNEL_TRIGGER_INTERNAL ? 0x10 : 0x00;
-         if (!int_clock_used_) {
-          selected.set_page(PARAMETERS);
-          clocks_state.cursor = clocks_state.cursor_state;
-          selected.update_enabled_settings(clocks_state.selected_channel);
-          return;
-         }
-       }
+      uint16_t int_clock_used_ = 0x0;
+      for (int i = 0; i < NUM_CHANNELS; i++)
+        int_clock_used_ += selected.get_clock_source() == CHANNEL_TRIGGER_INTERNAL ? 0x10 : 0x00;
+      if (!int_clock_used_) {
+        selected.set_page(PARAMETERS);
+        clocks_state.cursor = clocks_state.cursor_state;
+        selected.update_enabled_settings(clocks_state.selected_channel);
+        return;
+      }
+    }
 
-       if (clocks_state.editing()) {
+    if (clocks_state.editing()) {
 
-          ChannelSetting setting = selected.enabled_setting_at(clocks_state.cursor_pos());
+      ChannelSetting setting = selected.enabled_setting_at(clocks_state.cursor_pos());
 
-          if (CHANNEL_SETTING_MASK1 != setting || CHANNEL_SETTING_MASK2 != setting || CHANNEL_SETTING_MASK3 != setting || CHANNEL_SETTING_MASK4 != setting) {
+      if (CHANNEL_SETTING_MASK1 != setting || CHANNEL_SETTING_MASK2 != setting || CHANNEL_SETTING_MASK3 != setting || CHANNEL_SETTING_MASK4 != setting) {
 
-            if (selected.change_value(setting, event.value))
-             selected.force_update();
+        if (selected.change_value(setting, event.value))
+          selected.force_update();
 
-            switch (setting) {
+        switch (setting) {
 
-              case CHANNEL_SETTING_SEQUENCE:
-              {
-                if (!selected.get_playmode()) {
-                    uint8_t seq = selected.get_sequence();
-                    selected.pattern_changed(selected.get_mask(seq));
-                    selected.set_display_sequence(seq);
-                }
-              }
-              break;
-              case CHANNEL_SETTING_MODE:
-              case CHANNEL_SETTING_MODE4:
-              case CHANNEL_SETTING_DAC_MODE:
-                 selected.update_enabled_settings(clocks_state.selected_channel);
-                 clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
-              break;
-                   // special cases:
-              case CHANNEL_SETTING_EUCLID_N:
-              case CHANNEL_SETTING_EUCLID_K:
-              {
-                 uint8_t _n = selected.euclid_n();
-                 if (selected.euclid_k() > _n)
-                    selected.set_euclid_k(_n);
-                 if (selected.euclid_offset() > _n)
-                    selected.set_euclid_offset(_n);
-              }
-              break;
-              case CHANNEL_SETTING_EUCLID_OFFSET:
-              {
-                 uint8_t _n = selected.euclid_n();
-                 if (selected.euclid_offset() > _n)
-                    selected.set_euclid_offset(_n);
-              }
-              break;
-              case CHANNEL_SETTING_TURING_LENGTH:
-              {
-                 uint8_t _len = selected.get_turing_length();
-                 if (selected.get_tap1() > _len)
-                    selected.set_tap1(_len);
-                 if (selected.get_tap2() > _len)
-                    selected.set_tap2(_len);
-              }
-              break;
-              case CHANNEL_SETTING_LFSR_TAP1:
-              {
-                 uint8_t _len = selected.get_turing_length();
-                 if (selected.get_tap1() > _len)
-                    selected.set_tap1(_len);
-              }
-              break;
-              case CHANNEL_SETTING_LFSR_TAP2:
-              {
-                 uint8_t _len = selected.get_turing_length();
-                 if (selected.get_tap2() > _len)
-                    selected.set_tap2(_len);
-              }
-              break;
-             default:
-              break;
+          case CHANNEL_SETTING_SEQUENCE:
+          {
+            if (!selected.get_playmode()) {
+              uint8_t seq = selected.get_sequence();
+              selected.pattern_changed(selected.get_mask(seq));
+              selected.set_display_sequence(seq);
             }
+          }
+            break;
+          case CHANNEL_SETTING_MODE:
+          case CHANNEL_SETTING_MODE4:
+          case CHANNEL_SETTING_DAC_MODE:
+            selected.update_enabled_settings(clocks_state.selected_channel);
+            clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+            break;
+            // special cases:
+          case CHANNEL_SETTING_EUCLID_N:
+          case CHANNEL_SETTING_EUCLID_K:
+          {
+            uint8_t _n = selected.euclid_n();
+            if (selected.euclid_k() > _n)
+              selected.set_euclid_k(_n);
+            if (selected.euclid_offset() > _n)
+              selected.set_euclid_offset(_n);
+          }
+            break;
+          case CHANNEL_SETTING_EUCLID_OFFSET:
+          {
+            uint8_t _n = selected.euclid_n();
+            if (selected.euclid_offset() > _n)
+              selected.set_euclid_offset(_n);
+          }
+            break;
+          case CHANNEL_SETTING_TURING_LENGTH:
+          {
+            uint8_t _len = selected.get_turing_length();
+            if (selected.get_tap1() > _len)
+              selected.set_tap1(_len);
+            if (selected.get_tap2() > _len)
+              selected.set_tap2(_len);
+          }
+            break;
+          case CHANNEL_SETTING_LFSR_TAP1:
+          {
+            uint8_t _len = selected.get_turing_length();
+            if (selected.get_tap1() > _len)
+              selected.set_tap1(_len);
+          }
+            break;
+          case CHANNEL_SETTING_LFSR_TAP2:
+          {
+            uint8_t _len = selected.get_turing_length();
+            if (selected.get_tap2() > _len)
+              selected.set_tap2(_len);
+          }
+            break;
+          default:
+            break;
         }
-      } else {
+      }
+    } else {
       clocks_state.cursor.Scroll(event.value);
     }
   }
@@ -1925,7 +1925,7 @@ void CLOCKS_upButton() {
       selected.set_page(TEMPO);
       clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
       clocks_state.cursor.toggle_editing();
-     break;
+      break;
   }
   selected.update_enabled_settings(clocks_state.selected_channel);
   clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
@@ -1953,7 +1953,7 @@ void CLOCKS_downButton() {
       if (selected.enabled_setting_at(clocks_state.cursor_pos()) == CHANNEL_SETTING_RESET)
         clocks_state.cursor.set_editing(false);
       selected.set_page(CV_SOURCES);
-     break;
+      break;
   }
   selected.update_enabled_settings(clocks_state.selected_channel);
   clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
@@ -1983,13 +1983,13 @@ void CLOCKS_rightButton() {
         clocks_state.pattern_editor.Edit(&selected, pattern);
       }
     }
-    break;
+      break;
     case CHANNEL_SETTING_DUMMY:
     case CHANNEL_SETTING_DUMMY_EMPTY:
-    break;
+      break;
     default:
-     clocks_state.cursor.toggle_editing();
-    break;
+      clocks_state.cursor.toggle_editing();
+      break;
   }
 
 }
@@ -2000,22 +2000,22 @@ void CLOCKS_leftButton() {
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
 
   if (selected.get_page() == TEMPO) {
-    selected.set_page(PARAMETERS);
-    clocks_state.cursor = clocks_state.cursor_state;
-    selected.update_enabled_settings(clocks_state.selected_channel);
-    clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
-    return;
+   selected.set_page(PARAMETERS);
+   clocks_state.cursor = clocks_state.cursor_state;
+   selected.update_enabled_settings(clocks_state.selected_channel);
+   clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+   return;
   }
   */
   // sync:
   for (int i = 0; i < NUM_CHANNELS; ++i)
-        clock_channel[i].sync();
+    clock_channel[i].sync();
 }
 
 void CLOCKS_leftButtonLong() {
 
   for (int i = 0; i < NUM_CHANNELS; ++i)
-        clock_channel[i].InitDefaults();
+    clock_channel[i].InitDefaults();
 
   Clock_channel &selected = clock_channel[clocks_state.selected_channel];
   selected.set_page(PARAMETERS);
@@ -2030,7 +2030,7 @@ void CLOCKS_upButtonLong() {
   // set all channels to internal ?
   if (selected.get_page() == TEMPO) {
     for (int i = 0; i < NUM_CHANNELS; ++i)
-        clock_channel[i].set_clock_source(CHANNEL_TRIGGER_INTERNAL);
+      clock_channel[i].set_clock_source(CHANNEL_TRIGGER_INTERNAL);
     // and clear outputs:
     TU::OUTPUTS::set(CLOCK_CHANNEL_1, OFF);
     TU::OUTPUTS::setState(CLOCK_CHANNEL_1, OFF);
@@ -2055,7 +2055,7 @@ void CLOCKS_downButtonLong() {
     selected.clear_CV_mapping();
   else if (selected.get_page() == TEMPO)   {
     for (int i = 0; i < NUM_CHANNELS; ++i)
-        clock_channel[i].set_clock_source(CHANNEL_TRIGGER_TR1);
+      clock_channel[i].set_clock_source(CHANNEL_TRIGGER_TR1);
     // and clear outputs:
     TU::OUTPUTS::set(CLOCK_CHANNEL_1, OFF);
     TU::OUTPUTS::setState(CLOCK_CHANNEL_1, OFF);
@@ -2097,9 +2097,9 @@ void CLOCKS_menu() {
 
   menu::SettingsListItem list_item;
 
-   while (settings_list.available()) {
+  while (settings_list.available()) {
     const int setting =
-        channel.enabled_setting_at(settings_list.Next(list_item));
+    channel.enabled_setting_at(settings_list.Next(list_item));
     const int value = channel.get_value(setting);
     const settings::value_attr &attr = Clock_channel::value_attr(setting);
 
@@ -2137,24 +2137,24 @@ void CLOCKS_menu() {
 void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clock_channel) const {
 
   // DAC needs special treatment:
-    if (clock_channel == CLOCK_CHANNEL_4 && get_mode4() == DAC) { // display DAC values, ish; x/y coordinates slightly off ...
+  if (clock_channel == CLOCK_CHANNEL_4 && get_mode4() == DAC) { // display DAC values, ish; x/y coordinates slightly off ...
 
-      uint16_t _dac_value = TU::OUTPUTS::value(clock_channel);
+    uint16_t _dac_value = TU::OUTPUTS::value(clock_channel);
 
-      if (_dac_value < 2047) {
-        // output negative
-        _dac_value = 16 - (_dac_value >> 7);
-        CONSTRAIN(_dac_value, 1, 16);
-        graphics.drawFrame(start_x + 5 - (_dac_value >> 1), 41 - (_dac_value >> 1), _dac_value, _dac_value);
-      }
-      else {
-        // positive output
-        _dac_value = ((_dac_value - 2047) >> 7);
-        CONSTRAIN(_dac_value, 1, 16);
-        graphics.drawRect(start_x + 5 - (_dac_value >> 1), 41 - (_dac_value >> 1), _dac_value, _dac_value);
-      }
-      return;
+    if (_dac_value < 2047) {
+      // output negative
+      _dac_value = 16 - (_dac_value >> 7);
+      CONSTRAIN(_dac_value, 1, 16);
+      graphics.drawFrame(start_x + 5 - (_dac_value >> 1), 41 - (_dac_value >> 1), _dac_value, _dac_value);
     }
+    else {
+      // positive output
+      _dac_value = ((_dac_value - 2047) >> 7);
+      CONSTRAIN(_dac_value, 1, 16);
+      graphics.drawRect(start_x + 5 - (_dac_value >> 1), 41 - (_dac_value >> 1), _dac_value, _dac_value);
+    }
+    return;
+  }
 
   // draw little square thingies ..
   if (gpio_state_ && display_state_ == _ACTIVE) {
@@ -2164,7 +2164,7 @@ void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clo
   else if (display_state_ == _ONBEAT)
     graphics.drawRect(start_x, 36, 10, 10);
   else
-   graphics.drawRect(start_x+3, 39, 4, 4);
+    graphics.drawRect(start_x+3, 39, 4, 4);
 }
 
 void CLOCKS_screensaver() {
