@@ -1183,8 +1183,8 @@ public:
             turing_machine_.set_length(_length);
             turing_machine_.set_probability(_probability);
 
-            int32_t _shift_register = (static_cast<int16_t>(turing_machine_.Clock()) & 0xFFF); //
-                                                       // return useful values for small values of _length:
+            int32_t _shift_register = (static_cast<int16_t>(turing_machine_.Clock()) & 0xFFF);
+            // return useful values for small values of _length:
             if (_length < 12) {
               _shift_register = _shift_register << (12 -_length);
               _shift_register = _shift_register & 0xFFF;

@@ -128,7 +128,7 @@ const CalibrationStep calibration_steps[CALIBRATION_STEP_LAST] = {
 
   { DAC_ZERO, "DAC 0.0 volts", "--> 0.0V ", default_help_r, default_footer, CALIBRATE_DAC_ZERO, 0, nullptr, 0, OUTPUTS::MAX_VALUE },
   
-  { CV_OFFSET, "CV offset", "", "Adjust CV trimpot", default_footer, CALIBRATE_ADC_TRIMMER, 0, nullptr, 0, 4095 },
+  { CV_OFFSET, "CV offsets...", "", "(click to proceed)", default_footer, CALIBRATE_ADC_TRIMMER, 0, nullptr, 0, 4095 },
   
   { CV_OFFSET_0, "ADC CV1", "--> 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_1, nullptr, 0, 4095 },
   { CV_OFFSET_1, "ADC CV2", "--> 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_2, nullptr, 0, 4095 },
