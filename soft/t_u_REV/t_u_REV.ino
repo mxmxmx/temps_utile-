@@ -142,7 +142,8 @@ void setup() {
     TU::ui.Calibrate();
     ui_mode = TU::UI_MODE_MENU;
   }
-
+  // set approx. v/oct value (from calibration data)
+  TU::OUTPUTS::set_v_oct();
   // initialize apps
   TU::apps::Init(reset_settings);
 }

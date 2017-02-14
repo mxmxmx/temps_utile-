@@ -19,11 +19,12 @@ static constexpr int TU_UI_TIMER_PRIO   = 132; // lower
 static constexpr unsigned long REDRAW_TIMEOUT_MS = 1;
 static constexpr unsigned long SCREENSAVER_TIMEOUT_MS = 25000; // time out menu (in ms)
 
-#define OCTAVES 10      // # octaves
+#define OCTAVES 12      // # octaves
 #define SEMITONES (OCTAVES * 12)
 
 static constexpr unsigned long SPLASHSCREEN_DELAY_MS = 1000;
 static constexpr unsigned long SPLASHSCREEN_TIMEOUT_MS = 2048;
+static constexpr unsigned long SETTINGS_SAVE_TIMEOUT_MS = 1000;
 
 static constexpr unsigned long APP_SELECTION_TIMEOUT_MS = 25000;
 

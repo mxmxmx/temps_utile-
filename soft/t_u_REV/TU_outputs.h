@@ -6,6 +6,7 @@
 #include "TU_config.h"
 #include "util/util_math.h"
 #include "util/util_macros.h"
+#include "Arduino.h"
 
 extern void set_Output1(uint8_t data);
 extern void set_Output2(uint8_t data);
@@ -35,10 +36,10 @@ class OUTPUTS {
 public:
   static constexpr size_t kHistoryDepth = 8;
   static constexpr uint16_t MAX_VALUE = 4095;  // DAC fullscale 
-  static constexpr int CALIBRATION_POINTS = 1; // 0v
+  static constexpr int CALIBRATION_POINTS = 5; // -4v, -2v, 0v, 2v, 4v
 
   struct CalibrationData {
-    uint16_t calibrated_Zero[NUM_DACS][CALIBRATION_POINTS];
+    uint16_t calibration_points[NUM_DACS][CALIBRATION_POINTS];
   };
 
   static void Init(CalibrationData *calibration_data);
@@ -78,11 +79,24 @@ public:
   static uint32_t get_zero_offset(CLOCK_CHANNEL channel) {
     
     if (channel == _DAC_CHANNEL) 
-      return calibration_data_->calibrated_Zero[0][0];
+      return calibration_data_->calibration_points[0x0][0x2]; 
     else 
       return 0x0;
   }
 
+  static void set_v_oct() {
+
+    // average calibration points:
+    float temp_octave = 0;
+    for (int i = 0; i < CALIBRATION_POINTS - 1; i++) 
+      temp_octave += ((float)((calibration_data_->calibration_points[0x0][i+1] - calibration_data_->calibration_points[0x0][i])) / 2.0f);
+    //
+    calibrated_v_oct_ = ((uint16_t)(0.5f + temp_octave/(CALIBRATION_POINTS-1)));
+  }
+
+  static uint16_t get_v_oct() {
+    return calibrated_v_oct_;
+  }
 
   static void Update() {
 
@@ -119,6 +133,7 @@ private:
   static uint32_t states_[CLOCK_CHANNEL_LAST];
   static uint16_t history_[NUM_CHANNELS][kHistoryDepth];
   static volatile size_t history_tail_;
+  static uint16_t calibrated_v_oct_;
 };
 
 }; // namespace TU

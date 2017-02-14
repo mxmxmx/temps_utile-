@@ -29,23 +29,16 @@ public:
     return nullptr != owner_;
   }
 
-  void Edit(Owner *owner, int pattern) {
+  void Edit(Owner *owner, int pattern, bool mode) {
+    
     if (TU::Patterns::PATTERN_NONE == pattern)
       return;
-
-    if (pattern < TU::Patterns::PATTERN_USER_LAST) {
-      pattern_ = mutable_pattern_ = &TU::user_patterns[pattern];
-      pattern_name_ = TU::pattern_names_short[pattern];
-      //Serial.print("Editing user pattern "); Serial.println(pattern_name_);
-    } else {
-      pattern_ = &TU::Patterns::GetPattern(pattern);
-      mutable_pattern_ = nullptr;
-      pattern_name_ = TU::pattern_names_short[pattern];
-      //Serial.print("Editing const pattern "); Serial.println(pattern_name_);
-    }
+    
+    pattern_ = mutable_pattern_ = &TU::user_patterns[pattern];
+    pattern_name_ = TU::pattern_names_short[pattern];
     owner_ = owner;
 
-    BeginEditing();
+    BeginEditing(mode);
   }
 
   void Close();
@@ -66,8 +59,9 @@ private:
   int8_t edit_this_sequence_;
   size_t cursor_pos_;
   size_t num_slots_;
+  bool edit_mode_;
 
-  void BeginEditing();
+  void BeginEditing(bool mode);
 
   void move_cursor(int offset);
   void toggle_mask();
@@ -75,14 +69,25 @@ private:
   void clear_mask(); 
 
   void apply_mask(uint16_t mask) {
- 
-    if (mask_ != mask) {
-      mask_ = mask;
-      owner_->update_pattern_mask(mask_, edit_this_sequence_);
+
+    if (!edit_mode_) {
+    // trigger edit:  
+      if (mask_ != mask) {
+        mask_ = mask;
+        owner_->update_pattern_mask(mask_, edit_this_sequence_);
+      }
+      
+      bool force_update = (owner_->get_current_sequence() == edit_this_sequence_);
+      owner_->pattern_changed(mask, force_update);
     }
-    
-    bool force_update = (owner_->get_current_sequence() == edit_this_sequence_);
-    owner_->pattern_changed(mask, force_update);
+    else { 
+    // cv edit: // to do, enable seq 2-4
+       if (mask_ != mask) {
+        mask_ = mask;
+        owner_->update_cv_pattern_mask(mask_);
+        owner_->cv_pattern_changed(mask);
+      } 
+    }
   }
   
   //void change_slot(size_t pos, int delta, bool notify);
@@ -117,13 +122,32 @@ void PatternEditor<Owner>::Draw() {
   uint8_t id = edit_this_sequence_;
   
   if (edit_this_sequence_ == owner_->get_sequence())
-    id += 4;
-  graphics.print(TU::Strings::seq_id[id]);
-
+    id += 4;  
+    
+  if (!edit_mode_)
+    graphics.print(TU::Strings::seq_id[id]);
+  else
+    graphics.print("CV");
+  
   graphics.setPrintPos(x, y + 24);
   
-  if (cursor_pos_ != num_slots) 
+  if (cursor_pos_ != num_slots) {
     graphics.movePrintPos(weegfx::Graphics::kFixedFontW, 0);
+
+    // print pitch value?
+    if (edit_mode_) {
+      int pitch = (int)owner_->get_pitch_at_step(cursor_pos_) - TU::calibration_data.dac.calibration_points[0x0][0x2];
+      if (pitch < 0) {
+        graphics.movePrintPos(-5, 0);
+        graphics.print(pitch, 0);
+      }
+      else {
+        graphics.movePrintPos(-5, 0);
+        graphics.print("+");
+        graphics.print(pitch, 0); 
+      } 
+    }
+  }
   else 
     graphics.print((int)num_slots, 2);
 
@@ -140,9 +164,15 @@ void PatternEditor<Owner>::Draw() {
     if (i == cursor_pos_)
       graphics.drawFrame(x - 2, y - 2, 8, 12);
     // draw clock
-    if (i == clock_pos && (owner_->get_current_sequence() == edit_this_sequence_))  
-      graphics.drawRect(x, y + 10, 2, 2);
+    if (!edit_mode_) {
+      if (i == clock_pos && (owner_->get_current_sequence() == edit_this_sequence_))  
+        graphics.drawRect(x, y + 10, 2, 2);
+    }
+    else if (i == clock_pos)  
+        graphics.drawRect(x, y + 10, 2, 2);
   }
+
+  
   if (mutable_pattern_) {
     graphics.drawBitmap8(x, y, 4, bitmap_end_marker4x8);
     if (cursor_pos_ == num_slots)
@@ -207,15 +237,11 @@ void PatternEditor<Owner>::HandleEncoderEvent(const UI::Event &event) {
                mask &= ~(~(0xffff << (num_slots_ - cursor_pos_)) << cursor_pos_);
              //mask |= ~(0xffff << (num_slots_ - cursor_pos_)) << cursor_pos_; // alternative behaviour would be to fill them
           } 
-          // empty patterns are ok -- 
-          /*
-          else {
-            // pattern might be shortened to where no slots are active in mask
-            if (0 == (mask & ~(0xffff < num_slots_)))
-              mask |= 0x1;
-          }
-          */
-          owner_->set_sequence_length(num_slots_, edit_this_sequence_);
+          
+          if (!edit_mode_)
+            owner_->set_sequence_length(num_slots_, edit_this_sequence_);
+          else 
+            owner_->set_cv_sequence_length(num_slots_);  
           cursor_pos_ = num_slots_;
           handled = true;
         }
@@ -223,7 +249,23 @@ void PatternEditor<Owner>::HandleEncoderEvent(const UI::Event &event) {
     }
 
     if (!handled) {
-      mask = RotateMask(mask_, num_slots_, event.value);
+   
+      if (!edit_mode_) // we edit triggers only
+        mask = RotateMask(mask_, num_slots_, event.value);
+      else {
+        // adjust pitch value at current step:
+        int16_t pitch = owner_->get_pitch_at_step(cursor_pos_);  
+        int16_t delta = event.value;
+
+        if (TU::ui.read_immediate(TU::CONTROL_BUTTON_L)) 
+            pitch += delta; // fine
+        else 
+            pitch += (delta << 4); // coarse
+            
+        CONSTRAIN(pitch, 0, 4095);    
+        // set:
+        owner_->set_pitch_at_step(cursor_pos_, pitch);
+      }
     }
   }
   // This isn't entirely atomic
@@ -242,27 +284,33 @@ void PatternEditor<Owner>::move_cursor(int offset) {
 template <typename Owner>
 void PatternEditor<Owner>::handleButtonUp(const UI::Event &event) {
 
-    // next pattern / edit 'offline':
-    edit_this_sequence_++;
-    if (edit_this_sequence_ > TU::Patterns::PATTERN_USER_LAST-1)
-      edit_this_sequence_ = 0;
-      
-    cursor_pos_ = 0;
-    num_slots_ = owner_->get_sequence_length(edit_this_sequence_);
-    mask_ = owner_->get_mask(edit_this_sequence_);
+    if (!edit_mode_) {
+      // next pattern / edit 'offline'//
+      edit_this_sequence_++;
+      if (edit_this_sequence_ > TU::Patterns::PATTERN_USER_LAST-1)
+        edit_this_sequence_ = 0;
+        
+      cursor_pos_ = 0;
+      num_slots_ = owner_->get_sequence_length(edit_this_sequence_);
+      mask_ = owner_->get_mask(edit_this_sequence_);
+    }
+    // else  // todo
 }
 
 template <typename Owner>
 void PatternEditor<Owner>::handleButtonDown(const UI::Event &event) {
-  
-    // next pattern / edit 'offline':
-    edit_this_sequence_--;
-    if (edit_this_sequence_ < 0)
-      edit_this_sequence_ = TU::Patterns::PATTERN_USER_LAST-1;
-      
-    cursor_pos_ = 0;
-    num_slots_ = owner_->get_sequence_length(edit_this_sequence_);
-    mask_ = owner_->get_mask(edit_this_sequence_);
+
+    if (!edit_mode_) {
+      // next pattern / edit 'offline':
+      edit_this_sequence_--;
+      if (edit_this_sequence_ < 0)
+        edit_this_sequence_ = TU::Patterns::PATTERN_USER_LAST-1;
+        
+      cursor_pos_ = 0;
+      num_slots_ = owner_->get_sequence_length(edit_this_sequence_);
+      mask_ = owner_->get_mask(edit_this_sequence_);
+    }
+    // else  // todo
 }
 
 template <typename Owner>
@@ -272,11 +320,14 @@ void PatternEditor<Owner>::handleButtonLeft(const UI::Event &) {
 
   if (cursor_pos_ < num_slots_) {
     // toggle slot active state; allow 0 mask
-    if (mask & m)
-      mask &= ~m;
-    else 
-      mask |= m;
-    apply_mask(mask);
+    // disable toggle for CV-SEQ, bc it doesn't make sense
+    if (!edit_mode_ || owner_->get_cv_playmode() == 5) {
+        if (mask & m)
+          mask &= ~m;
+        else 
+          mask |= m;
+        apply_mask(mask);
+    }
   }
 }
 
@@ -309,13 +360,24 @@ template <typename Owner>
 }
 
 template <typename Owner>
-void PatternEditor<Owner>::BeginEditing() {
+void PatternEditor<Owner>::BeginEditing(bool mode) {
 
   cursor_pos_ = 0;
+  edit_mode_ = mode;
   uint8_t seq = owner_->get_sequence();
-  edit_this_sequence_ = seq;
-  num_slots_ = owner_->get_sequence_length(seq);
-  mask_ = owner_->get_mask(seq);
+  
+  if (!edit_mode_) {
+    // trigger edit:
+    edit_this_sequence_ = seq;
+    num_slots_ = owner_->get_sequence_length(seq);
+    mask_ = owner_->get_mask(seq);
+  }
+  else { 
+    // to do: enable seq 2-4
+    edit_this_sequence_ = 0x0;
+    num_slots_ = owner_->get_cv_sequence_length();
+    mask_ = owner_->get_cv_mask();
+  }
 }
 
 template <typename Owner>

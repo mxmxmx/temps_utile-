@@ -6,13 +6,15 @@
 namespace TU {
 
   struct Pattern {
-    size_t num_slots;
+    // size and length is stored in app settings
+    int16_t notes[16];
   };
 
 
   const Pattern patterns[] = {
+    
     // default
-    { 16 }
+    { 0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0}
   
   };
 }

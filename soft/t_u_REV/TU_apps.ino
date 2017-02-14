@@ -51,6 +51,7 @@ struct GlobalSettings {
   bool reserved1;
 
   uint16_t current_app_id;
+  TU::Pattern user_patterns[TU::Patterns::PATTERN_USER_LAST];
 };
 
 // App settings are packed into a single blob of binary data; each app's chunk
@@ -86,6 +87,8 @@ static const uint16_t DEFAULT_APP_ID = available_apps[DEFAULT_APP_INDEX].id;
 void save_global_settings() {
   SERIAL_PRINTLN("Saving global settings...");
 
+  memcpy(global_settings.user_patterns, TU::user_patterns, sizeof(TU::user_patterns));
+  
   global_settings_storage.Save(global_settings);
   SERIAL_PRINTLN("Saved global settings in page_index %d", global_settings_storage.page_index());
 }
@@ -230,6 +233,7 @@ void Init(bool reset_settings) {
     } else {
       SERIAL_PRINTLN("Loaded settings from page_index %d, current_app_id is %02x",
                     global_settings_storage.page_index(),global_settings.current_app_id);
+      memcpy(user_patterns, global_settings.user_patterns, sizeof(user_patterns));
     }
 
     SERIAL_PRINTLN("Loading app data: struct size is %u, PAGESIZE=%u, PAGES=%u, LENGTH=%u",
@@ -285,6 +289,16 @@ void draw_app_menu(const menu::ScreenCursor<5> &cursor) {
   GRAPHICS_END_FRAME();
 }
 
+void draw_save_message(uint8_t c) {
+  
+  GRAPHICS_BEGIN_FRAME(true);
+  graphics.movePrintPos(weegfx::Graphics::kFixedFontW, 0);
+  graphics.print("saving ");
+  for (int i = 0; i < c; i++)
+    graphics.print(".");
+  GRAPHICS_END_FRAME();
+}
+
 void Ui::AppSettings() {
 
   SetButtonIgnoreMask();
@@ -334,6 +348,9 @@ void Ui::AppSettings() {
     if (save) {
       save_global_settings();
       save_app_data();
+      int cnt = 0x0;
+      while(idle_time() < SETTINGS_SAVE_TIMEOUT_MS)
+        draw_save_message((cnt++) >> 7);
     }
   }
 

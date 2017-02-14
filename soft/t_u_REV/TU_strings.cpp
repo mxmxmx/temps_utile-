@@ -6,6 +6,8 @@ namespace TU {
   namespace Strings {
 
   const char * const seq_playmodes[] = {" - ", "SEQ+1", "SEQ+2", "SEQ+3", "TR2+1", "TR2+2", "TR2+3"};  
+
+  const char * const cv_seq_playmodes[] = {"fwd", "rev", "pnd1", "pdn2", "rnd", "ARP"};  
     
   const char * const seq_id[] = { "--> #1", "--> #2", "--> #3", "--> #4", "#1", "#2", "#3", "#4"};
 
@@ -21,7 +23,7 @@ namespace TU {
 
   const char * const mode[] = { "MULT", "LFSR", "RAND", "EUCL", "LOGIC", "SEQ", "DAC" };
 
-  const char * const dac_modes[] = { "BIN", "RAND", "T_M", "LGTC"};
+  const char * const dac_modes[] = { "BIN", "RAND", "T_M", "LGTC", "SEQ"};
   
   const char * const logic_tracking[] = { "state", "P_W"};
 
