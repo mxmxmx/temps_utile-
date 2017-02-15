@@ -13,8 +13,9 @@ static constexpr uint32_t TU_CORE_ISR_FREQ = 16666U;
 static constexpr uint32_t TU_CORE_TIMER_RATE = (1000000UL / TU_CORE_ISR_FREQ);
 static constexpr uint32_t TU_UI_TIMER_RATE   = 1000UL;
 
-static constexpr int TU_CORE_TIMER_PRIO = 128; // default?
-static constexpr int TU_UI_TIMER_PRIO   = 132; // lower
+static constexpr int TU_CORE_TIMER_PRIO = 112; // higher
+static constexpr int TU_GPIO_ISR_PRIO   = 128; // default
+static constexpr int TU_UI_TIMER_PRIO   = 144; // lower
 
 static constexpr unsigned long REDRAW_TIMEOUT_MS = 1;
 static constexpr unsigned long SCREENSAVER_TIMEOUT_MS = 25000; // time out menu (in ms)
