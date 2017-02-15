@@ -13,17 +13,19 @@ static constexpr uint32_t TU_CORE_ISR_FREQ = 16666U;
 static constexpr uint32_t TU_CORE_TIMER_RATE = (1000000UL / TU_CORE_ISR_FREQ);
 static constexpr uint32_t TU_UI_TIMER_RATE   = 1000UL;
 
-static constexpr int TU_CORE_TIMER_PRIO = 128; // default?
-static constexpr int TU_UI_TIMER_PRIO   = 132; // lower
+static constexpr int TU_CORE_TIMER_PRIO = 112; // higher
+static constexpr int TU_GPIO_ISR_PRIO   = 128; // default
+static constexpr int TU_UI_TIMER_PRIO   = 144; // lower
 
 static constexpr unsigned long REDRAW_TIMEOUT_MS = 1;
 static constexpr unsigned long SCREENSAVER_TIMEOUT_MS = 25000; // time out menu (in ms)
 
-#define OCTAVES 10      // # octaves
+#define OCTAVES 12      // # octaves
 #define SEMITONES (OCTAVES * 12)
 
 static constexpr unsigned long SPLASHSCREEN_DELAY_MS = 1000;
 static constexpr unsigned long SPLASHSCREEN_TIMEOUT_MS = 2048;
+static constexpr unsigned long SETTINGS_SAVE_TIMEOUT_MS = 1000;
 
 static constexpr unsigned long APP_SELECTION_TIMEOUT_MS = 25000;
 

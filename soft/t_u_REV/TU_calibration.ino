@@ -24,7 +24,7 @@ static constexpr unsigned kCalibrationAdcSmoothing = 4;
 const TU::CalibrationData kCalibrationDefaults = {
   // DAC
   { {
-    {_DAC_OFFSET},
+    {514, 1375, 2236, 3097, 3960}  //  -4V, -2V, 0V, +2V, +4V // 1 octave ~ 430
     },
   },
   // ADC
@@ -40,7 +40,6 @@ const TU::CalibrationData kCalibrationDefaults = {
 
 void calibration_reset() {
   memcpy(&TU::calibration_data, &kCalibrationDefaults, sizeof(TU::calibration_data));
-  TU::calibration_data.dac.calibrated_Zero[0x0][0x0] = _DAC_OFFSET;
 }
 
 void calibration_load() {
@@ -72,10 +71,7 @@ void calibration_save() {
 enum CALIBRATION_STEP {  
   HELLO,
   CENTER_DISPLAY,
-
-  DAC_ZERO,
-
-  CV_OFFSET,
+  DAC_4VM, DAC_2VM, DAC_ZERO, DAC_2V, DAC_4V,
   CV_OFFSET_0, CV_OFFSET_1, CV_OFFSET_2, CV_OFFSET_3,
   CALIBRATION_EXIT,
   CALIBRATION_STEP_LAST,
@@ -84,8 +80,7 @@ enum CALIBRATION_STEP {
 
 enum CALIBRATION_TYPE {
   CALIBRATE_NONE,
-  CALIBRATE_DAC_ZERO,
-  CALIBRATE_ADC_TRIMMER,
+  CALIBRATE_DAC_OUTPUT,
   CALIBRATE_ADC_OFFSET,
   CALIBRATE_DISPLAY
 };
@@ -125,16 +120,15 @@ const char *select_help    = "[R] => Select";
 const CalibrationStep calibration_steps[CALIBRATION_STEP_LAST] = {
   { HELLO, "T_U calibration", "use defaults? ", select_help, start_footer, CALIBRATE_NONE, 0, TU::Strings::no_yes, 0, 1 },
   { CENTER_DISPLAY, "center display", "pixel offset ", default_help_r, default_footer, CALIBRATE_DISPLAY, 0, nullptr, 0, 2 },
-
-  { DAC_ZERO, "DAC 0.0 volts", "--> 0.0V ", default_help_r, default_footer, CALIBRATE_DAC_ZERO, 0, nullptr, 0, OUTPUTS::MAX_VALUE },
-  
-  { CV_OFFSET, "CV offsets...", "", "(click to proceed)", default_footer, CALIBRATE_ADC_TRIMMER, 0, nullptr, 0, 4095 },
-  
+  { DAC_4VM, "DAC -4.0 volts", "--> -4.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 0, nullptr, 0, OUTPUTS::MAX_VALUE },
+  { DAC_2VM, "DAC -2.0 volts", "--> -2.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 1, nullptr, 0, OUTPUTS::MAX_VALUE },
+  { DAC_ZERO,"DAC  0.0 volts", "-->  0.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 2, nullptr, 0, OUTPUTS::MAX_VALUE },
+  { DAC_2V,  "DAC +2.0 volts", "--> +2.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 3, nullptr, 0, OUTPUTS::MAX_VALUE },
+  { DAC_4V,  "DAC +4.0 volts", "--> +4.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 4, nullptr, 0, OUTPUTS::MAX_VALUE },
   { CV_OFFSET_0, "ADC CV1", "--> 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_1, nullptr, 0, 4095 },
   { CV_OFFSET_1, "ADC CV2", "--> 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_2, nullptr, 0, 4095 },
   { CV_OFFSET_2, "ADC CV3", "--> 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_3, nullptr, 0, 4095 },
   { CV_OFFSET_3, "ADC CV4", "--> 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_4, nullptr, 0, 4095 },
-
   { CALIBRATION_EXIT, "Calibration complete", "Save values? ", select_help, end_footer, CALIBRATE_NONE, 0, TU::Strings::no_yes, 0, 1 }
 };
 
@@ -223,11 +217,8 @@ void TU::Ui::Calibrate() {
 
       // Setup next step
       switch (next_step->calibration_type) {
-      case CALIBRATE_DAC_ZERO:
-        calibration_state.encoder_value = TU::calibration_data.dac.calibrated_Zero[0x0][next_step->index];
-        break;
-      case CALIBRATE_ADC_TRIMMER:
-        calibration_state.adc_sum.set(adc_average());
+      case CALIBRATE_DAC_OUTPUT:
+        calibration_state.encoder_value = TU::calibration_data.dac.calibration_points[0x0][next_step->index];
         break;
       case CALIBRATE_ADC_OFFSET:
         calibration_state.encoder_value = TU::calibration_data.adc.offset[next_step->index];
@@ -271,17 +262,12 @@ void calibration_draw(const CalibrationState &state) {
 
   graphics.setPrintPos(menu::kIndentDx, y + 2);
   switch (step->calibration_type) {
-    case CALIBRATE_DAC_ZERO:
+    
+    case CALIBRATE_DAC_OUTPUT:
       graphics.print(step->message);
       graphics.setPrintPos(kValueX, y + 2);
       graphics.print((int)state.encoder_value, 5);
       menu::DrawEditIcon(kValueX, y, state.encoder_value, step->min, step->max);
-      break;
-
-    case CALIBRATE_ADC_TRIMMER:
-      graphics.print(_ADC_OFFSET, 4);
-      graphics.print(" == ");
-      graphics.print(state.adc_sum.value() >> 2, 4);
       break;
 
     case CALIBRATE_ADC_OFFSET:
@@ -341,13 +327,9 @@ void calibration_update(CalibrationState &state) {
     case CALIBRATE_NONE:
       OUTPUTS::set_all(0);
       break;
-    case CALIBRATE_DAC_ZERO:
-      TU::calibration_data.dac.calibrated_Zero[0x0][step->index] = state.encoder_value;
+    case CALIBRATE_DAC_OUTPUT:
+      TU::calibration_data.dac.calibration_points[0x0][step->index] = state.encoder_value;
       OUTPUTS::set(CLOCK_CHANNEL_4, state.encoder_value);
-      break;
-    case CALIBRATE_ADC_TRIMMER:
-      state.adc_sum.push(adc_average());
-      OUTPUTS::set_all(0);
       break;
     case CALIBRATE_ADC_OFFSET:
       TU::calibration_data.adc.offset[step->index] = state.encoder_value;

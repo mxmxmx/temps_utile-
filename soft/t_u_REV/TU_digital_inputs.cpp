@@ -4,6 +4,9 @@
 #include "TU_gpio.h"
 
 /*static*/
+uint32_t TU::DigitalInputs::clocked_mask_;
+
+/*static*/
 volatile uint32_t TU::DigitalInputs::clocked_[DIGITAL_INPUT_LAST];
 
 void FASTRUN tr1_ISR() {  
@@ -30,5 +33,13 @@ void TU::DigitalInputs::Init() {
     attachInterrupt(pin.pin, pin.isr_fn, FALLING);
   }
 
+  clocked_mask_ = 0x0;
   std::fill(clocked_, clocked_ + DIGITAL_INPUT_LAST, 0);
+}
+
+/*static*/
+void TU::DigitalInputs::Scan() {
+  clocked_mask_ =
+    ScanInput<DIGITAL_INPUT_1>() |
+    ScanInput<DIGITAL_INPUT_2>();
 }

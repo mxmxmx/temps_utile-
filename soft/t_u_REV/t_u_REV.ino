@@ -80,6 +80,9 @@ void FASTRUN CORE_timer_ISR() {
   // 60us: 16.666K / 4 / 4 ~ 1kHz
   // kAdcSmoothing == 4 has some (maybe 1-2LSB) jitter but seems "Good Enough".
   TU::ADC::Scan();
+  // Pin changes are tracked in separate ISRs, so depending on prio it might
+  // need extra precautions.
+  TU::DigitalInputs::Scan();
 
 #ifndef TU_UI_SEPARATE_ISR
   TODO needs a counter
@@ -142,7 +145,8 @@ void setup() {
     TU::ui.Calibrate();
     ui_mode = TU::UI_MODE_MENU;
   }
-
+  // set approx. v/oct value (from calibration data)
+  TU::OUTPUTS::set_v_oct();
   // initialize apps
   TU::apps::Init(reset_settings);
 }

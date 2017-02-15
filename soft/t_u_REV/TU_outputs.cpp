@@ -18,7 +18,6 @@ void OUTPUTS::Init(CalibrationData *calibration_data) {
   calibration_data_ = calibration_data;
   history_tail_ = 0;
   memset(history_, 0, sizeof(uint16_t) * kHistoryDepth * NUM_CHANNELS);
-
 }
 
 void OUTPUTS::SPI_Init() {
@@ -65,6 +64,8 @@ uint32_t OUTPUTS::states_[CLOCK_CHANNEL_LAST];
 uint16_t OUTPUTS::history_[NUM_CHANNELS][OUTPUTS::kHistoryDepth];
 /*static*/ 
 volatile size_t OUTPUTS::history_tail_;
+/*static*/
+uint16_t OUTPUTS::calibrated_v_oct_;
 
 }; // namespace TU
 
@@ -81,7 +82,6 @@ void set_Output2(uint8_t data) {
 void set_Output3(uint8_t data) {
   digitalWriteFast(CLK3, data);
 }
-
 
 void set_Output4(uint16_t data) {
 
