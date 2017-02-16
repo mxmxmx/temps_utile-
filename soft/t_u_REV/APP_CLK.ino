@@ -650,8 +650,9 @@ public:
     // only 1st sequence for now:
     TU::Pattern *write_pattern_ = &TU::user_patterns[0x0];
     write_pattern_->notes[step] = pitch;
+    
     if (get_cv_playmode() == _ARP) // to do
-      arpeggiator_.UpdateArpeggiator(0x0, get_cv_mask(), get_cv_sequence_length());
+      cv_pattern_changed(get_cv_mask(),true);   
   }
   
   uint16_t get_clock_cnt() const {
@@ -696,12 +697,13 @@ public:
     else {
       // rotate already
       mask_rotate_ = (TU::ADC::value(static_cast<ADC_CHANNEL>(mask_rotate_ - 1)) + 127) >> 8;
-      
-      if (force || (prev_mask_rotate_ != mask_rotate_))
+           
+      if (force || (prev_mask_rotate_ != mask_rotate_)) {
         cv_display_mask_ = TU::PatternEditor<Clock_channel>::RotateMask(get_cv_mask(), get_cv_sequence_length(), mask_rotate_);
         arpeggiator_.UpdateArpeggiator(0x0, cv_display_mask_, get_cv_sequence_length());
-     }
-     prev_mask_rotate_ = mask_rotate_;
+      }
+      prev_mask_rotate_ = mask_rotate_;
+    }
   }
     
   void reset_sequence() {
