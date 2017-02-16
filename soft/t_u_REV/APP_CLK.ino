@@ -1362,7 +1362,7 @@ public:
                 */
                 // ... reset mask until we come up with a better idea:
                 cv_display_mask_ = 0xFFFF;
-                update_cv_pattern_mask(0xFFFF);
+                //update_cv_pattern_mask(0xFFFF);
                 
                 _out = get_pitch_at_step(seq_cnt_);
                 clk_cnt_ = seq_cnt_;
@@ -1377,7 +1377,7 @@ public:
 
                 // ... reset mask until we come up with a better idea:
                 cv_display_mask_ = 0xFFFF;
-                update_cv_pattern_mask(0xFFFF);
+                //update_cv_pattern_mask(0xFFFF);
                  
                 _out = get_pitch_at_step(seq_cnt_);
                 clk_cnt_ = seq_cnt_;
@@ -1389,7 +1389,7 @@ public:
               {
                 // ... reset mask until we come up with a better idea:
                 cv_display_mask_ = 0xFFFF;
-                update_cv_pattern_mask(0xFFFF);
+                //update_cv_pattern_mask(0xFFFF);
                 
                 if (seq_direction_) {
                   seq_cnt_++;
@@ -1414,7 +1414,7 @@ public:
               {
                 // ... reset mask until we come up with a better idea:
                 cv_display_mask_ = 0xFFFF;
-                update_cv_pattern_mask(0xFFFF);
+                //update_cv_pattern_mask(0xFFFF);
                 
                 if (seq_direction_) {
                   seq_cnt_++;
@@ -1443,7 +1443,7 @@ public:
               {
                 // ... reset mask until we come up with a better idea:
                 cv_display_mask_ = 0xFFFF;
-                update_cv_pattern_mask(0xFFFF);
+                //update_cv_pattern_mask(0xFFFF);
                 
                 int rnd = reset_ ? 0x0 : random(_length);
                 _out = get_pitch_at_step(rnd);
