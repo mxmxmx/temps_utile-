@@ -175,6 +175,7 @@ enum ChannelSetting {
   CHANNEL_SETTING_LOGISTIC_MAP_R_CV_SOURCE,
   CHANNEL_SETTING_SEQ_CV_SOURCE,
   CHANNEL_SETTING_MASK_CV_SOURCE,
+  CHANNEL_SETTING_SEQ_MASK_CV_SOURCE,
   CHANNEL_SETTING_DAC_RANGE_CV_SOURCE,
   CHANNEL_SETTING_DAC_MODE_CV_SOURCE,
   CHANNEL_SETTING_DAC_OFFSET_CV_SOURCE,
@@ -522,6 +523,10 @@ public:
     return values_[CHANNEL_SETTING_MASK_CV_SOURCE];
   }
 
+  uint8_t get_arp_mask_cv_source() const {
+      return values_[CHANNEL_SETTING_SEQ_MASK_CV_SOURCE];
+  }
+
   uint8_t get_sequence_cv_source() const {
     return values_[CHANNEL_SETTING_SEQ_CV_SOURCE];
   }
@@ -679,17 +684,26 @@ public:
       display_mask_ = mask;
   }
 
-  void cv_pattern_changed(uint16_t mask) {
-      cv_display_mask_ = mask;
-      // to do
-      arpeggiator_.UpdateArpeggiator(0x0, mask, get_cv_sequence_length()); 
-  }
-  
-  void update_arpeggiator() {
-    // to do: seq 2-4
-    arpeggiator_.UpdateArpeggiator(0x0, get_cv_mask(), get_cv_sequence_length());
-  }
+  void cv_pattern_changed(uint16_t mask, bool force) {
 
+    int16_t mask_rotate_ = get_arp_mask_cv_source();
+    
+    if (!mask_rotate_) {
+      // 
+      cv_display_mask_ = mask;
+      arpeggiator_.UpdateArpeggiator(0x0, get_cv_mask(), get_cv_sequence_length());
+    }
+    else {
+      // rotate already
+      mask_rotate_ = (TU::ADC::value(static_cast<ADC_CHANNEL>(mask_rotate_ - 1)) + 127) >> 8;
+      
+      if (force || (prev_mask_rotate_ != mask_rotate_))
+        cv_display_mask_ = TU::PatternEditor<Clock_channel>::RotateMask(get_cv_mask(), get_cv_sequence_length(), mask_rotate_);
+        arpeggiator_.UpdateArpeggiator(0x0, cv_display_mask_, get_cv_sequence_length());
+     }
+     prev_mask_rotate_ = mask_rotate_;
+  }
+    
   void reset_sequence() {
     sequence_reset_ = true;
   }        
@@ -717,6 +731,9 @@ public:
     apply_value(CHANNEL_SETTING_DAC_MODE_CV_SOURCE,0);
     apply_value(CHANNEL_SETTING_HISTORY_WEIGHT_CV_SOURCE,0);
     apply_value(CHANNEL_SETTING_HISTORY_DEPTH_CV_SOURCE,0);
+    apply_value(CHANNEL_SETTING_ARP_RANGE_CV_SOURCE, 0);
+    apply_value(CHANNEL_SETTING_ARP_DIRECTION_CV_SOURCE, 0);
+    apply_value(CHANNEL_SETTING_SEQ_MASK_CV_SOURCE, 0);
   }
 
   void sync() {
@@ -758,6 +775,7 @@ public:
     reset_counter_ = false;
     reset_me_ = false;
     logic_ = false;
+    prev_mask_rotate_ = 0xFF;
     menu_page_ = PARAMETERS;
 
     pending_multiplier_ = prev_multiplier_ = get_multiplier();
@@ -1448,6 +1466,10 @@ public:
                   _direction += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_arp_direction_cv_source() - 1)) + 256) >> 9;    
                 CONSTRAIN(_direction, 0, 3);  
                 arpeggiator_.set_direction(_direction);
+
+                // rotate?
+                if (get_arp_mask_cv_source() || (cv_display_mask_ != get_cv_mask()))
+                  cv_pattern_changed(get_cv_mask(), false);
                   
                 _out = arpeggiator_.ClockArpeggiator();
                 clk_cnt_ = 0x0;
@@ -1647,10 +1669,13 @@ public:
               *settings++ = CHANNEL_SETTING_LOGISTIC_MAP_R_CV_SOURCE;
               break;
             case _SEQ_CV:
-              *settings++ = CHANNEL_SETTING_MASK_CV; 
-              *settings++ = CHANNEL_SETTING_CV_SEQUENCE_PLAYMODE;  
-              if (get_cv_playmode() == _ARP) 
-                 *settings++ = CHANNEL_SETTING_ARP_DIRECTION_CV_SOURCE;
+              if (get_cv_playmode() == _ARP)
+                *settings++ = CHANNEL_SETTING_SEQ_MASK_CV_SOURCE;
+              else
+                *settings++ = CHANNEL_SETTING_MASK_CV;
+              *settings++ = CHANNEL_SETTING_CV_SEQUENCE_PLAYMODE;
+              if (get_cv_playmode() == _ARP)
+                *settings++ = CHANNEL_SETTING_ARP_DIRECTION_CV_SOURCE;
               break;
             default:
               break;
@@ -1814,6 +1839,7 @@ private:
   int8_t sequence_reset_;
   uint8_t menu_page_;
   uint16_t bpm_last_;
+  int16_t prev_mask_rotate_;
 
   util::TuringShiftRegister turing_machine_;
   util::Arpeggiator arpeggiator_;
@@ -1911,6 +1937,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, 4, "LGST(R)     >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "sequence #  >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "mask        >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "mask        >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "DAC: range  >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "DAC: mode   >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "DAC: offset >>", cv_sources, settings::STORAGE_TYPE_U4 },
@@ -1988,23 +2015,27 @@ size_t CLOCKS_restore(const void *storage) {
     // update display sequence + mask:
     clock_channel[i].set_display_sequence(clock_channel[i].get_sequence()); 
     clock_channel[i].pattern_changed(clock_channel[i].get_mask(clock_channel[i].get_sequence()), true);
-    if (i == CLOCK_CHANNEL_4)
-      clock_channel[i].update_arpeggiator();
   }
   clocks_state.cursor.AdjustEnd(clock_channel[0].num_enabled_settings() - 1);
 
   // TODO: maybe this should be a global value in the storage block to save memory, not a big deal, though
   ext_frequency[CHANNEL_TRIGGER_INTERNAL] = BPM_microseconds_4th[clock_channel[0].get_internal_timer() - BPM_MIN];
-  clock_channel[0].set_page(PARAMETERS);
+  // update channel 4:
+  clock_channel[CLOCK_CHANNEL_4].cv_pattern_changed(clock_channel[CLOCK_CHANNEL_4].get_cv_mask(), true);
   return used;
 }
 
 void CLOCKS_handleAppEvent(TU::AppEvent event) {
+  
   switch (event) {
     case TU::APP_EVENT_RESUME:
+    {
       clocks_state.cursor.set_editing(false);
       clocks_state.pattern_editor.Close();
-      break;
+      for (int i = 0; i < NUM_CHANNELS; ++i)
+        clock_channel[i].sync();
+    }
+    break;
     case TU::APP_EVENT_SUSPEND:
     case TU::APP_EVENT_SCREENSAVER_ON:
     case TU::APP_EVENT_SCREENSAVER_OFF:
@@ -2017,7 +2048,9 @@ void CLOCKS_handleAppEvent(TU::AppEvent event) {
         clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
       }
     }
-      break;
+    break;
+    default:
+    break;
   }
 }
 
@@ -2268,10 +2301,13 @@ void CLOCKS_downButton() {
   switch (_menu_page) {
 
     case CV_SOURCES:
+      {
       // don't get stuck:
-      if (selected.enabled_setting_at(clocks_state.cursor_pos()) == CHANNEL_SETTING_MASK_CV_SOURCE)
+      int pos = selected.enabled_setting_at(clocks_state.cursor_pos());
+      if ((pos == CHANNEL_SETTING_MASK_CV_SOURCE) || (pos == CHANNEL_SETTING_SEQ_MASK_CV_SOURCE))
         clocks_state.cursor.set_editing(false);
       selected.set_page(PARAMETERS);
+      }
       break;
     case TEMPO:
       selected.set_page(CV_SOURCES);
@@ -2330,18 +2366,6 @@ void CLOCKS_rightButton() {
 }
 
 void CLOCKS_leftButton() {
-
-  /*
-  Clock_channel &selected = clock_channel[clocks_state.selected_channel];
-
-  if (selected.get_page() == TEMPO) {
-   selected.set_page(PARAMETERS);
-   clocks_state.cursor = clocks_state.cursor_state;
-   selected.update_enabled_settings(clocks_state.selected_channel);
-   clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
-   return;
-  }
-  */
   // sync:
   for (int i = 0; i < NUM_CHANNELS; ++i)
     clock_channel[i].sync();

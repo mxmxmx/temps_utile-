@@ -85,7 +85,7 @@ private:
        if (mask_ != mask) {
         mask_ = mask;
         owner_->update_cv_pattern_mask(mask_);
-        owner_->cv_pattern_changed(mask);
+        owner_->cv_pattern_changed(mask, true);
       } 
     }
   }
