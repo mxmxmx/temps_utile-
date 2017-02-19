@@ -2489,6 +2489,14 @@ void CLOCKS_menu() {
         if (int_clock_used_)
           list_item.DrawDefault(value, attr);
         break;
+      case CHANNEL_SETTING_EUCLID_K:
+      case CHANNEL_SETTING_EUCLID_OFFSET:
+        list_item.DrawValueMax(value, attr, channel.euclid_n());
+      break; 
+      case CHANNEL_SETTING_LFSR_TAP1:
+      case CHANNEL_SETTING_LFSR_TAP2:
+        list_item.DrawValueMax(value, attr, channel.get_turing_length());
+      break;
       default:
         list_item.DrawDefault(value, attr);
         break;
