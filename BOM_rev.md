@@ -6,9 +6,11 @@
 
   `GND - VCC - D0 - D1 - RST - DC - CS`, or 
 
-  `GND - VCC - CLK - MOSI - RES - DC - CS`
+  `GND - VCC - CLK - MOSI - RES - DC - CS`, or
 
-- **make sure you get the right size**: 1.3" (not 0.96")! 
+  `GND - VDD - SCK - SDA - RES - DC - CS`
+
+- **make sure you get the right size**: 1.3" (not 0.96")! and once you've received it, make sure the display is configured for **SPI** (see resistors/labels on the back side of the OLED).
 - alternatively, [here](https://github.com/mxmxmx/O_C/tree/master/hardware/gerbers/128x64_1_3_oled) are **.brd/.sch** files for a/the OLED carrier board. in that case, you'd need to get the **bare** OLED (and some passives). [for example here](http://www.buydisplay.com/default/serial-spi-1-3-inch-128x64-oled-display-module-ssd1306-white-on-black) (though there's cheaper options for getting bare OLEDs).
 
 ###SMD resistors (0805):
