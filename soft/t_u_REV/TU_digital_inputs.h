@@ -52,10 +52,28 @@ public:
     clocked_[input] = 1;
   }
 
+  static inline uint8_t global_div_TR1() {
+    return global_divisor_TR1_;
+  }
+  
+  void set_global_div_TR1(uint8_t divisor) {
+    global_divisor_TR1_ = divisor;
+  }
+  
+  static inline uint8_t global_div_TR2() {
+    return global_divisor_TR2_;
+  }
+  
+  void set_global_div_TR2(uint8_t divisor) {
+    global_divisor_TR2_ = divisor;
+  }
+
 private:
 
   static uint32_t clocked_mask_;
   static volatile uint32_t clocked_[DIGITAL_INPUT_LAST];
+  static uint8_t global_divisor_TR1_;
+  static uint8_t global_divisor_TR2_;
 
   template <DigitalInput input>
   static uint32_t ScanInput() {

@@ -3,5 +3,5 @@
 //
 // GENERATED FILE, DO NOT EDIT
 //
-#define TU_VERSION "TU_1.1.1"
+#define TU_VERSION "TU_1.1.2"
 #endif
