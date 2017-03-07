@@ -741,8 +741,7 @@ public:
   }
 
   void sync() {
-    clk_cnt_ = 0x0;
-    div_cnt_ = 0x0;
+    pending_sync_ = true;
   }
 
   uint8_t get_page() const {
@@ -800,6 +799,7 @@ public:
     global_div_TR2_ = TU::DigitalInputs::global_div_TR2();
 
     pending_multiplier_ = prev_multiplier_ = get_multiplier();
+    pending_sync_ = false;
     prev_pulsewidth_ = get_pulsewidth();
     bpm_last_ = 0;
 
@@ -940,14 +940,18 @@ public:
       sequence_advance_state_ = _advance_trig;
 
     }
-
+        
     /*
      *  brute force ugly sync hack:
      *  this, presumably, is needlessly complicated.
      *  but seems to work ok-ish, w/o too much jitter and missing clocks...
      */
+        
     uint32_t _subticks = subticks_;
-
+    
+    // sync ? (manual)
+    div_cnt_ = pending_sync_ ? 0x0 : div_cnt_;
+  
     if (_multiplier <= MULT_BY_ONE && _triggered && div_cnt_ <= 0) {
       // division, so we track
       _sync = true;
@@ -991,9 +995,12 @@ public:
       clk_cnt_++;
 
       // reset counter ? (SEQ/Euclidian)
-      if (reset_counter_) 
+      if (reset_counter_ || pending_sync_) 
         clk_cnt_ = 0x0;
-
+      
+      // clear
+      pending_sync_ = false;
+   
       // clear for reset:
       reset_me_ = true;
       reset_counter_ = false;
@@ -1849,6 +1856,7 @@ private:
   uint8_t prev_multiplier_;
   uint8_t prev_pulsewidth_;
   uint8_t pending_multiplier_;
+  bool pending_sync_;
   uint8_t logic_;
   uint8_t display_sequence_;
   uint16_t display_mask_;
