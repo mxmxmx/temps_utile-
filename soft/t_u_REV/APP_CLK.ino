@@ -57,7 +57,7 @@ static uint32_t ticks_src1 = 0; // main clock frequency (top)
 static uint32_t ticks_src2 = 0; // sec. clock frequency (bottom)
 static uint32_t ticks_internal = 0; // sec. clock frequency (bottom)
 static int32_t global_div_count_TR1 = 0; // pre-clock-division
-static int32_t global_div_count_TR2 = 0; // pre-clock-division
+bool RESET_GLOBAL_TR2 = true;
 
 static const uint64_t multipliers_[] = {
 
@@ -761,21 +761,6 @@ public:
     return _off;
   }
 
-  uint8_t global_divisor(uint8_t input_id) const {
-    
-    if (input_id == CHANNEL_TRIGGER_TR1)
-      return global_div_TR1_;
-    else if (input_id == CHANNEL_TRIGGER_TR2)
-      return global_div_TR2_;
-    else
-      return 0x0;  
-  }
-
-  void set_global_divisor() {
-    global_div_TR1_ = TU::DigitalInputs::global_div_TR1();
-    global_div_TR2_ = TU::DigitalInputs::global_div_TR2();
-  }
-
   void Init(ChannelTriggerSource trigger_source) {
 
     InitDefaults();
@@ -795,8 +780,6 @@ public:
     logic_ = false;
     prev_mask_rotate_ = 0xFF;
     menu_page_ = PARAMETERS;
-    global_div_TR1_ = TU::DigitalInputs::global_div_TR1();
-    global_div_TR2_ = TU::DigitalInputs::global_div_TR2();
 
     pending_multiplier_ = prev_multiplier_ = get_multiplier();
     pending_sync_ = false;
@@ -1869,8 +1852,6 @@ private:
   uint8_t menu_page_;
   uint16_t bpm_last_;
   int16_t prev_mask_rotate_;
-  uint8_t global_div_TR1_;
-  uint8_t global_div_TR2_;
 
   util::TuringShiftRegister turing_machine_;
   util::Arpeggiator arpeggiator_;
@@ -2063,10 +2044,8 @@ void CLOCKS_handleAppEvent(TU::AppEvent event) {
     {
       clocks_state.cursor.set_editing(false);
       clocks_state.pattern_editor.Close();
-      for (int i = 0; i < NUM_CHANNELS; ++i) {
-        clock_channel[i].set_global_divisor();
+      for (int i = 0; i < NUM_CHANNELS; ++i)
         clock_channel[i].sync();
-      }
     }
     break;
     case TU::APP_EVENT_SUSPEND:
@@ -2098,14 +2077,25 @@ void CLOCKS_isr() {
 
   uint32_t triggers = TU::DigitalInputs::clocked();
 
-  // clocked? .. reset
+  // TR1:
   if (triggers & (1 << CHANNEL_TRIGGER_TR1))  {
 
     global_div_count_TR1--;
+    uint8_t global_divisor_ = TU::DigitalInputs::global_div_TR1();
+    
+    // sync/reset global divisor? defaults to TR2 ("-")
+    if (global_divisor_ && clock_channel[CLOCK_CHANNEL_1].get_reset_source() == CHANNEL_TRIGGER_NONE) {  
+      
+      bool global_reset = digitalReadFast(TR2);
+      // reset ?
+      if (global_reset < RESET_GLOBAL_TR2)
+          global_div_count_TR1 = 0x0;
+      RESET_GLOBAL_TR2 = global_reset;
+    }
     
     if (global_div_count_TR1 <= 0x0) {
         // reset
-        global_div_count_TR1 = clock_channel[0].global_divisor(CHANNEL_TRIGGER_TR1);
+        global_div_count_TR1 = global_divisor_;
         ext_frequency[CHANNEL_TRIGGER_TR1] = ticks_src1;
         ticks_src1 = 0x0;
     }
@@ -2113,18 +2103,10 @@ void CLOCKS_isr() {
       triggers &= ~ (1 << CHANNEL_TRIGGER_TR1);
   }
 
+  // TR2:
   if (triggers & (1 << CHANNEL_TRIGGER_TR2)) {
-
-    global_div_count_TR2--;
-
-    if (global_div_count_TR2 <= 0x0) {
-        // reset
-        global_div_count_TR2 = clock_channel[0].global_divisor(CHANNEL_TRIGGER_TR2);
-        ext_frequency[CHANNEL_TRIGGER_TR2] = ticks_src2;
-        ticks_src2 = 0x0;
-    }
-    else
-      triggers &= ~ (1 << CHANNEL_TRIGGER_TR2);
+    ext_frequency[CHANNEL_TRIGGER_TR2] = ticks_src2;
+    ticks_src2 = 0x0;
   }
 
   // update this once in the same thread as the processing to avoid race conditions and sync problems
@@ -2143,12 +2125,12 @@ void CLOCKS_isr() {
   }
 
   // update channels:
-  clock_channel[0].Update(triggers, CLOCK_CHANNEL_1);
-  clock_channel[1].Update(triggers, CLOCK_CHANNEL_2);
-  clock_channel[2].Update(triggers, CLOCK_CHANNEL_3);
-  clock_channel[4].Update(triggers, CLOCK_CHANNEL_5);
-  clock_channel[5].Update(triggers, CLOCK_CHANNEL_6);
-  clock_channel[3].Update(triggers, CLOCK_CHANNEL_4); // = DAC channel; update last, because of the binary Sequencer thing.
+  clock_channel[CLOCK_CHANNEL_1].Update(triggers, CLOCK_CHANNEL_1);
+  clock_channel[CLOCK_CHANNEL_2].Update(triggers, CLOCK_CHANNEL_2);
+  clock_channel[CLOCK_CHANNEL_3].Update(triggers, CLOCK_CHANNEL_3);
+  clock_channel[CLOCK_CHANNEL_5].Update(triggers, CLOCK_CHANNEL_5);
+  clock_channel[CLOCK_CHANNEL_6].Update(triggers, CLOCK_CHANNEL_6);
+  clock_channel[CLOCK_CHANNEL_4].Update(triggers, CLOCK_CHANNEL_4); // = DAC channel; update last, because of the binary Sequencer thing.
 
   // apply logic ?
   clock_channel[0].logic(CLOCK_CHANNEL_1);
@@ -2498,7 +2480,7 @@ void CLOCKS_menu() {
     int_clock_used_ += internal_;
     menu::SixTitleBar::DrawGateIndicator(i, internal_);
     // global division?
-    if (clock_channel[0].global_divisor(channel.get_clock_source()))
+    if (TU::DigitalInputs::global_div_TR1())
       graphics.drawBitmap8(x + 15, 2, 4, TU::bitmap_indicator_4x8);
   }
 

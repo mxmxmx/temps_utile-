@@ -14,9 +14,9 @@ static const uint8_t global_divisors[] {
 
 enum GLOBAL_CONFIG_Setting {
   GLOBAL_CONFIG_SETTING_DIV1,
-  GLOBAL_CONFIG_SETTING_DIV2,
   GLOBAL_CONFIG_SETTING_DUMMY,
   GLOBAL_CONFIG_SETTING_MORE_DUMMY,
+  GLOBAL_CONFIG_SETTING_STILL_MORE_DUMMY,
   GLOBAL_CONFIG_SETTING_LAST
 };
 
@@ -27,7 +27,6 @@ public:
     
     InitDefaults();
     global_div1_ = 0x0;
-    global_div2_ = 0x0;
     ticks_ = 0x0;
     update_enabled_settings();
   }
@@ -36,10 +35,6 @@ public:
     return values_[GLOBAL_CONFIG_SETTING_DIV1];
   }
   
-  uint8_t global_div2() const {
-    return values_[GLOBAL_CONFIG_SETTING_DIV2];
-  }
-
   uint32_t ticks() const {
     return ticks_;
   }
@@ -52,12 +47,6 @@ public:
         TU::DigitalInputs inputs; 
         inputs.set_global_div_TR1(global_divisors[global_div1()]);
         global_div1_ = global_div1();
-    }
-    
-    if (global_div2_ != global_div2()) {
-        TU::DigitalInputs inputs; 
-        inputs.set_global_div_TR2(global_divisors[global_div2()]);
-        global_div2_ = global_div2();
     }
   }
 
@@ -74,9 +63,9 @@ public:
     GLOBAL_CONFIG_Setting *settings = enabled_settings_;
     
     *settings++ = GLOBAL_CONFIG_SETTING_DIV1;
-    *settings++ = GLOBAL_CONFIG_SETTING_DIV2;
     *settings++ = GLOBAL_CONFIG_SETTING_DUMMY;
     *settings++ = GLOBAL_CONFIG_SETTING_MORE_DUMMY;
+    *settings++ = GLOBAL_CONFIG_SETTING_STILL_MORE_DUMMY;
     
     num_enabled_settings_ = settings - enabled_settings_;
   }
@@ -100,22 +89,6 @@ public:
       break;
     }
     apply_value(GLOBAL_CONFIG_SETTING_DIV1, _div);
-    
-    _div = 0;
-    switch (inputs.global_div_TR2()) {
-      case 24:
-      _div = 1;
-      break;
-      case 48:
-      _div = 2;
-      break;
-      case 96:
-      _div = 3;
-      break;
-      default:
-      break;
-    }
-    apply_value(GLOBAL_CONFIG_SETTING_DIV2, _div);
   }
 
   void RenderScreensaver() const;
@@ -123,7 +96,6 @@ public:
 private:
   int num_enabled_settings_;
   uint8_t global_div1_;
-  uint8_t global_div2_;
   uint32_t ticks_;
   GLOBAL_CONFIG_Setting enabled_settings_[GLOBAL_CONFIG_SETTING_LAST];
 };
@@ -137,7 +109,7 @@ const char* const g_divisors[CHANNEL_TRIGGER_LAST] = {
 SETTINGS_DECLARE(Global_Config,  GLOBAL_CONFIG_SETTING_LAST) {
   
   { 0, 0, 3, "TR1 global div", g_divisors, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 3, "TR2 global div", g_divisors, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 0, "-", nullptr, settings::STORAGE_TYPE_U4 },
   { 0, 0, 0, "-", nullptr, settings::STORAGE_TYPE_U4 },
   { 0, 0, 0, "-", nullptr, settings::STORAGE_TYPE_U4 }
 };
@@ -225,6 +197,7 @@ void GLOBAL_CONFIG_menu() {
     switch (setting) {
       case GLOBAL_CONFIG_SETTING_DUMMY:
       case GLOBAL_CONFIG_SETTING_MORE_DUMMY:
+      case GLOBAL_CONFIG_SETTING_STILL_MORE_DUMMY:
         list_item.DrawNoValue<false>(value, attr);
       break;
       default:
@@ -249,7 +222,7 @@ void GLOBAL_CONFIG_handleButtonEvent(const UI::Event &event) {
   if (TU::CONTROL_BUTTON_R == event.control) {
 
       GLOBAL_CONFIG_Setting setting = global_config.enabled_setting_at(config_app.cursor_pos());   
-      if (setting == GLOBAL_CONFIG_SETTING_DIV1 || setting == GLOBAL_CONFIG_SETTING_DIV2)
+      if (setting == GLOBAL_CONFIG_SETTING_DIV1)
         config_app.cursor.toggle_editing();
   }
 }

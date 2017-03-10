@@ -51,7 +51,6 @@ struct GlobalSettings {
   bool reserved0;
   bool reserved1;
   uint8_t global_div1;
-  uint8_t global_div2;
   uint16_t current_app_id;
   TU::Pattern user_patterns[TU::Patterns::PATTERN_USER_LAST];
 };
@@ -91,7 +90,6 @@ void save_global_settings() {
 
   TU::DigitalInputs inputs; 
   global_settings.global_div1 = inputs.global_div_TR1();
-  global_settings.global_div2 = inputs.global_div_TR2();
 
   memcpy(global_settings.user_patterns, TU::user_patterns, sizeof(TU::user_patterns));
   
@@ -211,7 +209,6 @@ void Init(bool reset_settings) {
   global_settings.reserved0 = false;
   global_settings.reserved1 = false;
   global_settings.global_div1 = 0x0;
-  global_settings.global_div2 = 0x0;
 
   if (reset_settings) {
     if (ui.ConfirmReset()) {
@@ -248,11 +245,9 @@ void Init(bool reset_settings) {
     ui.encoders_enable_acceleration(global_settings.encoders_enable_acceleration);
   
     SERIAL_PRINTLN("Global divisor, TR1: %i", global_settings.global_div1);
-    SERIAL_PRINTLN("Global divisor, TR2: %i", global_settings.global_div2);
   
     TU::DigitalInputs inputs; 
     inputs.set_global_div_TR1(global_settings.global_div1);
-    inputs.set_global_div_TR2(global_settings.global_div2);
 
     SERIAL_PRINTLN("Loading app data: struct size is %u, PAGESIZE=%u, PAGES=%u, LENGTH=%u",
                   sizeof(AppData),
