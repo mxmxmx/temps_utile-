@@ -67,6 +67,8 @@ private:
   void toggle_mask();
   void invert_mask();
   void clear_mask(); 
+  void copy_sequence(); 
+  void paste_sequence(); 
 
   void apply_mask(uint16_t mask) {
 
@@ -202,10 +204,12 @@ void PatternEditor<Owner>::HandleButtonEvent(const UI::Event &event) {
   else if (UI::EVENT_BUTTON_LONG_PRESS == event.type) {
      switch (event.control) {
       case TU::CONTROL_BUTTON_UP:
-        invert_mask();
+        //invert_mask();
+        copy_sequence();
         break;
       case TU::CONTROL_BUTTON_DOWN:
-        clear_mask();
+        //clear_mask();
+        paste_sequence();
       break;
       default:
       break;
@@ -343,6 +347,18 @@ void PatternEditor<Owner>::clear_mask() {
   apply_mask(0x00);
 }
 
+template <typename Owner>
+void PatternEditor<Owner>::copy_sequence() {
+  owner_->copy_seq(num_slots_, mask_);
+}
+
+template <typename Owner>
+void PatternEditor<Owner>::paste_sequence() {
+  
+     uint8_t newslots = owner_->paste_seq(edit_this_sequence_);
+     num_slots_ = newslots ? newslots : num_slots_;
+     mask_ = owner_->get_mask(edit_this_sequence_);
+}
 
 template <typename Owner>
 /*static*/ uint16_t PatternEditor<Owner>::RotateMask(uint16_t mask, int num_slots, int amount) {

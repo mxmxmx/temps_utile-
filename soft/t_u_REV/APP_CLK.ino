@@ -50,6 +50,7 @@ static const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16
 static const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
 static const uint32_t TICK_JITTER = 0xFFFFFFF;  // 1/16 : threshold/double triggers reject -> ext_frequency_in_ticks_
 static const uint32_t TICK_SCALE  = 0xC0000000; // 0.75 for signed_multiply_32x32
+static const uint32_t COPYTIMEOUT = 200000; 
 
 extern const uint32_t BPM_microseconds_4th[];
 
@@ -58,6 +59,11 @@ static uint32_t ticks_src2 = 0; // sec. clock frequency (bottom)
 static uint32_t ticks_internal = 0; // sec. clock frequency (bottom)
 static int32_t global_div_count_TR1 = 0; // pre-clock-division
 bool RESET_GLOBAL_TR2 = true;
+
+// copy sequence, global 
+uint16_t copy_length = TU::Patterns::kMax;
+uint16_t copy_mask = 0xFFFF;
+uint32_t copy_timeout = COPYTIMEOUT;
 
 static const uint64_t multipliers_[] = {
 
@@ -710,7 +716,29 @@ public:
     
   void reset_sequence() {
     sequence_reset_ = true;
-  }        
+  }
+  
+  void copy_seq(uint8_t len, uint16_t mask) {
+    copy_length = len;
+    copy_mask = mask;
+    copy_timeout = 0;
+  }
+
+  uint8_t paste_seq(uint8_t seq) {
+
+    if (copy_timeout < COPYTIMEOUT) {
+
+      // copy length:
+      set_sequence_length(copy_length, seq);
+      // copy mask:
+      update_pattern_mask(copy_mask, seq);
+      // give more time for more pasting...
+      copy_timeout = 0;
+      return copy_length;
+    }
+    else
+      return 0;
+  }
   
   void clear_CV_mapping() {
 
@@ -1603,7 +1631,6 @@ public:
   }
 
   void update_enabled_settings(uint8_t channel_id) {
-
 
     ChannelSetting *settings = enabled_settings_;
     uint8_t mode = (channel_id != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
