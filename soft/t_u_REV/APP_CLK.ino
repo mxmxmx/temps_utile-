@@ -2083,8 +2083,8 @@ void CLOCKS_isr() {
     global_div_count_TR1--;
     uint8_t global_divisor_ = TU::DigitalInputs::global_div_TR1();
     
-    // sync/reset global divisor? defaults to TR2 ("-")
-    if (global_divisor_ && clock_channel[CLOCK_CHANNEL_1].get_reset_source() == CHANNEL_TRIGGER_NONE) {  
+    // sync/reset global divisor? defaults to TR2
+    if (global_divisor_ && clock_channel[CLOCK_CHANNEL_1].get_reset_source() == CHANNEL_TRIGGER_TR2) {  
       
       bool global_reset = digitalReadFast(TR2);
       // reset ?
