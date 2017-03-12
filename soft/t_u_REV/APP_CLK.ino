@@ -30,6 +30,8 @@
 #include "TU_patterns.h"
 #include "extern/dspinst.h"
 #include "util/util_arp.h"
+#include "TU_input_map.h"
+#include "TU_input_maps.h"
 
 namespace menu = TU::menu;
 
@@ -269,6 +271,21 @@ enum LOGICMODES {
   NAND,
   NOR,
   LOGICMODE_LAST
+};
+
+enum PLAY_MODES {
+  PM_NONE,
+  PM_SEQ1,
+  PM_SEQ2,
+  PM_SEQ3,
+  PM_TR1,
+  PM_TR2,
+  PM_TR3,
+  PM_SH1,
+  PM_SH2,
+  PM_SH3,
+  PM_SH4,
+  PM_LAST
 };
 
 enum MENUPAGES {
@@ -739,6 +756,10 @@ public:
     else
       return 0;
   }
+
+  void update_inputmap(int num_slots, uint8_t range) {
+    input_map_.Configure(TU::InputMaps::GetInputMap(num_slots), range);
+  }
   
   void clear_CV_mapping() {
 
@@ -824,10 +845,12 @@ public:
     display_mask_ = get_mask(display_sequence_);
     cv_display_mask_ = get_cv_mask();
     sequence_last_ = display_sequence_;
+    sequence_last_length_ = 0x0;
     sequence_advance_ = false;
     sequence_advance_state_ = false;
 
     turing_machine_.Init();
+    input_map_.Init();
     arpeggiator_.Init(TU::OUTPUTS::get_v_oct());
     turing_machine_.Clock();
     logistic_map_.Init();
@@ -1208,35 +1231,65 @@ public:
 
         uint8_t _playmode = get_playmode();
 
-        if (_playmode) {
-
-          // concatenate sequences:
-          if (_playmode <= 3 && clk_cnt_ >= get_sequence_length(sequence_last_)) {
-            sequence_cnt_++;
-            sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
-            clk_cnt_ = 0;
-          }
-          else if (_playmode > 3 && sequence_advance_) {
-            
-            if (sequence_reset_) {
-              // manual change?
-              sequence_reset_ = false;
-              sequence_last_ = _seq;
-            }
-            
-            _playmode -= 3;
-            sequence_cnt_++;
-            sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
-            clk_cnt_ = 0;
-            sequence_advance_ = false;
-          }
-
-          if (sequence_last_ >= TU::Patterns::PATTERN_USER_LAST)
-            sequence_last_ -= TU::Patterns::PATTERN_USER_LAST;
-        }
-        else
+        switch (_playmode) {
+          
+          case PM_NONE:
           sequence_last_ = _seq;
-
+          break;
+          case PM_SEQ1:
+          case PM_SEQ2:
+          case PM_SEQ3:
+          // concatenate sequences:
+          {
+            if (clk_cnt_ >= get_sequence_length(sequence_last_)) {
+                sequence_cnt_++;
+                sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
+                clk_cnt_ = 0;
+             }
+           }
+           break;
+           case PM_TR1:
+           case PM_TR2:
+           case PM_TR3:
+           {
+           if ( sequence_advance_) {
+              
+              if (sequence_reset_) {
+                // manual change?
+                sequence_reset_ = false;
+                sequence_last_ = _seq;
+              }
+              
+              _playmode -= 3;
+              sequence_cnt_++;
+              sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
+              clk_cnt_ = 0;
+              sequence_advance_ = false;
+            }
+  
+            if (sequence_last_ >= TU::Patterns::PATTERN_USER_LAST)
+              sequence_last_ -= TU::Patterns::PATTERN_USER_LAST;
+          }
+          break;
+          case PM_SH1:
+          case PM_SH2:
+          case PM_SH3:
+          case PM_SH4:
+          {
+            int len = get_sequence_length(_seq);
+            if (sequence_last_length_ != len)
+              update_inputmap(len, 0x0);
+             // store values:
+             sequence_last_ = _seq;
+             sequence_last_length_ = len;
+             clk_cnt_ = input_map_.Process(TU::ADC::value(static_cast<ADC_CHANNEL>(_playmode - PM_SH1)));
+          }
+          break;
+          default:
+          break;
+        }
+        // end switch
+          
         _seq = sequence_last_;
         // this is the sequence # (USER1-USER4):
         display_sequence_ = _seq;
@@ -1872,6 +1925,7 @@ private:
   uint16_t display_mask_;
   uint16_t cv_display_mask_;
   int8_t sequence_last_;
+  int8_t sequence_last_length_;
   int32_t sequence_cnt_;
   int8_t sequence_advance_;
   int8_t sequence_advance_state_;
@@ -1886,6 +1940,7 @@ private:
   int num_enabled_settings_;
   ChannelSetting enabled_settings_[CHANNEL_SETTING_LAST];
   TU::DigitalInputDisplay clock_display_;
+  TU::Input_Map input_map_;
 
 };
 
@@ -1955,7 +2010,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 2
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 3
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 4
-  { 0, 0, 6, "playmode", TU::Strings::seq_playmodes, settings::STORAGE_TYPE_U8 },
+  { 0, 0, PM_LAST - 1, "playmode", TU::Strings::seq_playmodes, settings::STORAGE_TYPE_U8 },
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // CV seq 
   { 0, 0, 5, "playmode", TU::Strings::cv_seq_playmodes, settings::STORAGE_TYPE_U4 }, // CV playmode
   // cv sources
