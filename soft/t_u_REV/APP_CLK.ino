@@ -30,13 +30,12 @@
 #include "TU_patterns.h"
 #include "extern/dspinst.h"
 #include "util/util_arp.h"
+#include "util/util_bursts.h"
 #include "TU_input_map.h"
 #include "TU_input_maps.h"
 
 namespace menu = TU::menu;
 
-static const uint8_t MODES = 7;        // # clock modes
-static const uint8_t DAC_MODES = 5;    // # DAC submodes
 static const uint8_t RND_MAX = 31;     // max random (n)
 static const uint8_t MULT_MAX = 26;    // max multiplier
 static const uint8_t MULT_BY_ONE = 13; // default multiplication
@@ -167,6 +166,9 @@ enum ChannelSetting {
   CHANNEL_SETTING_SEQUENCE_PLAYMODE,
   CHANNEL_SETTING_CV_SEQUENCE_LENGTH,
   CHANNEL_SETTING_CV_SEQUENCE_PLAYMODE,
+  CHANNEL_SETTING_BURST_MAX_INTERVAL,
+  CHANNEL_SETTING_BURST_DENSITY,
+  CHANNEL_SETTING_BURST_SOURCES,
   // cv sources
   CHANNEL_SETTING_MULT_CV_SOURCE,
   CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE,
@@ -224,8 +226,9 @@ enum CLOCKMODES {
   EUCLID,
   LOGIC,
   SEQ,
+  BURST,
   DAC,
-  LAST_MODE
+  CLOCK_MODES_LAST
 };
 
 enum DACMODES {
@@ -234,7 +237,7 @@ enum DACMODES {
   _TURING,
   _LOGISTIC,
   _SEQ_CV,
-  LAST_DACMODE
+  _DAC_MODES_LAST
 };
 
 enum CV_SEQ_MODES {
@@ -439,6 +442,18 @@ public:
 
   int get_cv_playmode() const {
     return values_[CHANNEL_SETTING_CV_SEQUENCE_PLAYMODE];
+  }
+
+  int burst_max_interval() const {
+    return values_[CHANNEL_SETTING_BURST_MAX_INTERVAL];
+  }
+
+  int burst_density() const {
+    return values_[CHANNEL_SETTING_BURST_DENSITY];
+  }
+
+  int burst_sources() const {
+    return values_[CHANNEL_SETTING_BURST_SOURCES];
   }
 
   int get_display_sequence() const {
@@ -818,6 +833,7 @@ public:
     force_update_ = true;
     gpio_state_ = OFF;
     display_state_ = _OFF;
+    ticks_ = 0;
     subticks_ = 0;
     tickjitter_ = 10000;
     clk_cnt_ = 0;
@@ -854,6 +870,8 @@ public:
     arpeggiator_.Init(TU::OUTPUTS::get_v_oct());
     turing_machine_.Clock();
     logistic_map_.Init();
+    bursts_.Init();
+    
     uint32_t _seed = TU::ADC::value<ADC_CHANNEL_1>() + TU::ADC::value<ADC_CHANNEL_2>() + TU::ADC::value<ADC_CHANNEL_3>() + TU::ADC::value<ADC_CHANNEL_4>();
     randomSeed(_seed);
     logistic_map_.set_seed(_seed);
@@ -872,6 +890,7 @@ public:
 
     // increment channel ticks ..
     subticks_++;
+    burst_ticks_++;
 
     int8_t _clock_source, _reset_source, _mode;
     int8_t _multiplier;
@@ -1029,17 +1048,20 @@ public:
       clk_cnt_++;
 
       // reset counter ? (SEQ/Euclidian)
-      if (reset_counter_ || pending_sync_) 
+      if (reset_counter_) 
         clk_cnt_ = 0x0;
       
-      // clear
-      pending_sync_ = false;
+      // resync/clear pending sync
+      if (_triggered && pending_sync_) {
+        pending_sync_ = false;
+        clk_cnt_ = 0x0;
+      }
    
       // clear for reset:
       reset_me_ = true;
       reset_counter_ = false;
       // finally, process trigger + output
-      _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
+      _output = gpio_state_ = process_clock_channel(_mode, _subticks); // = either ON, OFF, or anything (DAC)
       display_state_ = _ACTIVE;
       if (_triggered) {
         TU::OUTPUTS::setState(clock_channel, _output);
@@ -1123,7 +1145,7 @@ public:
   } // end update
 
   /* details re: trigger processing happens (mostly) here: */
-  inline uint16_t process_clock_channel(uint8_t mode) {
+  inline uint16_t process_clock_channel(uint8_t mode, uint32_t ticks) {
 
     int16_t _out = ON;
     logic_ = false;
@@ -1217,6 +1239,24 @@ public:
         // calculate output:
         _out = ((clk_cnt_ + _offset) * _k) % _n;
         _out = (_out < _k) ? ON : OFF;
+      }
+        break;
+      case BURST:
+      {
+        bursts_.set_frequency(channel_frequency_in_ticks_);
+        bursts_.set_max_interval(burst_max_interval());
+        bursts_.set_density(burst_density());
+        bursts_.set_sources(burst_sources());
+
+        if (!clk_cnt_) 
+          bursts_.reset();
+          
+        if (!bursts_.Clock(burst_ticks_)) 
+          _out = OFF;
+        else {
+          burst_ticks_ = 0x0;
+          _out = ON;
+        }
       }
         break;
       case SEQ: {
@@ -1314,7 +1354,7 @@ public:
 
         if (get_DAC_mode_cv_source()) {
           _mode += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_mode_cv_source() - 1)) + 256) >> 9;
-          CONSTRAIN(_mode, 0, LAST_DACMODE-1);
+          CONSTRAIN(_mode, 0, _DAC_MODES_LAST - 1);
         }
 
         if (get_DAC_range_cv_source()) {
@@ -1732,6 +1772,11 @@ public:
           *settings++ = CHANNEL_SETTING_MASK_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_DUMMY; // playmode CV
           break;
+        case BURST:
+          *settings++ = CHANNEL_SETTING_BURST_MAX_INTERVAL;
+          *settings++ = CHANNEL_SETTING_BURST_DENSITY;
+          *settings++ = CHANNEL_SETTING_BURST_SOURCES;
+          break;
         case DAC:
           *settings++ = CHANNEL_SETTING_DAC_MODE_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_DAC_OFFSET_CV_SOURCE;
@@ -1829,6 +1874,11 @@ public:
           }
           *settings++ = CHANNEL_SETTING_SEQUENCE_PLAYMODE;
           break;
+        case BURST:
+          *settings++ = CHANNEL_SETTING_BURST_MAX_INTERVAL;
+          *settings++ = CHANNEL_SETTING_BURST_DENSITY;
+          *settings++ = CHANNEL_SETTING_BURST_SOURCES;
+          break;
         case DAC:
           *settings++ = CHANNEL_SETTING_DAC_MODE;
           *settings++ = CHANNEL_SETTING_DAC_OFFSET;
@@ -1906,6 +1956,7 @@ private:
   bool reset_counter_;
   uint32_t ticks_;
   uint32_t subticks_;
+  uint32_t burst_ticks_;
   uint32_t tickjitter_;
   uint32_t clk_cnt_;
   int16_t div_cnt_;
@@ -1937,6 +1988,7 @@ private:
   util::TuringShiftRegister turing_machine_;
   util::Arpeggiator arpeggiator_;
   util::LogisticMap logistic_map_;
+  util::Bursts bursts_;
   int num_enabled_settings_;
   ChannelSetting enabled_settings_[CHANNEL_SETTING_LAST];
   TU::DigitalInputDisplay clock_display_;
@@ -1969,9 +2021,9 @@ const char* const arp_directions[4] = {
 
 SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
 
-  { 0, 0, MODES - 2, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
-  { 0, 0, MODES - 1, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
-  { CHANNEL_TRIGGER_TR1, 0, CHANNEL_TRIGGER_LAST-1, "clock src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, CLOCK_MODES_LAST - 2, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
+  { 0, 0, CLOCK_MODES_LAST - 1, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
+  { CHANNEL_TRIGGER_TR1,  0, CHANNEL_TRIGGER_LAST - 1, "clock src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
   { CHANNEL_TRIGGER_NONE, 0, CHANNEL_TRIGGER_LAST, "reset/mute", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
   { MULT_BY_ONE, 0, MULT_MAX, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
   { 25, 0, PULSEW_MAX, "pulsewidth", TU::Strings::pulsewidth_ms, settings::STORAGE_TYPE_U8 },
@@ -1991,7 +2043,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, 1, "track -->", TU::Strings::logic_tracking, settings::STORAGE_TYPE_U4 },
   { 128, 1, 255, "DAC: range", NULL, settings::STORAGE_TYPE_U8 },
   { 0, -3, 3, "DAC: offset", NULL, settings::STORAGE_TYPE_I8 },
-  { 0, 0, DAC_MODES-1, "DAC: mode", TU::Strings::dac_modes, settings::STORAGE_TYPE_U4 },
+  { 0, 0, _DAC_MODES_LAST - 1, "DAC: mode", TU::Strings::dac_modes, settings::STORAGE_TYPE_U4 },
   { 0, 0, 1, "track -->", TU::Strings::binary_tracking, settings::STORAGE_TYPE_U4 },
   { 0, 0, 255, "rnd hist.", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
   { 0, 0, TU::OUTPUTS::kHistoryDepth - 1, "hist. depth", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
@@ -2013,6 +2065,9 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, PM_LAST - 1, "playmode", TU::Strings::seq_playmodes, settings::STORAGE_TYPE_U8 },
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // CV seq 
   { 0, 0, 5, "playmode", TU::Strings::cv_seq_playmodes, settings::STORAGE_TYPE_U4 }, // CV playmode
+  { 63, 0, 255, "interval (max)", NULL, settings::STORAGE_TYPE_U8 },
+  { 0, 0, 31, "spread", NULL, settings::STORAGE_TYPE_U8 },
+  { 0, 0, 15, "density", NULL, settings::STORAGE_TYPE_U8 },
   // cv sources
   { 0, 0, 4, "mult/div    >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "pulsewidth  >>", cv_sources, settings::STORAGE_TYPE_U4 },

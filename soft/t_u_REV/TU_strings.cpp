@@ -21,7 +21,7 @@ namespace TU {
   
   const char * const channel_id[] = { "ch#1", "ch#2", "ch#3", "ch#4", "ch#5", "ch#6"};
 
-  const char * const mode[] = { "MULT", "LFSR", "RAND", "EUCL", "LOGIC", "SEQ", "DAC" };
+  const char * const mode[] = { "MULT", "LFSR", "RAND", "EUCL", "LOGIC", "SEQ", "BURST", "DAC" };
 
   const char * const dac_modes[] = { "BIN", "RAND", "T_M", "LGTC", "SEQ"};
   
