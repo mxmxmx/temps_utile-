@@ -835,6 +835,7 @@ public:
     display_state_ = _OFF;
     ticks_ = 0;
     subticks_ = 0;
+    burst_ticks_ = 0;
     tickjitter_ = 10000;
     clk_cnt_ = 0;
     clk_src_ = get_clock_source();
@@ -1061,7 +1062,7 @@ public:
       reset_me_ = true;
       reset_counter_ = false;
       // finally, process trigger + output
-      _output = gpio_state_ = process_clock_channel(_mode, _subticks); // = either ON, OFF, or anything (DAC)
+      _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
       display_state_ = _ACTIVE;
       if (_triggered) {
         TU::OUTPUTS::setState(clock_channel, _output);
@@ -1145,7 +1146,7 @@ public:
   } // end update
 
   /* details re: trigger processing happens (mostly) here: */
-  inline uint16_t process_clock_channel(uint8_t mode, uint32_t ticks) {
+  inline uint16_t process_clock_channel(uint8_t mode) {
 
     int16_t _out = ON;
     logic_ = false;
