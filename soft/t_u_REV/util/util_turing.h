@@ -78,6 +78,10 @@ public:
     return shift_register_;
   }
 
+  uint8_t length() const {
+    return length_;
+  }
+
 private:
 
   uint8_t length_;

@@ -195,6 +195,9 @@ enum ChannelSetting {
   CHANNEL_SETTING_HISTORY_DEPTH_CV_SOURCE,
   CHANNEL_SETTING_ARP_RANGE_CV_SOURCE,
   CHANNEL_SETTING_ARP_DIRECTION_CV_SOURCE,
+  CHANNEL_SETTING_BURST_MAX_INTERVAL_CV_SOURCE,
+  CHANNEL_SETTING_BURST_DENSITY_CV_SOURCE,
+  CHANNEL_SETTING_BURST_SOURCES_CV_SOURCE,
   CHANNEL_SETTING_DUMMY,
   CHANNEL_SETTING_DUMMY_EMPTY,
   CHANNEL_SETTING_SCREENSAVER,
@@ -607,6 +610,18 @@ public:
     return values_[CHANNEL_SETTING_ARP_DIRECTION_CV_SOURCE];
   }
 
+  uint8_t density_cv_source() const {
+    return values_[CHANNEL_SETTING_BURST_DENSITY_CV_SOURCE];
+  }
+
+  uint8_t sources_cv_source() const {
+    return values_[CHANNEL_SETTING_BURST_SOURCES_CV_SOURCE];
+  }
+
+  uint8_t interval_cv_source() const {
+    return values_[CHANNEL_SETTING_BURST_MAX_INTERVAL_CV_SOURCE];
+  }
+
   void update_pattern_mask(uint16_t mask, uint8_t sequence) {
 
     switch(sequence) {
@@ -913,7 +928,7 @@ public:
     _multiplier = get_multiplier();
 
     if (get_mult_cv_source()) {
-      _multiplier += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_mult_cv_source() - 1)) + 255) >> 9;
+      _multiplier += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_mult_cv_source() - 1)) + 256) >> 9;
       CONSTRAIN(_multiplier, 0, MULT_MAX);
     }
     // 3. channel mode?
@@ -1091,7 +1106,7 @@ public:
         // CV?
         if (get_pulsewidth_cv_source()) {
 
-          _pulsewidth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_pulsewidth_cv_source() - 1)) + 8) >> 3;
+          _pulsewidth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_pulsewidth_cv_source() - 1)) + 8) >> 4;
           if (!_gates)
             CONSTRAIN(_pulsewidth, 1, PULSEW_MAX);
           else // CV for 50% duty cycle:
@@ -1167,12 +1182,12 @@ public:
         _probability = get_turing_probability();
 
         if (get_turing_length_cv_source()) {
-          _length += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_length_cv_source() - 1)) + 64) >> 6;
+          _length += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_length_cv_source() - 1)) + 32) >> 6;
           CONSTRAIN(_length, LFSR_MIN, LFSR_MAX);
         }
 
         if (get_turing_prob_cv_source()) {
-          _probability += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_prob_cv_source() - 1)) + 16) >> 4;
+          _probability += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_prob_cv_source() - 1)) + 8) >> 4;
           CONSTRAIN(_probability, 1, 255);
         }
 
@@ -1189,10 +1204,10 @@ public:
         int8_t  _tap2 = get_tap2();
 
         if (get_tap1_cv_source())
-          _tap1 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_tap1_cv_source() - 1)) + 64) >> 6;
+          _tap1 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_tap1_cv_source() - 1)) + 64) >> 7;
 
         if (get_tap2_cv_source())
-          _tap2 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_tap2_cv_source() - 1)) + 64) >> 6;
+          _tap2 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_tap2_cv_source() - 1)) + 64) >> 7;
 
         CONSTRAIN(_tap1, 1, _length);
         CONSTRAIN(_tap2, 1, _length);
@@ -1208,7 +1223,7 @@ public:
         // get threshold setting:
         int16_t _n = rand_n();
         if (get_rand_n_cv_source()) {
-          _n += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_n_cv_source() - 1)) + 64) >> 6;
+          _n += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_n_cv_source() - 1)) + 64) >> 7;
           CONSTRAIN(_n, 0, RND_MAX);
         }
 
@@ -1225,15 +1240,15 @@ public:
         _offset = euclid_offset();
         // CV --
         if (get_euclid_n_cv_source()) {
-          _n += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_n_cv_source() - 1)) + 64) >> 6;
+          _n += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_n_cv_source() - 1)) + 32) >> 6;
           CONSTRAIN(_n, 1, EUCLID_N_MAX);
         }
 
         if (get_euclid_k_cv_source())
-          _k += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_k_cv_source() - 1)) + 64) >> 6;
+          _k += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_k_cv_source() - 1)) + 32) >> 6;
 
         if (get_euclid_offset_cv_source())
-          _offset += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_offset_cv_source() - 1)) + 64) >> 6;
+          _offset += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_offset_cv_source() - 1)) + 32) >> 6;
 
         CONSTRAIN(_k, 1, _n);
         CONSTRAIN(_offset, 1, _n);
@@ -1244,10 +1259,34 @@ public:
         break;
       case BURST:
       {
+
+        int32_t _interval, _density, _sources;
+
+        _interval = burst_max_interval();
+             
+        if (interval_cv_source()) {
+          _interval += (TU::ADC::value(static_cast<ADC_CHANNEL>(interval_cv_source() - 1)) + 8) >> 4;
+          CONSTRAIN(_interval, 0, 255);
+        }
+        
+        _density = burst_density();
+       
+        if (density_cv_source()) {
+          _density += (TU::ADC::value(static_cast<ADC_CHANNEL>(density_cv_source() - 1)) + 64) >> 7;
+          CONSTRAIN(_density, 0, 31);
+        }
+        
+        _sources = burst_sources();
+        
+        if (sources_cv_source()) {
+          _sources += (TU::ADC::value(static_cast<ADC_CHANNEL>(sources_cv_source() - 1)) + 128) >> 8;
+          CONSTRAIN(_sources, 0, 15);
+        }
+        
         bursts_.set_frequency(channel_frequency_in_ticks_);
-        bursts_.set_max_interval(burst_max_interval());
-        bursts_.set_density(burst_density());
-        bursts_.set_sources(burst_sources());
+        bursts_.set_max_interval(_interval);
+        bursts_.set_density(_density);
+        bursts_.set_sources(_sources);
 
         if (!clk_cnt_) 
           bursts_.reset();
@@ -1265,7 +1304,7 @@ public:
         int16_t _seq = get_sequence();
 
         if (get_sequence_cv_source()) {
-          _seq += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_sequence_cv_source() - 1)) + 255) >> 9;
+          _seq += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_sequence_cv_source() - 1)) + 256) >> 9;
           CONSTRAIN(_seq, 0, TU::Patterns::PATTERN_USER_LAST-1);
         }
 
@@ -1338,7 +1377,7 @@ public:
         uint16_t _mask = get_mask(_seq);
         // rotate mask ?
         if (get_mask_cv_source())
-          _mask = update_sequence((TU::ADC::value(static_cast<ADC_CHANNEL>(get_mask_cv_source() - 1)) + 127) >> 8, _seq, _mask);
+          _mask = update_sequence((TU::ADC::value(static_cast<ADC_CHANNEL>(get_mask_cv_source() - 1)) + 128) >> 8, _seq, _mask);
         display_mask_ = _mask;
         // reset counter ?
         if (clk_cnt_ >= get_sequence_length(_seq))
@@ -1359,7 +1398,7 @@ public:
         }
 
         if (get_DAC_range_cv_source()) {
-          _range += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_range_cv_source() - 1)) + 16) >> 4;
+          _range += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_range_cv_source() - 1)) + 8) >> 4;
           CONSTRAIN(_range, 1, 255);
         }
 
@@ -1405,7 +1444,7 @@ public:
               CONSTRAIN(_depth, 0, (int8_t) TU::OUTPUTS::kHistoryDepth - 1 );
             }
             if (get_rand_history_w_cv_source()) {
-              _weight += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_history_w_cv_source() - 1)) + 16) >> 4;
+              _weight += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_history_w_cv_source() - 1)) + 8) >> 4;
               CONSTRAIN(_weight, 0, 255);
             }
 
@@ -1432,7 +1471,7 @@ public:
             }
 
             if (get_turing_prob_cv_source()) {
-              _probability += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_prob_cv_source() - 1)) + 16) >> 4;
+              _probability += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_prob_cv_source() - 1)) + 8) >> 4;
               CONSTRAIN(_probability, 1, 255);
             }
 
@@ -1457,7 +1496,7 @@ public:
             int32_t logistic_map_r = get_logistic_map_r();
 
             if (get_logistic_map_r_cv_source()) {
-              logistic_map_r += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logistic_map_r_cv_source() - 1)) + 16) >> 4;
+              logistic_map_r += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logistic_map_r_cv_source() - 1)) + 8) >> 4;
               CONSTRAIN(logistic_map_r, 0, 255);
             }
 
@@ -1774,9 +1813,9 @@ public:
           *settings++ = CHANNEL_SETTING_DUMMY; // playmode CV
           break;
         case BURST:
-          *settings++ = CHANNEL_SETTING_BURST_MAX_INTERVAL;
-          *settings++ = CHANNEL_SETTING_BURST_DENSITY;
-          *settings++ = CHANNEL_SETTING_BURST_SOURCES;
+          *settings++ = CHANNEL_SETTING_BURST_MAX_INTERVAL_CV_SOURCE;
+          *settings++ = CHANNEL_SETTING_BURST_DENSITY_CV_SOURCE;
+          *settings++ = CHANNEL_SETTING_BURST_SOURCES_CV_SOURCE;
           break;
         case DAC:
           *settings++ = CHANNEL_SETTING_DAC_MODE_CV_SOURCE;
@@ -2095,10 +2134,14 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, 4, "hist. depth >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "arp.range   >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "arp.direc.  >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "interval    >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "spread      >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "density     >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 0, "---------------------", NULL, settings::STORAGE_TYPE_U4 }, // DUMMY
   { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_U4 }, // DUMMY empty
   { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_U4 }  // screensaver
 };
+
 
 
 class ClocksState {
