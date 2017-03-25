@@ -817,6 +817,9 @@ public:
     apply_value(CHANNEL_SETTING_ARP_RANGE_CV_SOURCE, 0);
     apply_value(CHANNEL_SETTING_ARP_DIRECTION_CV_SOURCE, 0);
     apply_value(CHANNEL_SETTING_SEQ_MASK_CV_SOURCE, 0);
+    apply_value(CHANNEL_SETTING_BURST_DENSITY_CV_SOURCE, 0);
+    apply_value(CHANNEL_SETTING_BURST_SOURCES_CV_SOURCE, 0);
+    apply_value(CHANNEL_SETTING_BURST_MAX_INTERVAL_CV_SOURCE, 0);
   }
 
   void sync() {
@@ -2485,25 +2488,28 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
 
 void CLOCKS_upButton() {
 
-  Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+  if (!TU::ui.read_immediate(TU::CONTROL_BUTTON_L)) {
 
-  uint8_t _menu_page = selected.get_page();
-
-  switch (_menu_page) {
-
-    case TEMPO:
-      selected.set_page(PARAMETERS);
-      clocks_state.cursor = clocks_state.cursor_state;
-      break;
-    default:
-      clocks_state.cursor_state = clocks_state.cursor;
-      selected.set_page(TEMPO);
-      clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
-      clocks_state.cursor.toggle_editing();
-      break;
+    Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+  
+    uint8_t _menu_page = selected.get_page();
+  
+    switch (_menu_page) {
+  
+      case TEMPO:
+        selected.set_page(PARAMETERS);
+        clocks_state.cursor = clocks_state.cursor_state;
+        break;
+      default:
+        clocks_state.cursor_state = clocks_state.cursor;
+        selected.set_page(TEMPO);
+        clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
+        clocks_state.cursor.toggle_editing();
+        break;
+    }
+    selected.update_enabled_settings(clocks_state.selected_channel);
+    clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
   }
-  selected.update_enabled_settings(clocks_state.selected_channel);
-  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
 }
 
 void CLOCKS_downButton() {
@@ -2587,36 +2593,42 @@ void CLOCKS_leftButton() {
 
 void CLOCKS_leftButtonLong() {
 
-  for (int i = 0; i < NUM_CHANNELS; ++i)
-    clock_channel[i].InitDefaults();
-
-  Clock_channel &selected = clock_channel[clocks_state.selected_channel];
-  selected.set_page(PARAMETERS);
-  selected.update_enabled_settings(clocks_state.selected_channel);
-  clocks_state.cursor.set_editing(false);
-  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+  if (TU::ui.read_immediate(TU::CONTROL_BUTTON_UP)) {
+    
+    for (int i = 0; i < NUM_CHANNELS; ++i)
+      clock_channel[i].InitDefaults();
+  
+    Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+    selected.set_page(PARAMETERS);
+    selected.update_enabled_settings(clocks_state.selected_channel);
+    clocks_state.cursor.set_editing(false);
+    clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+  }
 }
 
 void CLOCKS_upButtonLong() {
 
-  Clock_channel &selected = clock_channel[clocks_state.selected_channel];
-  // set all channels to internal ?
-  if (selected.get_page() == TEMPO) {
-    for (int i = 0; i < NUM_CHANNELS; ++i)
-      clock_channel[i].set_clock_source(CHANNEL_TRIGGER_INTERNAL);
-    // and clear outputs:
-    TU::OUTPUTS::set(CLOCK_CHANNEL_1, OFF);
-    TU::OUTPUTS::setState(CLOCK_CHANNEL_1, OFF);
-    TU::OUTPUTS::set(CLOCK_CHANNEL_2, OFF);
-    TU::OUTPUTS::setState(CLOCK_CHANNEL_2, OFF);
-    TU::OUTPUTS::set(CLOCK_CHANNEL_3, OFF);
-    TU::OUTPUTS::setState(CLOCK_CHANNEL_3, OFF);
-    TU::OUTPUTS::set(CLOCK_CHANNEL_4, selected.get_zero(CLOCK_CHANNEL_4));
-    TU::OUTPUTS::setState(CLOCK_CHANNEL_4, OFF);
-    TU::OUTPUTS::set(CLOCK_CHANNEL_5, OFF);
-    TU::OUTPUTS::setState(CLOCK_CHANNEL_5, OFF);
-    TU::OUTPUTS::set(CLOCK_CHANNEL_6, OFF);
-    TU::OUTPUTS::setState(CLOCK_CHANNEL_6, OFF);
+  if (!TU::ui.read_immediate(TU::CONTROL_BUTTON_L)) {
+    
+    Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+    // set all channels to internal ?
+    if (selected.get_page() == TEMPO) {
+      for (int i = 0; i < NUM_CHANNELS; ++i)
+        clock_channel[i].set_clock_source(CHANNEL_TRIGGER_INTERNAL);
+      // and clear outputs:
+      TU::OUTPUTS::set(CLOCK_CHANNEL_1, OFF);
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_1, OFF);
+      TU::OUTPUTS::set(CLOCK_CHANNEL_2, OFF);
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_2, OFF);
+      TU::OUTPUTS::set(CLOCK_CHANNEL_3, OFF);
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_3, OFF);
+      TU::OUTPUTS::set(CLOCK_CHANNEL_4, selected.get_zero(CLOCK_CHANNEL_4));
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_4, OFF);
+      TU::OUTPUTS::set(CLOCK_CHANNEL_5, OFF);
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_5, OFF);
+      TU::OUTPUTS::set(CLOCK_CHANNEL_6, OFF);
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_6, OFF);
+    }
   }
 }
 

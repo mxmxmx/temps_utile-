@@ -168,10 +168,10 @@ void PatternEditor<Owner>::Draw() {
     // draw clock
     if (!edit_mode_) {
       if (i == clock_pos && (owner_->get_current_sequence() == edit_this_sequence_))  
-        graphics.drawRect(x, y + 10, 2, 2);
+        graphics.drawRect(x, y + 10, 4, 2);
     }
     else if (i == clock_pos)  
-        graphics.drawRect(x, y + 10, 2, 2);
+        graphics.drawRect(x, y + 10, 4, 2);
   }
 
   
