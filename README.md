@@ -22,7 +22,7 @@ temps_utile-
 
 ### firmware: 
 
-- **6 modes, selectable per channel:** 
+- **7 modes, selectable per channel:** 
 
   - trigger sequencer/sequence editor
   - clock division/multiplication
@@ -30,7 +30,8 @@ temps_utile-
   - random w/ threshold
   - euclidian
   - logic (AND, OR, XOR, NAND, NOR, XNOR)
-  - DAC (channel #4 only): random, binary, "Turing", logistic, sequencer/arpeggiator
+  - burst
+  - DAC (channel #4 only): random, binary, lfsr ("Turing"), logistic, sequencer/arpeggiator
 
 
 ### build guide: [see here](https://github.com/mxmxmx/temps_utile-/wiki/build-it)
