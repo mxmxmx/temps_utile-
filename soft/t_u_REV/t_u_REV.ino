@@ -23,7 +23,6 @@
 
 // Main startup/loop for T_U firmware; adapted from o_C
 
-#include <ADC.h>
 #include <EEPROM.h>
 
 #include "TU_apps.h"
@@ -38,6 +37,7 @@
 #include "TU_ui.h"
 #include "TU_version.h"
 #include "src/display.h"
+#include "src/ADC/OC_util_ADC.h"
 #include "util/util_debugpins.h"
 #include "TU_BPM.h"
 
