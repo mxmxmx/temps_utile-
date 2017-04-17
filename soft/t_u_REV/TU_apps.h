@@ -62,7 +62,6 @@ struct App {
 
   void (*HandleButtonEvent)(const UI::Event &);
   void (*HandleEncoderEvent)(const UI::Event &);
-
   void (*isr)();
 };
 

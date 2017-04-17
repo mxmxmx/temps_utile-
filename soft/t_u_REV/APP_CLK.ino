@@ -30,11 +30,12 @@
 #include "TU_patterns.h"
 #include "extern/dspinst.h"
 #include "util/util_arp.h"
+#include "util/util_bursts.h"
+#include "TU_input_map.h"
+#include "TU_input_maps.h"
 
 namespace menu = TU::menu;
 
-static const uint8_t MODES = 7;        // # clock modes
-static const uint8_t DAC_MODES = 5;    // # DAC submodes
 static const uint8_t RND_MAX = 31;     // max random (n)
 static const uint8_t MULT_MAX = 26;    // max multiplier
 static const uint8_t MULT_BY_ONE = 13; // default multiplication
@@ -50,12 +51,20 @@ static const uint32_t SCALE_PULSEWIDTH = 58982; // 0.9 for signed_multiply_32x16
 static const uint32_t TICKS_TO_MS = 43691; // 0.6667f : fraction, if TU_CORE_TIMER_RATE = 60 us : 65536U * ((1000 / TU_CORE_TIMER_RATE) - 16)
 static const uint32_t TICK_JITTER = 0xFFFFFFF;  // 1/16 : threshold/double triggers reject -> ext_frequency_in_ticks_
 static const uint32_t TICK_SCALE  = 0xC0000000; // 0.75 for signed_multiply_32x32
+static const uint32_t COPYTIMEOUT = 200000; 
 
 extern const uint32_t BPM_microseconds_4th[];
 
 static uint32_t ticks_src1 = 0; // main clock frequency (top)
 static uint32_t ticks_src2 = 0; // sec. clock frequency (bottom)
 static uint32_t ticks_internal = 0; // sec. clock frequency (bottom)
+static int32_t global_div_count_TR1 = 0; // pre-clock-division
+bool RESET_GLOBAL_TR2 = true;
+
+// copy sequence, global 
+uint16_t copy_length = TU::Patterns::kMax;
+uint16_t copy_mask = 0xFFFF;
+uint32_t copy_timeout = COPYTIMEOUT;
 
 static const uint64_t multipliers_[] = {
 
@@ -157,6 +166,9 @@ enum ChannelSetting {
   CHANNEL_SETTING_SEQUENCE_PLAYMODE,
   CHANNEL_SETTING_CV_SEQUENCE_LENGTH,
   CHANNEL_SETTING_CV_SEQUENCE_PLAYMODE,
+  CHANNEL_SETTING_BURST_MAX_INTERVAL,
+  CHANNEL_SETTING_BURST_DENSITY,
+  CHANNEL_SETTING_BURST_SOURCES,
   // cv sources
   CHANNEL_SETTING_MULT_CV_SOURCE,
   CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE,
@@ -183,6 +195,9 @@ enum ChannelSetting {
   CHANNEL_SETTING_HISTORY_DEPTH_CV_SOURCE,
   CHANNEL_SETTING_ARP_RANGE_CV_SOURCE,
   CHANNEL_SETTING_ARP_DIRECTION_CV_SOURCE,
+  CHANNEL_SETTING_BURST_MAX_INTERVAL_CV_SOURCE,
+  CHANNEL_SETTING_BURST_DENSITY_CV_SOURCE,
+  CHANNEL_SETTING_BURST_SOURCES_CV_SOURCE,
   CHANNEL_SETTING_DUMMY,
   CHANNEL_SETTING_DUMMY_EMPTY,
   CHANNEL_SETTING_SCREENSAVER,
@@ -214,8 +229,9 @@ enum CLOCKMODES {
   EUCLID,
   LOGIC,
   SEQ,
+  BURST,
   DAC,
-  LAST_MODE
+  CLOCK_MODES_LAST
 };
 
 enum DACMODES {
@@ -224,7 +240,7 @@ enum DACMODES {
   _TURING,
   _LOGISTIC,
   _SEQ_CV,
-  LAST_DACMODE
+  _DAC_MODES_LAST
 };
 
 enum CV_SEQ_MODES {
@@ -261,6 +277,21 @@ enum LOGICMODES {
   NAND,
   NOR,
   LOGICMODE_LAST
+};
+
+enum PLAY_MODES {
+  PM_NONE,
+  PM_SEQ1,
+  PM_SEQ2,
+  PM_SEQ3,
+  PM_TR1,
+  PM_TR2,
+  PM_TR3,
+  PM_SH1,
+  PM_SH2,
+  PM_SH3,
+  PM_SH4,
+  PM_LAST
 };
 
 enum MENUPAGES {
@@ -416,6 +447,18 @@ public:
     return values_[CHANNEL_SETTING_CV_SEQUENCE_PLAYMODE];
   }
 
+  int burst_max_interval() const {
+    return values_[CHANNEL_SETTING_BURST_MAX_INTERVAL];
+  }
+
+  int burst_density() const {
+    return values_[CHANNEL_SETTING_BURST_DENSITY];
+  }
+
+  int burst_sources() const {
+    return values_[CHANNEL_SETTING_BURST_SOURCES];
+  }
+
   int get_display_sequence() const {
     return display_sequence_;
   }
@@ -567,6 +610,18 @@ public:
     return values_[CHANNEL_SETTING_ARP_DIRECTION_CV_SOURCE];
   }
 
+  uint8_t density_cv_source() const {
+    return values_[CHANNEL_SETTING_BURST_DENSITY_CV_SOURCE];
+  }
+
+  uint8_t sources_cv_source() const {
+    return values_[CHANNEL_SETTING_BURST_SOURCES_CV_SOURCE];
+  }
+
+  uint8_t interval_cv_source() const {
+    return values_[CHANNEL_SETTING_BURST_MAX_INTERVAL_CV_SOURCE];
+  }
+
   void update_pattern_mask(uint16_t mask, uint8_t sequence) {
 
     switch(sequence) {
@@ -708,7 +763,33 @@ public:
     
   void reset_sequence() {
     sequence_reset_ = true;
-  }        
+  }
+  
+  void copy_seq(uint8_t len, uint16_t mask) {
+    copy_length = len;
+    copy_mask = mask;
+    copy_timeout = 0;
+  }
+
+  uint8_t paste_seq(uint8_t seq) {
+
+    if (copy_timeout < COPYTIMEOUT) {
+
+      // copy length:
+      set_sequence_length(copy_length, seq);
+      // copy mask:
+      update_pattern_mask(copy_mask, seq);
+      // give more time for more pasting...
+      copy_timeout = 0;
+      return copy_length;
+    }
+    else
+      return 0;
+  }
+
+  void update_inputmap(int num_slots, uint8_t range) {
+    input_map_.Configure(TU::InputMaps::GetInputMap(num_slots), range);
+  }
   
   void clear_CV_mapping() {
 
@@ -736,11 +817,13 @@ public:
     apply_value(CHANNEL_SETTING_ARP_RANGE_CV_SOURCE, 0);
     apply_value(CHANNEL_SETTING_ARP_DIRECTION_CV_SOURCE, 0);
     apply_value(CHANNEL_SETTING_SEQ_MASK_CV_SOURCE, 0);
+    apply_value(CHANNEL_SETTING_BURST_DENSITY_CV_SOURCE, 0);
+    apply_value(CHANNEL_SETTING_BURST_SOURCES_CV_SOURCE, 0);
+    apply_value(CHANNEL_SETTING_BURST_MAX_INTERVAL_CV_SOURCE, 0);
   }
 
   void sync() {
-    clk_cnt_ = 0x0;
-    div_cnt_ = 0x0;
+    pending_sync_ = true;
   }
 
   uint8_t get_page() const {
@@ -768,7 +851,9 @@ public:
     force_update_ = true;
     gpio_state_ = OFF;
     display_state_ = _OFF;
+    ticks_ = 0;
     subticks_ = 0;
+    burst_ticks_ = 0;
     tickjitter_ = 10000;
     clk_cnt_ = 0;
     clk_src_ = get_clock_source();
@@ -781,6 +866,7 @@ public:
     menu_page_ = PARAMETERS;
 
     pending_multiplier_ = prev_multiplier_ = get_multiplier();
+    pending_sync_ = false;
     prev_pulsewidth_ = get_pulsewidth();
     bpm_last_ = 0;
 
@@ -794,13 +880,17 @@ public:
     display_mask_ = get_mask(display_sequence_);
     cv_display_mask_ = get_cv_mask();
     sequence_last_ = display_sequence_;
+    sequence_last_length_ = 0x0;
     sequence_advance_ = false;
     sequence_advance_state_ = false;
 
     turing_machine_.Init();
+    input_map_.Init();
     arpeggiator_.Init(TU::OUTPUTS::get_v_oct());
     turing_machine_.Clock();
     logistic_map_.Init();
+    bursts_.Init();
+    
     uint32_t _seed = TU::ADC::value<ADC_CHANNEL_1>() + TU::ADC::value<ADC_CHANNEL_2>() + TU::ADC::value<ADC_CHANNEL_3>() + TU::ADC::value<ADC_CHANNEL_4>();
     randomSeed(_seed);
     logistic_map_.set_seed(_seed);
@@ -812,13 +902,14 @@ public:
   void force_update() {
     force_update_ = true;
   }
-
+  
   /* main channel update below: */
 
   inline void Update(uint32_t triggers, CLOCK_CHANNEL clock_channel) {
 
     // increment channel ticks ..
     subticks_++;
+    burst_ticks_++;
 
     int8_t _clock_source, _reset_source, _mode;
     int8_t _multiplier;
@@ -840,7 +931,7 @@ public:
     _multiplier = get_multiplier();
 
     if (get_mult_cv_source()) {
-      _multiplier += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_mult_cv_source() - 1)) + 255) >> 9;
+      _multiplier += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_mult_cv_source() - 1)) + 256) >> 9;
       CONSTRAIN(_multiplier, 0, MULT_MAX);
     }
     // 3. channel mode?
@@ -921,14 +1012,18 @@ public:
       sequence_advance_state_ = _advance_trig;
 
     }
-
+        
     /*
      *  brute force ugly sync hack:
      *  this, presumably, is needlessly complicated.
      *  but seems to work ok-ish, w/o too much jitter and missing clocks...
      */
+        
     uint32_t _subticks = subticks_;
-
+    
+    // sync ? (manual)
+    div_cnt_ = pending_sync_ ? 0x0 : div_cnt_;
+  
     if (_multiplier <= MULT_BY_ONE && _triggered && div_cnt_ <= 0) {
       // division, so we track
       _sync = true;
@@ -974,7 +1069,13 @@ public:
       // reset counter ? (SEQ/Euclidian)
       if (reset_counter_) 
         clk_cnt_ = 0x0;
-
+      
+      // resync/clear pending sync
+      if (_triggered && pending_sync_) {
+        pending_sync_ = false;
+        clk_cnt_ = 0x0;
+      }
+   
       // clear for reset:
       reset_me_ = true;
       reset_counter_ = false;
@@ -1008,7 +1109,7 @@ public:
         // CV?
         if (get_pulsewidth_cv_source()) {
 
-          _pulsewidth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_pulsewidth_cv_source() - 1)) + 8) >> 3;
+          _pulsewidth += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_pulsewidth_cv_source() - 1)) + 8) >> 4;
           if (!_gates)
             CONSTRAIN(_pulsewidth, 1, PULSEW_MAX);
           else // CV for 50% duty cycle:
@@ -1084,12 +1185,12 @@ public:
         _probability = get_turing_probability();
 
         if (get_turing_length_cv_source()) {
-          _length += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_length_cv_source() - 1)) + 64) >> 6;
+          _length += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_length_cv_source() - 1)) + 32) >> 6;
           CONSTRAIN(_length, LFSR_MIN, LFSR_MAX);
         }
 
         if (get_turing_prob_cv_source()) {
-          _probability += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_prob_cv_source() - 1)) + 16) >> 4;
+          _probability += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_prob_cv_source() - 1)) + 8) >> 4;
           CONSTRAIN(_probability, 1, 255);
         }
 
@@ -1106,10 +1207,10 @@ public:
         int8_t  _tap2 = get_tap2();
 
         if (get_tap1_cv_source())
-          _tap1 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_tap1_cv_source() - 1)) + 64) >> 6;
+          _tap1 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_tap1_cv_source() - 1)) + 64) >> 7;
 
         if (get_tap2_cv_source())
-          _tap2 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_tap2_cv_source() - 1)) + 64) >> 6;
+          _tap2 += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_tap2_cv_source() - 1)) + 64) >> 7;
 
         CONSTRAIN(_tap1, 1, _length);
         CONSTRAIN(_tap2, 1, _length);
@@ -1125,7 +1226,7 @@ public:
         // get threshold setting:
         int16_t _n = rand_n();
         if (get_rand_n_cv_source()) {
-          _n += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_n_cv_source() - 1)) + 64) >> 6;
+          _n += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_n_cv_source() - 1)) + 64) >> 7;
           CONSTRAIN(_n, 0, RND_MAX);
         }
 
@@ -1142,15 +1243,15 @@ public:
         _offset = euclid_offset();
         // CV --
         if (get_euclid_n_cv_source()) {
-          _n += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_n_cv_source() - 1)) + 64) >> 6;
+          _n += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_n_cv_source() - 1)) + 32) >> 6;
           CONSTRAIN(_n, 1, EUCLID_N_MAX);
         }
 
         if (get_euclid_k_cv_source())
-          _k += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_k_cv_source() - 1)) + 64) >> 6;
+          _k += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_k_cv_source() - 1)) + 32) >> 6;
 
         if (get_euclid_offset_cv_source())
-          _offset += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_offset_cv_source() - 1)) + 64) >> 6;
+          _offset += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_offset_cv_source() - 1)) + 32) >> 6;
 
         CONSTRAIN(_k, 1, _n);
         CONSTRAIN(_offset, 1, _n);
@@ -1159,47 +1260,119 @@ public:
         _out = (_out < _k) ? ON : OFF;
       }
         break;
+      case BURST:
+      {
+
+        int32_t _interval, _density, _sources;
+
+        _interval = burst_max_interval();
+             
+        if (interval_cv_source()) {
+          _interval += (TU::ADC::value(static_cast<ADC_CHANNEL>(interval_cv_source() - 1)) + 8) >> 4;
+          CONSTRAIN(_interval, 0, 255);
+        }
+        
+        _density = burst_density();
+       
+        if (density_cv_source()) {
+          _density += (TU::ADC::value(static_cast<ADC_CHANNEL>(density_cv_source() - 1)) + 64) >> 7;
+          CONSTRAIN(_density, 0, 31);
+        }
+        
+        _sources = burst_sources();
+        
+        if (sources_cv_source()) {
+          _sources += (TU::ADC::value(static_cast<ADC_CHANNEL>(sources_cv_source() - 1)) + 128) >> 8;
+          CONSTRAIN(_sources, 0, 15);
+        }
+        
+        bursts_.set_frequency(channel_frequency_in_ticks_);
+        bursts_.set_max_interval(_interval);
+        bursts_.set_density(_density);
+        bursts_.set_sources(_sources);
+
+        if (!clk_cnt_) 
+          bursts_.reset();
+          
+        if (!bursts_.Clock(burst_ticks_)) 
+          _out = OFF;
+        else {
+          burst_ticks_ = 0x0;
+          _out = ON;
+        }
+      }
+        break;
       case SEQ: {
         // sequencer mode, adapted from o_C scale edit:
         int16_t _seq = get_sequence();
 
         if (get_sequence_cv_source()) {
-          _seq += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_sequence_cv_source() - 1)) + 255) >> 9;
+          _seq += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_sequence_cv_source() - 1)) + 256) >> 9;
           CONSTRAIN(_seq, 0, TU::Patterns::PATTERN_USER_LAST-1);
         }
 
 
         uint8_t _playmode = get_playmode();
 
-        if (_playmode) {
-
-          // concatenate sequences:
-          if (_playmode <= 3 && clk_cnt_ >= get_sequence_length(sequence_last_)) {
-            sequence_cnt_++;
-            sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
-            clk_cnt_ = 0;
-          }
-          else if (_playmode > 3 && sequence_advance_) {
-            
-            if (sequence_reset_) {
-              // manual change?
-              sequence_reset_ = false;
-              sequence_last_ = _seq;
-            }
-            
-            _playmode -= 3;
-            sequence_cnt_++;
-            sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
-            clk_cnt_ = 0;
-            sequence_advance_ = false;
-          }
-
-          if (sequence_last_ >= TU::Patterns::PATTERN_USER_LAST)
-            sequence_last_ -= TU::Patterns::PATTERN_USER_LAST;
-        }
-        else
+        switch (_playmode) {
+          
+          case PM_NONE:
           sequence_last_ = _seq;
-
+          break;
+          case PM_SEQ1:
+          case PM_SEQ2:
+          case PM_SEQ3:
+          // concatenate sequences:
+          {
+            if (clk_cnt_ >= get_sequence_length(sequence_last_)) {
+                sequence_cnt_++;
+                sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
+                clk_cnt_ = 0;
+             }
+           }
+           break;
+           case PM_TR1:
+           case PM_TR2:
+           case PM_TR3:
+           {
+           if ( sequence_advance_) {
+              
+              if (sequence_reset_) {
+                // manual change?
+                sequence_reset_ = false;
+                sequence_last_ = _seq;
+              }
+              
+              _playmode -= 3;
+              sequence_cnt_++;
+              sequence_last_ = _seq + (sequence_cnt_ % (_playmode+1));
+              clk_cnt_ = 0;
+              sequence_advance_ = false;
+            }
+  
+            if (sequence_last_ >= TU::Patterns::PATTERN_USER_LAST)
+              sequence_last_ -= TU::Patterns::PATTERN_USER_LAST;
+          }
+          break;
+          case PM_SH1:
+          case PM_SH2:
+          case PM_SH3:
+          case PM_SH4:
+          {
+            int len = get_sequence_length(_seq);
+            if (sequence_last_length_ != len)
+              update_inputmap(len, 0x0);
+             // store values:
+             sequence_last_ = _seq;
+             sequence_last_length_ = len;
+             clk_cnt_ = input_map_.Process(TU::ADC::value(static_cast<ADC_CHANNEL>(_playmode - PM_SH1)));
+          }
+          break;
+          default:
+          break;
+        }
+        // end switch
+          
         _seq = sequence_last_;
         // this is the sequence # (USER1-USER4):
         display_sequence_ = _seq;
@@ -1207,7 +1380,7 @@ public:
         uint16_t _mask = get_mask(_seq);
         // rotate mask ?
         if (get_mask_cv_source())
-          _mask = update_sequence((TU::ADC::value(static_cast<ADC_CHANNEL>(get_mask_cv_source() - 1)) + 127) >> 8, _seq, _mask);
+          _mask = update_sequence((TU::ADC::value(static_cast<ADC_CHANNEL>(get_mask_cv_source() - 1)) + 128) >> 8, _seq, _mask);
         display_mask_ = _mask;
         // reset counter ?
         if (clk_cnt_ >= get_sequence_length(_seq))
@@ -1224,11 +1397,11 @@ public:
 
         if (get_DAC_mode_cv_source()) {
           _mode += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_mode_cv_source() - 1)) + 256) >> 9;
-          CONSTRAIN(_mode, 0, LAST_DACMODE-1);
+          CONSTRAIN(_mode, 0, _DAC_MODES_LAST - 1);
         }
 
         if (get_DAC_range_cv_source()) {
-          _range += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_range_cv_source() - 1)) + 16) >> 4;
+          _range += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_range_cv_source() - 1)) + 8) >> 4;
           CONSTRAIN(_range, 1, 255);
         }
 
@@ -1274,7 +1447,7 @@ public:
               CONSTRAIN(_depth, 0, (int8_t) TU::OUTPUTS::kHistoryDepth - 1 );
             }
             if (get_rand_history_w_cv_source()) {
-              _weight += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_history_w_cv_source() - 1)) + 16) >> 4;
+              _weight += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_rand_history_w_cv_source() - 1)) + 8) >> 4;
               CONSTRAIN(_weight, 0, 255);
             }
 
@@ -1301,7 +1474,7 @@ public:
             }
 
             if (get_turing_prob_cv_source()) {
-              _probability += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_prob_cv_source() - 1)) + 16) >> 4;
+              _probability += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_turing_prob_cv_source() - 1)) + 8) >> 4;
               CONSTRAIN(_probability, 1, 255);
             }
 
@@ -1326,7 +1499,7 @@ public:
             int32_t logistic_map_r = get_logistic_map_r();
 
             if (get_logistic_map_r_cv_source()) {
-              logistic_map_r += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logistic_map_r_cv_source() - 1)) + 16) >> 4;
+              logistic_map_r += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_logistic_map_r_cv_source() - 1)) + 8) >> 4;
               CONSTRAIN(logistic_map_r, 0, 255);
             }
 
@@ -1595,7 +1768,6 @@ public:
 
   void update_enabled_settings(uint8_t channel_id) {
 
-
     ChannelSetting *settings = enabled_settings_;
     uint8_t mode = (channel_id != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
 
@@ -1642,6 +1814,11 @@ public:
           *settings++ = CHANNEL_SETTING_SEQ_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_MASK_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_DUMMY; // playmode CV
+          break;
+        case BURST:
+          *settings++ = CHANNEL_SETTING_BURST_MAX_INTERVAL_CV_SOURCE;
+          *settings++ = CHANNEL_SETTING_BURST_DENSITY_CV_SOURCE;
+          *settings++ = CHANNEL_SETTING_BURST_SOURCES_CV_SOURCE;
           break;
         case DAC:
           *settings++ = CHANNEL_SETTING_DAC_MODE_CV_SOURCE;
@@ -1740,6 +1917,11 @@ public:
           }
           *settings++ = CHANNEL_SETTING_SEQUENCE_PLAYMODE;
           break;
+        case BURST:
+          *settings++ = CHANNEL_SETTING_BURST_MAX_INTERVAL;
+          *settings++ = CHANNEL_SETTING_BURST_DENSITY;
+          *settings++ = CHANNEL_SETTING_BURST_SOURCES;
+          break;
         case DAC:
           *settings++ = CHANNEL_SETTING_DAC_MODE;
           *settings++ = CHANNEL_SETTING_DAC_OFFSET;
@@ -1817,6 +1999,7 @@ private:
   bool reset_counter_;
   uint32_t ticks_;
   uint32_t subticks_;
+  uint32_t burst_ticks_;
   uint32_t tickjitter_;
   uint32_t clk_cnt_;
   int16_t div_cnt_;
@@ -1830,11 +2013,13 @@ private:
   uint8_t prev_multiplier_;
   uint8_t prev_pulsewidth_;
   uint8_t pending_multiplier_;
+  bool pending_sync_;
   uint8_t logic_;
   uint8_t display_sequence_;
   uint16_t display_mask_;
   uint16_t cv_display_mask_;
   int8_t sequence_last_;
+  int8_t sequence_last_length_;
   int32_t sequence_cnt_;
   int8_t sequence_advance_;
   int8_t sequence_advance_state_;
@@ -1846,9 +2031,11 @@ private:
   util::TuringShiftRegister turing_machine_;
   util::Arpeggiator arpeggiator_;
   util::LogisticMap logistic_map_;
+  util::Bursts bursts_;
   int num_enabled_settings_;
   ChannelSetting enabled_settings_[CHANNEL_SETTING_LAST];
   TU::DigitalInputDisplay clock_display_;
+  TU::Input_Map input_map_;
 
 };
 
@@ -1877,9 +2064,9 @@ const char* const arp_directions[4] = {
 
 SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
 
-  { 0, 0, MODES - 2, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
-  { 0, 0, MODES - 1, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
-  { CHANNEL_TRIGGER_TR1, 0, CHANNEL_TRIGGER_LAST-1, "clock src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, CLOCK_MODES_LAST - 2, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
+  { 0, 0, CLOCK_MODES_LAST - 1, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
+  { CHANNEL_TRIGGER_TR1,  0, CHANNEL_TRIGGER_LAST - 1, "clock src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
   { CHANNEL_TRIGGER_NONE, 0, CHANNEL_TRIGGER_LAST, "reset/mute", reset_trigger_sources, settings::STORAGE_TYPE_U4 },
   { MULT_BY_ONE, 0, MULT_MAX, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
   { 25, 0, PULSEW_MAX, "pulsewidth", TU::Strings::pulsewidth_ms, settings::STORAGE_TYPE_U8 },
@@ -1899,7 +2086,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, 1, "track -->", TU::Strings::logic_tracking, settings::STORAGE_TYPE_U4 },
   { 128, 1, 255, "DAC: range", NULL, settings::STORAGE_TYPE_U8 },
   { 0, -3, 3, "DAC: offset", NULL, settings::STORAGE_TYPE_I8 },
-  { 0, 0, DAC_MODES-1, "DAC: mode", TU::Strings::dac_modes, settings::STORAGE_TYPE_U4 },
+  { 0, 0, _DAC_MODES_LAST - 1, "DAC: mode", TU::Strings::dac_modes, settings::STORAGE_TYPE_U4 },
   { 0, 0, 1, "track -->", TU::Strings::binary_tracking, settings::STORAGE_TYPE_U4 },
   { 0, 0, 255, "rnd hist.", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
   { 0, 0, TU::OUTPUTS::kHistoryDepth - 1, "hist. depth", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
@@ -1918,9 +2105,12 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 2
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 3
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 4
-  { 0, 0, 6, "playmode", TU::Strings::seq_playmodes, settings::STORAGE_TYPE_U8 },
+  { 0, 0, PM_LAST - 1, "playmode", TU::Strings::seq_playmodes, settings::STORAGE_TYPE_U8 },
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // CV seq 
   { 0, 0, 5, "playmode", TU::Strings::cv_seq_playmodes, settings::STORAGE_TYPE_U4 }, // CV playmode
+  { 63, 0, 255, "interval (max)", NULL, settings::STORAGE_TYPE_U8 },
+  { 0, 0, 31, "spread", NULL, settings::STORAGE_TYPE_U8 },
+  { 0, 0, 15, "density", NULL, settings::STORAGE_TYPE_U8 },
   // cv sources
   { 0, 0, 4, "mult/div    >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "pulsewidth  >>", cv_sources, settings::STORAGE_TYPE_U4 },
@@ -1947,10 +2137,14 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, 4, "hist. depth >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "arp.range   >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "arp.direc.  >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "interval    >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "spread      >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "density     >>", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 0, "---------------------", NULL, settings::STORAGE_TYPE_U4 }, // DUMMY
   { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_U4 }, // DUMMY empty
   { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_U4 }  // screensaver
 };
+
 
 
 class ClocksState {
@@ -2067,12 +2261,33 @@ void CLOCKS_isr() {
 
   uint32_t triggers = TU::DigitalInputs::clocked();
 
-  // clocked? reset ; better use ARM_DWT_CYCCNT ?
+  // TR1:
   if (triggers & (1 << CHANNEL_TRIGGER_TR1))  {
-    ext_frequency[CHANNEL_TRIGGER_TR1] = ticks_src1;
-    ticks_src1 = 0x0;
+
+    global_div_count_TR1--;
+    uint8_t global_divisor_ = TU::DigitalInputs::global_div_TR1();
+    
+    // sync/reset global divisor? defaults to TR2
+    if (global_divisor_ && clock_channel[CLOCK_CHANNEL_1].get_reset_source() == CHANNEL_TRIGGER_TR2) {  
+      
+      bool global_reset = digitalReadFast(TR2);
+      // reset ?
+      if (global_reset < RESET_GLOBAL_TR2)
+          global_div_count_TR1 = 0x0;
+      RESET_GLOBAL_TR2 = global_reset;
+    }
+    
+    if (global_div_count_TR1 <= 0x0) {
+        // reset
+        global_div_count_TR1 = global_divisor_;
+        ext_frequency[CHANNEL_TRIGGER_TR1] = ticks_src1;
+        ticks_src1 = 0x0;
+    }
+    else // clear trigger
+      triggers &= ~ (1 << CHANNEL_TRIGGER_TR1);
   }
 
+  // TR2:
   if (triggers & (1 << CHANNEL_TRIGGER_TR2)) {
     ext_frequency[CHANNEL_TRIGGER_TR2] = ticks_src2;
     ticks_src2 = 0x0;
@@ -2094,12 +2309,12 @@ void CLOCKS_isr() {
   }
 
   // update channels:
-  clock_channel[0].Update(triggers, CLOCK_CHANNEL_1);
-  clock_channel[1].Update(triggers, CLOCK_CHANNEL_2);
-  clock_channel[2].Update(triggers, CLOCK_CHANNEL_3);
-  clock_channel[4].Update(triggers, CLOCK_CHANNEL_5);
-  clock_channel[5].Update(triggers, CLOCK_CHANNEL_6);
-  clock_channel[3].Update(triggers, CLOCK_CHANNEL_4); // = DAC channel; update last, because of the binary Sequencer thing.
+  clock_channel[CLOCK_CHANNEL_1].Update(triggers, CLOCK_CHANNEL_1);
+  clock_channel[CLOCK_CHANNEL_2].Update(triggers, CLOCK_CHANNEL_2);
+  clock_channel[CLOCK_CHANNEL_3].Update(triggers, CLOCK_CHANNEL_3);
+  clock_channel[CLOCK_CHANNEL_5].Update(triggers, CLOCK_CHANNEL_5);
+  clock_channel[CLOCK_CHANNEL_6].Update(triggers, CLOCK_CHANNEL_6);
+  clock_channel[CLOCK_CHANNEL_4].Update(triggers, CLOCK_CHANNEL_4); // = DAC channel; update last, because of the binary Sequencer thing.
 
   // apply logic ?
   clock_channel[0].logic(CLOCK_CHANNEL_1);
@@ -2273,25 +2488,28 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
 
 void CLOCKS_upButton() {
 
-  Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+  if (!TU::ui.read_immediate(TU::CONTROL_BUTTON_L)) {
 
-  uint8_t _menu_page = selected.get_page();
-
-  switch (_menu_page) {
-
-    case TEMPO:
-      selected.set_page(PARAMETERS);
-      clocks_state.cursor = clocks_state.cursor_state;
-      break;
-    default:
-      clocks_state.cursor_state = clocks_state.cursor;
-      selected.set_page(TEMPO);
-      clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
-      clocks_state.cursor.toggle_editing();
-      break;
+    Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+  
+    uint8_t _menu_page = selected.get_page();
+  
+    switch (_menu_page) {
+  
+      case TEMPO:
+        selected.set_page(PARAMETERS);
+        clocks_state.cursor = clocks_state.cursor_state;
+        break;
+      default:
+        clocks_state.cursor_state = clocks_state.cursor;
+        selected.set_page(TEMPO);
+        clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
+        clocks_state.cursor.toggle_editing();
+        break;
+    }
+    selected.update_enabled_settings(clocks_state.selected_channel);
+    clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
   }
-  selected.update_enabled_settings(clocks_state.selected_channel);
-  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
 }
 
 void CLOCKS_downButton() {
@@ -2375,36 +2593,42 @@ void CLOCKS_leftButton() {
 
 void CLOCKS_leftButtonLong() {
 
-  for (int i = 0; i < NUM_CHANNELS; ++i)
-    clock_channel[i].InitDefaults();
-
-  Clock_channel &selected = clock_channel[clocks_state.selected_channel];
-  selected.set_page(PARAMETERS);
-  selected.update_enabled_settings(clocks_state.selected_channel);
-  clocks_state.cursor.set_editing(false);
-  clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+  if (TU::ui.read_immediate(TU::CONTROL_BUTTON_UP)) {
+    
+    for (int i = 0; i < NUM_CHANNELS; ++i)
+      clock_channel[i].InitDefaults();
+  
+    Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+    selected.set_page(PARAMETERS);
+    selected.update_enabled_settings(clocks_state.selected_channel);
+    clocks_state.cursor.set_editing(false);
+    clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+  }
 }
 
 void CLOCKS_upButtonLong() {
 
-  Clock_channel &selected = clock_channel[clocks_state.selected_channel];
-  // set all channels to internal ?
-  if (selected.get_page() == TEMPO) {
-    for (int i = 0; i < NUM_CHANNELS; ++i)
-      clock_channel[i].set_clock_source(CHANNEL_TRIGGER_INTERNAL);
-    // and clear outputs:
-    TU::OUTPUTS::set(CLOCK_CHANNEL_1, OFF);
-    TU::OUTPUTS::setState(CLOCK_CHANNEL_1, OFF);
-    TU::OUTPUTS::set(CLOCK_CHANNEL_2, OFF);
-    TU::OUTPUTS::setState(CLOCK_CHANNEL_2, OFF);
-    TU::OUTPUTS::set(CLOCK_CHANNEL_3, OFF);
-    TU::OUTPUTS::setState(CLOCK_CHANNEL_3, OFF);
-    TU::OUTPUTS::set(CLOCK_CHANNEL_4, selected.get_zero(CLOCK_CHANNEL_4));
-    TU::OUTPUTS::setState(CLOCK_CHANNEL_4, OFF);
-    TU::OUTPUTS::set(CLOCK_CHANNEL_5, OFF);
-    TU::OUTPUTS::setState(CLOCK_CHANNEL_5, OFF);
-    TU::OUTPUTS::set(CLOCK_CHANNEL_6, OFF);
-    TU::OUTPUTS::setState(CLOCK_CHANNEL_6, OFF);
+  if (!TU::ui.read_immediate(TU::CONTROL_BUTTON_L)) {
+    
+    Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+    // set all channels to internal ?
+    if (selected.get_page() == TEMPO) {
+      for (int i = 0; i < NUM_CHANNELS; ++i)
+        clock_channel[i].set_clock_source(CHANNEL_TRIGGER_INTERNAL);
+      // and clear outputs:
+      TU::OUTPUTS::set(CLOCK_CHANNEL_1, OFF);
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_1, OFF);
+      TU::OUTPUTS::set(CLOCK_CHANNEL_2, OFF);
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_2, OFF);
+      TU::OUTPUTS::set(CLOCK_CHANNEL_3, OFF);
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_3, OFF);
+      TU::OUTPUTS::set(CLOCK_CHANNEL_4, selected.get_zero(CLOCK_CHANNEL_4));
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_4, OFF);
+      TU::OUTPUTS::set(CLOCK_CHANNEL_5, OFF);
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_5, OFF);
+      TU::OUTPUTS::set(CLOCK_CHANNEL_6, OFF);
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_6, OFF);
+    }
   }
 }
 
@@ -2448,6 +2672,9 @@ void CLOCKS_menu() {
     uint16_t internal_ = channel.get_clock_source() == CHANNEL_TRIGGER_INTERNAL ? 0x10 : 0x00;
     int_clock_used_ += internal_;
     menu::SixTitleBar::DrawGateIndicator(i, internal_);
+    // global division?
+    if (TU::DigitalInputs::global_div_TR1())
+      graphics.drawBitmap8(x + 15, 2, 4, TU::bitmap_indicator_4x8);
   }
 
   const Clock_channel &channel = clock_channel[clocks_state.selected_channel];

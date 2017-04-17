@@ -5,6 +5,7 @@
 
 /*static*/
 uint32_t TU::DigitalInputs::clocked_mask_;
+uint8_t TU::DigitalInputs::global_divisor_TR1_;
 
 /*static*/
 volatile uint32_t TU::DigitalInputs::clocked_[DIGITAL_INPUT_LAST];
@@ -35,6 +36,7 @@ void TU::DigitalInputs::Init() {
 
   clocked_mask_ = 0x0;
   std::fill(clocked_, clocked_ + DIGITAL_INPUT_LAST, 0);
+  global_divisor_TR1_ = 0x0;
 }
 
 /*static*/

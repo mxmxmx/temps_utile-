@@ -2,7 +2,7 @@
 #define TU_ADC_H_
 
 #include <Arduino.h>
-#include <ADC.h>
+#include "src/ADC/OC_util_ADC.h"
 #include "TU_config.h"
 
 #include <stdint.h>

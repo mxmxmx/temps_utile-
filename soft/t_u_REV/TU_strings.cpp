@@ -5,7 +5,7 @@ namespace TU {
 
   namespace Strings {
 
-  const char * const seq_playmodes[] = {" - ", "SEQ+1", "SEQ+2", "SEQ+3", "TR2+1", "TR2+2", "TR2+3"};  
+  const char * const seq_playmodes[] = {" - ", "SEQ+1", "SEQ+2", "SEQ+3", "TR2+1", "TR2+2", "TR2+3", "SH-1", "SH-2", "SH-3", "SH-4"};  
 
   const char * const cv_seq_playmodes[] = {"fwd", "rev", "pnd1", "pdn2", "rnd", "ARP"};  
     
@@ -21,7 +21,7 @@ namespace TU {
   
   const char * const channel_id[] = { "ch#1", "ch#2", "ch#3", "ch#4", "ch#5", "ch#6"};
 
-  const char * const mode[] = { "MULT", "LFSR", "RAND", "EUCL", "LOGIC", "SEQ", "DAC" };
+  const char * const mode[] = { "MULT", "LFSR", "RAND", "EUCL", "LOGIC", "SEQ", "BURST", "DAC" };
 
   const char * const dac_modes[] = { "BIN", "RAND", "T_M", "LGTC", "SEQ"};
   
