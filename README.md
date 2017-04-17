@@ -16,7 +16,7 @@ temps_utile-
 - trigger-to-output **latency** < 100us.
 - **2 clock inputs** (> 100k input impedance; threshold ~ 2.5V)
 - **4 CV inputs** (100k input impedance, -/+ 5V, assignable to (almost) any parameter)
-- **6 clock outputs** (5 digital, **1 DAC** (12 bit): 10V (GPIO), -/+ 6V (DAC))
+- **6 clock outputs** (5 digital, **1 DAC** (12 bit): 10V (GPIO), -/+ 5V (DAC))
 - two encoders w/ switches; 2 tactile buttons.
 - 14HP, ~ 25 mm Depth
 
