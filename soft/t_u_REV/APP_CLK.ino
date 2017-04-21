@@ -475,6 +475,10 @@ public:
     return cv_display_mask_;
   }
 
+  int get_display_clock() const {
+    return display_state_;
+  }
+
   void set_sequence(uint8_t seq) {
     apply_value(CHANNEL_SETTING_SEQUENCE, seq);
   }
@@ -738,6 +742,10 @@ public:
     force_update_ = force;
     if (force)
       display_mask_ = mask;
+  }
+
+  uint8_t get_gpio_state() const {
+    return gpio_state_;
   }
 
   void cv_pattern_changed(uint16_t mask, bool force) {
@@ -2661,7 +2669,8 @@ void CLOCKS_menu() {
 
   menu::SixTitleBar::Draw();
   uint16_t int_clock_used_ = 0x0;
-
+  bool global_div_ = TU::DigitalInputs::global_div_TR1();
+  
   for (int i = 0, x = 0; i < NUM_CHANNELS; ++i, x += 21) {
 
     const Clock_channel &channel = clock_channel[i];
@@ -2672,9 +2681,12 @@ void CLOCKS_menu() {
     uint16_t internal_ = channel.get_clock_source() == CHANNEL_TRIGGER_INTERNAL ? 0x10 : 0x00;
     int_clock_used_ += internal_;
     menu::SixTitleBar::DrawGateIndicator(i, internal_);
+    
+    if (channel.get_mode4() != DAC && channel.get_display_clock() == _ONBEAT)
+      graphics.drawBitmap8(x + 4, 2, 4, TU::bitmap_indicator_4x8);
     // global division?
-    if (TU::DigitalInputs::global_div_TR1())
-      graphics.drawBitmap8(x + 15, 2, 4, TU::bitmap_indicator_4x8);
+    if (global_div_ && !i)
+      graphics.drawBitmap8(x, 2, 4, TU::bitmap_div_indicator_4x8);
   }
 
   const Clock_channel &channel = clock_channel[clocks_state.selected_channel];
@@ -2759,12 +2771,12 @@ void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clo
   // draw little square thingies ..
   if (gpio_state_ && display_state_ == _ACTIVE) {
     graphics.drawRect(start_x, 36, 10, 10);
-    graphics.drawFrame(start_x-2, 34, 14, 14);
+    graphics.drawFrame(start_x - 2, 34, 14, 14);
   }
   else if (display_state_ == _ONBEAT)
     graphics.drawRect(start_x, 36, 10, 10);
   else
-    graphics.drawRect(start_x+3, 39, 4, 4);
+    graphics.drawRect(start_x + 3, 39, 4, 4);
 }
 
 void CLOCKS_screensaver() {
