@@ -1,6 +1,6 @@
-#/* BOM for temps utile, rev1, rev1.b, rev1.c */
+# /* BOM for temps utile, rev1, rev1.b, rev1.c */
 
-###OLED:
+### OLED:
 
 - you can find these **7 pin**, 1.3" displays on ebay, aliexpress and other places for < 10$. they'll be ok, as long as the description claims that they are `SH1106` (or `SSD1306`); **and** that the pinout is: 
 
@@ -13,7 +13,7 @@
 - **make sure you get the right size**: 1.3" (not 0.96")! and once you've received it, make sure the display is configured for **SPI** (see resistors/labels on the back side of the OLED).
 - alternatively, [here](https://github.com/mxmxmx/O_C/tree/master/hardware/gerbers/128x64_1_3_oled) are **.brd/.sch** files for a/the OLED carrier board. in that case, you'd need to get the **bare** OLED (and some passives). [for example here](http://www.buydisplay.com/default/serial-spi-1-3-inch-128x64-oled-display-module-ssd1306-white-on-black) (though there's cheaper options for getting bare OLEDs).
 
-###SMD resistors (0805):
+### SMD resistors (0805):
 
 | value | # | part | note |
 | ---: | ---: | --- |  --- |
@@ -32,7 +32,7 @@
 
 - (‡) the (digital) clock outputs are **non-inverting op amps**, the values on the pcb (20k feedback, 10k to ground) will result in 3x gain, or 9.9v on the outputs. adjust, if you like. for example, 15k would give you 3.3v * (20k/15k + 1) = 7.7, etc.
 
-###SMD caps (0805):
+### SMD caps (0805):
 
 | value | # | part | note |
 | ---: | ---: | --- | --- |
@@ -44,12 +44,12 @@
 | 1uF   | 2x | 581-08055G105ZAT2A | (25V or better)|
 | 10uF  | 1x | 81-GRM21BR61E106KA3L | (16V or better; may be 1206)|
 
-###SMD caps (0603):
+### SMD caps (0603):
 | value | # | part | note |
 | ---: | ---: | --- | --- |
 |10n   | 4x | 81-GRM1885C1H103JA1D | (NP0/C0G) (16V or better)|
 
-###ICs/semis:
+### ICs/semis:
 
 | what | package | # | part | note |
 | --- | --- | ---: | --- | --- |
@@ -61,7 +61,7 @@
 | LM4040-5.0 | SOT-23 |  1x |  926-LM4040DIM350NOPB | precision voltage reference, 5v0|
 | fixed inductor, 10uH | 1206 | 1x | 81-LQH31MN100K03L | > 25mA |
 
-###misc **through-hole/mechanical**:
+### misc **through-hole/mechanical**:
 
 | what | package | # | part | note |
 | --- | --- | ---: | --- | --- |
