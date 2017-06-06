@@ -2236,8 +2236,10 @@ void CLOCKS_handleAppEvent(TU::AppEvent event) {
     {
       clocks_state.cursor.set_editing(false);
       clocks_state.pattern_editor.Close();
-      for (int i = 0; i < NUM_CHANNELS; ++i)
+      for (int i = 0; i < NUM_CHANNELS; ++i) {
         clock_channel[i].sync();
+        clock_channel[i].set_page(PARAMETERS);
+      }
     }
     break;
     case TU::APP_EVENT_SUSPEND:
