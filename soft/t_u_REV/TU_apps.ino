@@ -302,14 +302,12 @@ void draw_app_menu(const menu::ScreenCursor<5> &cursor) {
 }
 
 void draw_save_message(uint8_t c) {
-  
   GRAPHICS_BEGIN_FRAME(true);
-  graphics.movePrintPos(weegfx::Graphics::kFixedFontW, 0);
-  graphics.print("saving ");
-  for (int i = 0; i < c; i++)
-    graphics.print(".");
+  uint8_t _size = c % 120;
+  graphics.drawRect(63 - (_size >> 1), 31 - (_size >> 2), _size, _size >> 1);  
   GRAPHICS_END_FRAME();
 }
+
 
 void Ui::AppSettings() {
 
@@ -361,7 +359,7 @@ void Ui::AppSettings() {
       save_app_data();
       int cnt = 0x0;
       while(idle_time() < SETTINGS_SAVE_TIMEOUT_MS)
-        draw_save_message((cnt++) >> 7);
+        draw_save_message((cnt++) >> 4);
     }
   }
 

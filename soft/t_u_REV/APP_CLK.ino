@@ -2676,16 +2676,16 @@ void CLOCKS_menu() {
   for (int i = 0, x = 0; i < NUM_CHANNELS; ++i, x += 21) {
 
     const Clock_channel &channel = clock_channel[i];
+    int_clock_used_ = channel.get_clock_source() == CHANNEL_TRIGGER_INTERNAL ? 0x1 : 0x0;
     menu::SixTitleBar::SetColumn(i);
     graphics.print((char)('1' + i));
     graphics.movePrintPos(2, 0);
     //
-    uint16_t internal_ = channel.get_clock_source() == CHANNEL_TRIGGER_INTERNAL ? 0x10 : 0x00;
-    int_clock_used_ += internal_;
-    menu::SixTitleBar::DrawGateIndicator(i, internal_);
-    
-    if (channel.get_mode4() != DAC && channel.get_display_clock() == _ONBEAT)
-      graphics.drawBitmap8(x + 4, 2, 4, TU::bitmap_indicator_4x8);
+    if (int_clock_used_)
+      graphics.drawBitmap8(x + 17, 2, 4, TU::bitmap_indicator_4x8);
+    //
+    if (clocks_state.selected_channel == i && channel.get_mode4() != DAC && channel.get_page() != TEMPO && channel.get_display_clock() == _ONBEAT)
+      menu::SixTitleBar::DrawGateIndicator(i, 0x10);  
     // global division?
     if (global_div_ && !i)
       graphics.drawBitmap8(x, 2, 4, TU::bitmap_div_indicator_4x8);
