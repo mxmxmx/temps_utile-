@@ -1,11 +1,7 @@
 #ifndef TU_GPIO_H_
 #define TU_GPIO_H_
 
-/*  
- * uncomment L#8 if using revision 0 pcbs (typically, yellow pcbs): 
- */
- 
-//#define _TEMPS_UTILE_REV_0
+#include "TU_options.h"
 
 #define CV1 A3
 #define CV2 A6

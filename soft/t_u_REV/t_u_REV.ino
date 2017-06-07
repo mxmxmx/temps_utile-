@@ -36,6 +36,7 @@
 #include "TU_menus.h"
 #include "TU_ui.h"
 #include "TU_version.h"
+#include "TU_options.h"
 #include "src/display.h"
 #include "src/ADC/OC_util_ADC.h"
 #include "util/util_debugpins.h"

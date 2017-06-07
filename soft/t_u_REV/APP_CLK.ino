@@ -713,6 +713,10 @@ public:
     if (get_cv_playmode() == _ARP) // to do
       cv_pattern_changed(get_cv_mask(),true);   
   }
+
+  int16_t dac_correction() const {
+    return dac_overflow_;
+  }
   
   uint16_t get_clock_cnt() const {
     return clk_cnt_;
@@ -872,6 +876,7 @@ public:
     logic_ = false;
     prev_mask_rotate_ = 0xFF;
     menu_page_ = PARAMETERS;
+    dac_overflow_ = 0xFFF;
 
     pending_multiplier_ = prev_multiplier_ = get_multiplier();
     pending_sync_ = false;
@@ -882,7 +887,7 @@ public:
     channel_frequency_in_ticks_ = 0xFFFFFFFF;
     pulse_width_in_ticks_ = get_pulsewidth() << 10;
 
-    _ZERO = TU::calibration_data.dac.calibration_points[0x0][0x2];
+    _ZERO = TU::calibration_data.dac.calibration_points[0x0][TU::OUTPUTS::kOctaveZero];
 
     display_sequence_ = get_sequence();
     display_mask_ = get_mask(display_sequence_);
@@ -1677,15 +1682,23 @@ public:
     int8_t _offset = dac_offset();
 
     if (get_DAC_offset_cv_source())
-      _offset  += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_offset_cv_source() - 1)) + 256) >> 9; 
+      _offset += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_offset_cv_source() - 1)) + 256) >> 9; 
     _out += _offset * v_oct;
-    
-    while (_out > 4095) {
+
+    bool corrected = false;
+    while (_out > TU::OUTPUTS::PITCH_LIMIT) {
       _out -= v_oct;
+      corrected = true;
     }
-    while (_out < 0) {
+    while (_out < TU::calibration_data.dac.calibration_points[0x0][0x0]) {
       _out += v_oct;
+      corrected = true;
     }
+    if (corrected)
+      dac_overflow_ = _out;
+    else
+      dac_overflow_ = 0xFFF;
+      
     return _out;
   }
 
@@ -1836,8 +1849,8 @@ public:
             *settings++ = CHANNEL_SETTING_DAC_RANGE_CV_SOURCE;
           else if (get_cv_playmode() == _ARP)
             *settings++ =  CHANNEL_SETTING_ARP_RANGE_CV_SOURCE;
-          else  
-            *settings++ =  CHANNEL_SETTING_DUMMY; // todo: reenable range...
+          //else  
+          //  *settings++ =  CHANNEL_SETTING_DUMMY; // todo: reenable range...
             
           switch (dac_mode())  {
             case _BINARY:
@@ -1938,8 +1951,8 @@ public:
             *settings++ = CHANNEL_SETTING_DAC_RANGE;
           else if (get_cv_playmode() == _ARP)
             *settings++ =  CHANNEL_SETTING_ARP_RANGE;
-          else  
-            *settings++ =  CHANNEL_SETTING_DUMMY;
+          //else  
+          //  *settings++ =  CHANNEL_SETTING_DUMMY;
             
           switch (dac_mode())  {
 
@@ -2035,6 +2048,7 @@ private:
   uint8_t menu_page_;
   uint16_t bpm_last_;
   int16_t prev_mask_rotate_;
+  int16_t dac_overflow_;
 
   util::TuringShiftRegister turing_machine_;
   util::Arpeggiator arpeggiator_;
