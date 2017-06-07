@@ -1849,8 +1849,6 @@ public:
             *settings++ = CHANNEL_SETTING_DAC_RANGE_CV_SOURCE;
           else if (get_cv_playmode() == _ARP)
             *settings++ =  CHANNEL_SETTING_ARP_RANGE_CV_SOURCE;
-          //else  
-          //  *settings++ =  CHANNEL_SETTING_DUMMY; // todo: reenable range...
             
           switch (dac_mode())  {
             case _BINARY:
@@ -1951,8 +1949,6 @@ public:
             *settings++ = CHANNEL_SETTING_DAC_RANGE;
           else if (get_cv_playmode() == _ARP)
             *settings++ =  CHANNEL_SETTING_ARP_RANGE;
-          //else  
-          //  *settings++ =  CHANNEL_SETTING_DUMMY;
             
           switch (dac_mode())  {
 
@@ -2436,6 +2432,8 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
 
       if (CHANNEL_SETTING_MASK1 != setting || CHANNEL_SETTING_MASK2 != setting || CHANNEL_SETTING_MASK3 != setting || CHANNEL_SETTING_MASK4 != setting || CHANNEL_SETTING_MASK_CV != setting) {
 
+        bool cv_playmode = (_ARP == selected.get_cv_playmode());
+        
         if (selected.change_value(setting, event.value))
           selected.force_update();
 
@@ -2455,11 +2453,24 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
           case CHANNEL_SETTING_MODE:
           case CHANNEL_SETTING_MODE4:
           case CHANNEL_SETTING_DAC_MODE:
-          case CHANNEL_SETTING_CV_SEQUENCE_PLAYMODE:
             selected.update_enabled_settings(clocks_state.selected_channel);
             clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
             break;
-            // special cases:
+          case CHANNEL_SETTING_CV_SEQUENCE_PLAYMODE:
+          {
+            // hack ...
+            if (selected.get_cv_playmode() == _ARP && event.value > 0 && !cv_playmode) {
+               clocks_state.cursor.Scroll(1);
+            }
+            else if (selected.get_cv_playmode() == _RND && cv_playmode) {
+               clocks_state.cursor.Scroll(-1);
+            }
+            
+            selected.update_enabled_settings(clocks_state.selected_channel);
+            clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+          }
+            break;
+          // special cases:
           case CHANNEL_SETTING_EUCLID_N:
           case CHANNEL_SETTING_EUCLID_K:
           {
