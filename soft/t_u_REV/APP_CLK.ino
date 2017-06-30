@@ -713,6 +713,10 @@ public:
     if (get_cv_playmode() == _ARP) // to do
       cv_pattern_changed(get_cv_mask(),true);   
   }
+
+  int16_t dac_correction() const {
+    return dac_overflow_;
+  }
   
   uint16_t get_clock_cnt() const {
     return clk_cnt_;
@@ -872,6 +876,7 @@ public:
     logic_ = false;
     prev_mask_rotate_ = 0xFF;
     menu_page_ = PARAMETERS;
+    dac_overflow_ = 0xFFF;
 
     pending_multiplier_ = prev_multiplier_ = get_multiplier();
     pending_sync_ = false;
@@ -882,7 +887,7 @@ public:
     channel_frequency_in_ticks_ = 0xFFFFFFFF;
     pulse_width_in_ticks_ = get_pulsewidth() << 10;
 
-    _ZERO = TU::calibration_data.dac.calibration_points[0x0][0x2];
+    _ZERO = TU::calibration_data.dac.calibration_points[0x0][TU::OUTPUTS::kOctaveZero];
 
     display_sequence_ = get_sequence();
     display_mask_ = get_mask(display_sequence_);
@@ -1677,15 +1682,23 @@ public:
     int8_t _offset = dac_offset();
 
     if (get_DAC_offset_cv_source())
-      _offset  += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_offset_cv_source() - 1)) + 256) >> 9; 
+      _offset += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_offset_cv_source() - 1)) + 256) >> 9; 
     _out += _offset * v_oct;
-    
-    while (_out > 4095) {
+
+    bool corrected = false;
+    while (_out > TU::OUTPUTS::PITCH_LIMIT) {
       _out -= v_oct;
+      corrected = true;
     }
-    while (_out < 0) {
+    while (_out < TU::calibration_data.dac.calibration_points[0x0][0x0]) {
       _out += v_oct;
+      corrected = true;
     }
+    if (corrected)
+      dac_overflow_ = _out;
+    else
+      dac_overflow_ = 0xFFF;
+      
     return _out;
   }
 
@@ -1834,10 +1847,6 @@ public:
 
           if (dac_mode() < _SEQ_CV)
             *settings++ = CHANNEL_SETTING_DAC_RANGE_CV_SOURCE;
-          else if (get_cv_playmode() == _ARP)
-            *settings++ =  CHANNEL_SETTING_ARP_RANGE_CV_SOURCE;
-          else  
-            *settings++ =  CHANNEL_SETTING_DUMMY; // todo: reenable range...
             
           switch (dac_mode())  {
             case _BINARY:
@@ -1861,8 +1870,10 @@ public:
               else
                 *settings++ = CHANNEL_SETTING_MASK_CV;
               *settings++ = CHANNEL_SETTING_CV_SEQUENCE_PLAYMODE;
-              if (get_cv_playmode() == _ARP)
+              if (get_cv_playmode() == _ARP) {
                 *settings++ = CHANNEL_SETTING_ARP_DIRECTION_CV_SOURCE;
+                *settings++ =  CHANNEL_SETTING_ARP_RANGE_CV_SOURCE;
+              }
               break;
             default:
               break;
@@ -1936,11 +1947,7 @@ public:
 
           if (dac_mode() < _SEQ_CV)
             *settings++ = CHANNEL_SETTING_DAC_RANGE;
-          else if (get_cv_playmode() == _ARP)
-            *settings++ =  CHANNEL_SETTING_ARP_RANGE;
-          else  
-            *settings++ =  CHANNEL_SETTING_DUMMY;
-            
+
           switch (dac_mode())  {
 
             case _BINARY:
@@ -1961,8 +1968,10 @@ public:
             case _SEQ_CV:
               *settings++ = CHANNEL_SETTING_MASK_CV; 
               *settings++ = CHANNEL_SETTING_CV_SEQUENCE_PLAYMODE;
-              if (get_cv_playmode() == _ARP)  
+              if (get_cv_playmode() == _ARP)  {
                 *settings++ =  CHANNEL_SETTING_ARP_DIRECTION;
+                *settings++ =  CHANNEL_SETTING_ARP_RANGE;
+              }
               break;
             default:
               break;
@@ -2035,6 +2044,7 @@ private:
   uint8_t menu_page_;
   uint16_t bpm_last_;
   int16_t prev_mask_rotate_;
+  int16_t dac_overflow_;
 
   util::TuringShiftRegister turing_machine_;
   util::Arpeggiator arpeggiator_;
@@ -2093,12 +2103,16 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 1, 0, NUM_CHANNELS - 1, "op_2", TU::Strings::channel_id, settings::STORAGE_TYPE_U8 },
   { 0, 0, 1, "track -->", TU::Strings::logic_tracking, settings::STORAGE_TYPE_U4 },
   { 128, 1, 255, "DAC: range", NULL, settings::STORAGE_TYPE_U8 },
+  #ifdef MOD_OFFSET
+  { 0, -1, 5, "DAC: offset", NULL, settings::STORAGE_TYPE_I8 },
+  #else
   { 0, -3, 3, "DAC: offset", NULL, settings::STORAGE_TYPE_I8 },
+  #endif
   { 0, 0, _DAC_MODES_LAST - 1, "DAC: mode", TU::Strings::dac_modes, settings::STORAGE_TYPE_U4 },
   { 0, 0, 1, "track -->", TU::Strings::binary_tracking, settings::STORAGE_TYPE_U4 },
   { 0, 0, 255, "rnd hist.", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
   { 0, 0, TU::OUTPUTS::kHistoryDepth - 1, "hist. depth", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
-  { LFSR_MIN<<1, LFSR_MIN, LFSR_MAX, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },
+  { LFSR_MIN << 1, LFSR_MIN, LFSR_MAX, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 0, 255, "LFSR p(x)", NULL, settings::STORAGE_TYPE_U8 },
   { 1, 1, 255, "LGST(R)", NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, 4, "arp.range", NULL, settings::STORAGE_TYPE_U4 },
@@ -2421,7 +2435,7 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
       ChannelSetting setting = selected.enabled_setting_at(clocks_state.cursor_pos());
 
       if (CHANNEL_SETTING_MASK1 != setting || CHANNEL_SETTING_MASK2 != setting || CHANNEL_SETTING_MASK3 != setting || CHANNEL_SETTING_MASK4 != setting || CHANNEL_SETTING_MASK_CV != setting) {
-
+        
         if (selected.change_value(setting, event.value))
           selected.force_update();
 
@@ -2445,7 +2459,7 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
             selected.update_enabled_settings(clocks_state.selected_channel);
             clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
             break;
-            // special cases:
+          // special cases:
           case CHANNEL_SETTING_EUCLID_N:
           case CHANNEL_SETTING_EUCLID_K:
           {

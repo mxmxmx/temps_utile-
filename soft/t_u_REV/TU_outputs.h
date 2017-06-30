@@ -4,9 +4,9 @@
 #include <stdint.h>
 #include <string.h>
 #include "TU_config.h"
+#include "TU_options.h"
 #include "util/util_math.h"
 #include "util/util_macros.h"
-#include "Arduino.h"
 
 extern void set_Output1(uint8_t data);
 extern void set_Output2(uint8_t data);
@@ -37,6 +37,12 @@ public:
   static constexpr size_t kHistoryDepth = 8;
   static constexpr uint16_t MAX_VALUE = 4095;  // DAC fullscale 
   static constexpr int CALIBRATION_POINTS = 5; // -4v, -2v, 0v, 2v, 4v
+  static constexpr int16_t PITCH_LIMIT = 4000;
+  #ifdef MOD_OFFSET
+    static constexpr int kOctaveZero = 1;
+  #else
+    static constexpr int kOctaveZero = 2;
+  #endif
 
   struct CalibrationData {
     uint16_t calibration_points[NUM_DACS][CALIBRATION_POINTS];

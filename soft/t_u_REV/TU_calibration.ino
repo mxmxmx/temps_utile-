@@ -7,10 +7,16 @@
 */
 
 #include "TU_calibration.h"
+#include "TU_options.h"
 
 using TU::OUTPUTS;
 
+#ifdef MOD_OFFSET
+static constexpr uint16_t _DAC_OFFSET = 30;   // DAC offset, initial approx., ish --> 0v
+#else
 static constexpr uint16_t _DAC_OFFSET = 2200; // DAC offset, initial approx., ish --> 0v
+#endif
+
 static constexpr uint16_t _ADC_OFFSET = (uint16_t)((float)pow(2,TU::ADC::kAdcResolution)*0.5f); // ADC offset
 
 namespace TU {
@@ -24,7 +30,7 @@ static constexpr unsigned kCalibrationAdcSmoothing = 4;
 const TU::CalibrationData kCalibrationDefaults = {
   // DAC
   { {
-    {514, 1375, 2236, 3097, 3960}  //  -4V, -2V, 0V, +2V, +4V // 1 octave ~ 430
+    {514, 1375, 2236, 3097, 3960}  //  1 octave ~ 430
     },
   },
   // ADC
@@ -120,11 +126,19 @@ const char *select_help    = "[R] => Select";
 const CalibrationStep calibration_steps[CALIBRATION_STEP_LAST] = {
   { HELLO, "T_U calibration", "use defaults? ", select_help, start_footer, CALIBRATE_NONE, 0, TU::Strings::no_yes, 0, 1 },
   { CENTER_DISPLAY, "center display", "pixel offset ", default_help_r, default_footer, CALIBRATE_DISPLAY, 0, nullptr, 0, 2 },
+  #ifdef MOD_OFFSET
+  { DAC_4VM, "DAC -2.0 volts", "--> -2.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 0, nullptr, 0, OUTPUTS::MAX_VALUE },
+  { DAC_2VM, "DAC  0.0 volts", "-->  0.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 1, nullptr, 0, OUTPUTS::MAX_VALUE },
+  { DAC_ZERO,"DAC +2.0 volts", "--> +2.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 2, nullptr, 0, OUTPUTS::MAX_VALUE },
+  { DAC_2V,  "DAC +4.0 volts", "--> +4.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 3, nullptr, 0, OUTPUTS::MAX_VALUE },
+  { DAC_4V,  "DAC +6.0 volts", "--> +6.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 4, nullptr, 0, OUTPUTS::MAX_VALUE },
+  #else
   { DAC_4VM, "DAC -4.0 volts", "--> -4.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 0, nullptr, 0, OUTPUTS::MAX_VALUE },
   { DAC_2VM, "DAC -2.0 volts", "--> -2.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 1, nullptr, 0, OUTPUTS::MAX_VALUE },
   { DAC_ZERO,"DAC  0.0 volts", "-->  0.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 2, nullptr, 0, OUTPUTS::MAX_VALUE },
   { DAC_2V,  "DAC +2.0 volts", "--> +2.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 3, nullptr, 0, OUTPUTS::MAX_VALUE },
   { DAC_4V,  "DAC +4.0 volts", "--> +4.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 4, nullptr, 0, OUTPUTS::MAX_VALUE },
+  #endif
   { CV_OFFSET_0, "ADC CV1", "--> 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_1, nullptr, 0, 4095 },
   { CV_OFFSET_1, "ADC CV2", "--> 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_2, nullptr, 0, 4095 },
   { CV_OFFSET_2, "ADC CV3", "--> 0V", default_help_r, default_footer, CALIBRATE_ADC_OFFSET, ADC_CHANNEL_3, nullptr, 0, 4095 },
@@ -192,9 +206,9 @@ void TU::Ui::Calibrate() {
           calibration_state.encoder_value += event.value;
           break;
         case CONTROL_BUTTON_DOWN:
-          SERIAL_PRINTLN("Reversing encoders...");
-          calibration_data.reverse_encoders();
-          reverse_encoders(calibration_data.encoders_reversed());
+        case CONTROL_BUTTON_UP:
+        configure_encoders(calibration_data.next_encoder_config());
+        break;
         default:
           break;
       }

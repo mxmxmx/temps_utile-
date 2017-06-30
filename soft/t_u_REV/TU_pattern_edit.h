@@ -4,6 +4,7 @@
 #include "TU_bitmaps.h"
 #include "TU_patterns.h"
 #include "TU_patterns_presets.h"
+#include "TU_options.h"
 
 namespace TU {
 
@@ -101,21 +102,31 @@ private:
 template <typename Owner>
 void PatternEditor<Owner>::Draw() {
   size_t num_slots = num_slots_;
+  weegfx::coord_t w, x, y, h, kMinWidth;
+  
+  if (!edit_mode_) {
+    
+    kMinWidth = 8 * 7;
+    w = mutable_pattern_ ? (num_slots + 1) * 7 : num_slots * 7;
+  
+    if (w < kMinWidth) w = kMinWidth;
+    x = 64 - (w + 1)/ 2;
+    y = 16 - 3;
+    h = 36;
+  
+    graphics.clearRect(x, y, w + 4, h);
+    graphics.drawFrame(x, y, w + 5, h);
 
-  static constexpr weegfx::coord_t kMinWidth = 8 * 7;
-
-  weegfx::coord_t w =
-    mutable_pattern_ ? (num_slots + 1) * 7 : num_slots * 7;
-
-  if (w < kMinWidth) w = kMinWidth;
-
-  weegfx::coord_t x = 64 - (w + 1)/ 2;
-  weegfx::coord_t y = 16 - 3;
-  weegfx::coord_t h = 36;
-
-  graphics.clearRect(x, y, w + 4, h);
-  graphics.drawFrame(x, y, w + 5, h);
-
+  }
+  else {
+    w = 128;
+    h = 64;
+    x = 0;
+    y = 0;
+    graphics.clearRect(x, y, w, h);
+    graphics.drawFrame(x, y, w, h); 
+  }
+  
   x += 2;
   y += 3;
 
@@ -129,56 +140,129 @@ void PatternEditor<Owner>::Draw() {
   if (!edit_mode_)
     graphics.print(TU::Strings::seq_id[id]);
   else
-    graphics.print("CV");
-  
-  graphics.setPrintPos(x, y + 24);
+    graphics.print("CV:");
   
   if (cursor_pos_ != num_slots) {
-    graphics.movePrintPos(weegfx::Graphics::kFixedFontW, 0);
+    //graphics.movePrintPos(weegfx::Graphics::kFixedFontW, 0);
 
-    // print pitch value?
     if (edit_mode_) {
-      int pitch = (int)owner_->get_pitch_at_step(cursor_pos_) - TU::calibration_data.dac.calibration_points[0x0][0x2];
-      if (pitch < 0) {
-        graphics.movePrintPos(-5, 0);
-        graphics.print(pitch, 0);
+      // print pitch value at current step  ...
+      int32_t v_oct  = TU::OUTPUTS::get_v_oct();
+      int32_t pitch  = owner_->dac_offset() * v_oct + (int)owner_->get_pitch_at_step(cursor_pos_) - TU::calibration_data.dac.calibration_points[0x0][TU::OUTPUTS::kOctaveZero];
+      CONSTRAIN(pitch, -TU::calibration_data.dac.calibration_points[0x0][TU::OUTPUTS::kOctaveZero], TU::OUTPUTS::PITCH_LIMIT - TU::calibration_data.dac.calibration_points[0x0][TU::OUTPUTS::kOctaveZero]);
+      
+      if (pitch >= 0) 
+        graphics.printf(" %.2fv", (float)pitch / v_oct);
+      else 
+        graphics.printf("%.2fv", (float)pitch / v_oct);
+      if (owner_-> dac_correction() != 0xFFF)
+        graphics.print(" (+ -)");
+    } // 
+  }
+  else {
+    if (!edit_mode_)
+      graphics.print(":");
+    if (num_slots > 9)
+      graphics.print((int)num_slots, 2);
+    else
+      graphics.print((int)num_slots);
+  }
+
+  if (!edit_mode_) {
+
+    x += 2; y += 10;
+    uint16_t mask = mask_;
+    uint8_t clock_pos = owner_->get_clock_cnt();
+    
+    for (size_t i = 0; i < num_slots; ++i, x += 7, mask >>= 1) {
+      if (mask & 0x1)
+        graphics.drawRect(x, y, 4, 8);
+      else
+        graphics.drawBitmap8(x, y, 4, bitmap_empty_frame4x8);
+  
+      if (i == cursor_pos_)
+        graphics.drawFrame(x - 2, y - 2, 8, 12);
+      // draw clock
+      if (!edit_mode_) {
+        if (i == clock_pos && (owner_->get_current_sequence() == edit_this_sequence_))  
+          graphics.drawRect(x, y + 10, 4, 2);
+      }
+      else if (i == clock_pos)  
+          graphics.drawRect(x, y + 10, 4, 2);
+    }
+    
+    if (mutable_pattern_) {
+      graphics.drawBitmap8(x, y, 4, bitmap_end_marker4x8);
+      if (cursor_pos_ == num_slots)
+        graphics.drawFrame(x - 2, y - 2, 8, 12);
+    }
+  }
+  else {
+    
+    x += 3 + (w >> 0x1) - (num_slots << 0x2); 
+    #ifdef MOD_OFFSET
+      y += 40;
+    #else
+      y += 35;
+    #endif
+    uint16_t mask = mask_;
+    uint8_t clock_pos = owner_->get_clock_cnt();
+
+    for (size_t i = 0; i < num_slots; ++i, x += 7, mask >>= 1) {
+  
+      int pitch = owner_->dac_offset() * TU::OUTPUTS::get_v_oct() + (int)owner_->get_pitch_at_step(i) - TU::calibration_data.dac.calibration_points[0x0][TU::OUTPUTS::kOctaveZero];
+      
+      bool _clock = (i == clock_pos);
+       
+      if (mask & 0x1 & (pitch >= 0)) {
+        pitch += 0x100;
+        if (_clock)
+          graphics.drawRect(x - 1, y - (pitch >> 7), 6, pitch >> 7);
+        else
+          graphics.drawRect(x, y - (pitch >> 7), 4, pitch >> 7);
+      }
+      else if (mask & 0x1) {
+        pitch -= 0x100;
+        if (_clock)
+          graphics.drawRect(x - 1, y, 6, abs(pitch) >> 7);
+        else 
+          graphics.drawRect(x, y, 4, abs(pitch) >> 7);
+      }
+      else if (pitch > - 0x200 && pitch < 0x200) {
+       // disabled steps not visible otherwise..
+       graphics.drawRect(x + 1, y - 1, 2, 2);
+      }
+      else if (pitch >= 0) {
+        pitch += 0x100;
+        graphics.drawFrame(x, y - (pitch >> 7), 4, pitch >> 7);
       }
       else {
-        graphics.movePrintPos(-5, 0);
-        graphics.print("+");
-        graphics.print(pitch, 0); 
-      } 
-    }
-  }
-  else 
-    graphics.print((int)num_slots, 2);
-
-  x += 2; y += 10;
-  uint16_t mask = mask_;
-  uint8_t clock_pos = owner_->get_clock_cnt();
+        pitch -= 0x100;
+        graphics.drawFrame(x, y, 4, abs(pitch) >> 7);
+      }
   
-  for (size_t i = 0; i < num_slots; ++i, x += 7, mask >>= 1) {
-    if (mask & 0x1)
-      graphics.drawRect(x, y, 4, 8);
-    else
-      graphics.drawBitmap8(x, y, 4, bitmap_empty_frame4x8);
-
-    if (i == cursor_pos_)
-      graphics.drawFrame(x - 2, y - 2, 8, 12);
-    // draw clock
-    if (!edit_mode_) {
-      if (i == clock_pos && (owner_->get_current_sequence() == edit_this_sequence_))  
-        graphics.drawRect(x, y + 10, 4, 2);
+      if (i == cursor_pos_) {
+        if (TU::ui.read_immediate(TU::CONTROL_BUTTON_L))
+          graphics.drawFrame(x - 3, y - 5, 10, 10);
+        else 
+          graphics.drawFrame(x - 2, y - 4, 8, 8);
+      }
+      
+      #ifdef MOD_OFFSET
+        if (_clock)
+          graphics.drawRect(x, y + 17, 4, 2);
+      #else 
+        if (_clock)
+          graphics.drawRect(x, y + 22, 4, 2);
+      #endif
+         
     }
-    else if (i == clock_pos)  
-        graphics.drawRect(x, y + 10, 4, 2);
-  }
-
-  
-  if (mutable_pattern_) {
-    graphics.drawBitmap8(x, y, 4, bitmap_end_marker4x8);
-    if (cursor_pos_ == num_slots)
-      graphics.drawFrame(x - 2, y - 2, 8, 12);
+    if (mutable_pattern_) {
+       graphics.drawFrame(x, y - 2, 4, 4);
+      if (cursor_pos_ == num_slots)
+        graphics.drawFrame(x - 2, y - 4, 8, 8);
+    }
+    
   }
 }
 
@@ -266,7 +350,7 @@ void PatternEditor<Owner>::HandleEncoderEvent(const UI::Event &event) {
         else 
             pitch += (delta << 4); // coarse
             
-        CONSTRAIN(pitch, 0, 4095);    
+        CONSTRAIN(pitch, TU::calibration_data.dac.calibration_points[0x0][0x0], TU::OUTPUTS::PITCH_LIMIT);    
         // set:
         owner_->set_pitch_at_step(cursor_pos_, pitch);
       }
