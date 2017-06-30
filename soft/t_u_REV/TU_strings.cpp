@@ -29,6 +29,8 @@ namespace TU {
 
   const char * const binary_tracking[] = { "P_W", "state"};
 
+  const char * const encoder_config_strings[] = { "normal", "R reversed", "L reversed", "LR reversed" };
+
   const char * const pulsewidth_ms[] = {
     "echo",
     "1ms","2ms","3ms","4ms","5ms","6ms","7ms","8ms","9ms","10ms",

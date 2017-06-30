@@ -3,11 +3,13 @@
 
 #include "TU_apps.h"
 #include "TU_bitmaps.h"
+#include "TU_calibration.h"
 #include "TU_config.h"
 #include "TU_core.h"
 #include "TU_gpio.h"
 #include "TU_menus.h"
 #include "TU_ui.h"
+#include "TU_strings.h"
 #include "TU_version.h"
 #include "src/display.h"
 
@@ -28,12 +30,16 @@ void Ui::Init() {
   button_state_ = 0;
   button_ignore_mask_ = 0;
   screensaver_ = false;
-
   encoder_right_.Init(TU_GPIO_ENC_PINMODE);
   encoder_left_.Init(TU_GPIO_ENC_PINMODE);
-
   event_queue_.Init();
 }
+
+void Ui::configure_encoders(EncoderConfig encoder_config) {
+  SERIAL_PRINTLN("Configuring encoders: %s (%x)", Strings::encoder_config_strings[encoder_config], encoder_config);
+  encoder_right_.reverse(encoder_config & ENCODER_CONFIG_R_REVERSED);
+  encoder_left_.reverse(encoder_config & ENCODER_CONFIG_L_REVERSED);
+ }
 
 void FASTRUN Ui::Poll() {
 

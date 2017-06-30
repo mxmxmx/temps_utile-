@@ -122,9 +122,7 @@ void setup() {
 
   TU::menu::Init();
   TU::ui.Init();
-  bool reversed = TU::calibration_data.encoders_reversed();
-  SERIAL_PRINTLN("* Encoders reversed: %s", reversed ? "true" : "false");
-  TU::ui.reverse_encoders(reversed);
+  TU::ui.configure_encoders(TU::calibration_data.encoder_config());
 
   SERIAL_PRINTLN("* Starting CORE ISR @%luus", TU_CORE_TIMER_RATE);
   CORE_timer.begin(CORE_timer_ISR, TU_CORE_TIMER_RATE);
