@@ -1677,27 +1677,29 @@ public:
         break; // end mode switch
     }
 
-    // offset
-    uint16_t v_oct = TU::OUTPUTS::get_v_oct();
-    int8_t _offset = dac_offset();
-
-    if (get_DAC_offset_cv_source())
-      _offset += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_offset_cv_source() - 1)) + 256) >> 9; 
-    _out += _offset * v_oct;
-
-    bool corrected = false;
-    while (_out > TU::OUTPUTS::PITCH_LIMIT) {
-      _out -= v_oct;
-      corrected = true;
+    if (mode == DAC) {
+      // offset
+      uint16_t v_oct = TU::OUTPUTS::get_v_oct();
+      int8_t _offset = dac_offset();
+  
+      if (get_DAC_offset_cv_source())
+        _offset += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_offset_cv_source() - 1)) + 256) >> 9; 
+      _out += _offset * v_oct;
+  
+      bool corrected = false;
+      while (_out > TU::OUTPUTS::PITCH_LIMIT) {
+        _out -= v_oct;
+        corrected = true;
+      }
+      while (_out < TU::calibration_data.dac.calibration_points[0x0][0x0]) {
+        _out += v_oct;
+        corrected = true;
+      }
+      if (corrected)
+        dac_overflow_ = _out;
+      else
+        dac_overflow_ = 0xFFF;
     }
-    while (_out < TU::calibration_data.dac.calibration_points[0x0][0x0]) {
-      _out += v_oct;
-      corrected = true;
-    }
-    if (corrected)
-      dac_overflow_ = _out;
-    else
-      dac_overflow_ = 0xFFF;
       
     return _out;
   }
