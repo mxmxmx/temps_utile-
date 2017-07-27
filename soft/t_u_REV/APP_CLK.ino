@@ -838,6 +838,10 @@ public:
     pending_sync_ = true;
   }
 
+  void reset_channel_frequency() {
+    channel_frequency_in_ticks_ = 0xFFFFFFFF;
+  }
+
   uint8_t get_page() const {
     return menu_page_;
   }
@@ -942,6 +946,9 @@ public:
     }
     // 2. multiplication:
     _multiplier = get_multiplier();
+    
+    if ((_multiplier > MULT_BY_ONE) && (subticks_ > (ext_frequency_in_ticks_ << 1)))
+      reset_channel_frequency();
 
     if (get_mult_cv_source()) {
       _multiplier += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_mult_cv_source() - 1)) + 63) >> 7;
@@ -971,8 +978,6 @@ public:
     // new multiplier ?
     if (prev_multiplier_ != _multiplier) {
       pending_multiplier_ = _multiplier; // we need to wait for a new trigger to execute this
-      if (_multiplier > MULT_BY_ONE)
-        channel_frequency_in_ticks_ = 0xFFFFFFFF;
     }
     if (_triggered && pending_multiplier_ != prev_multiplier_) {
       _tock |= true;
@@ -2237,6 +2242,7 @@ size_t CLOCKS_restore(const void *storage) {
     // update display sequence + mask:
     clock_channel[i].set_display_sequence(clock_channel[i].get_sequence()); 
     clock_channel[i].pattern_changed(clock_channel[i].get_mask(clock_channel[i].get_sequence()), true);
+    clock_channel[i].reset_channel_frequency();
   }
   clocks_state.cursor.AdjustEnd(clock_channel[0].num_enabled_settings() - 1);
 
