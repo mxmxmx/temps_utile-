@@ -947,7 +947,7 @@ public:
     // 2. multiplication:
     _multiplier = get_multiplier();
     
-    if ((_multiplier > MULT_BY_ONE) && (subticks_ > (ext_frequency_in_ticks_ << 1)))
+    if ((_multiplier > MULT_BY_ONE) && (subticks_ > (channel_frequency_in_ticks_ << 2)))
       reset_channel_frequency();
 
     if (get_mult_cv_source()) {
