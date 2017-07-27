@@ -944,7 +944,7 @@ public:
     _multiplier = get_multiplier();
 
     if (get_mult_cv_source()) {
-      _multiplier += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_mult_cv_source() - 1)) + 256) >> 9;
+      _multiplier += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_mult_cv_source() - 1)) + 63) >> 7;
       CONSTRAIN(_multiplier, 0, MULT_MAX);
     }
     // 3. channel mode?
