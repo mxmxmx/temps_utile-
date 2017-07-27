@@ -971,6 +971,8 @@ public:
     // new multiplier ?
     if (prev_multiplier_ != _multiplier) {
       pending_multiplier_ = _multiplier; // we need to wait for a new trigger to execute this
+      if (_multiplier > MULT_BY_ONE)
+        channel_frequency_in_ticks_ = 0xFFFFFFFF;
     }
     if (_triggered && pending_multiplier_ != prev_multiplier_) {
       _tock |= true;
@@ -2136,34 +2138,34 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, 31, "spread", NULL, settings::STORAGE_TYPE_U8 },
   { 0, 0, 15, "density", NULL, settings::STORAGE_TYPE_U8 },
   // cv sources
-  { 0, 0, 4, "mult/div    >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "pulsewidth  >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "clock src   >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR tap1   >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR tap2   >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "rand > n    >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "euclid: N   >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "euclid: K   >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "euclid: OFF >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "logic type  >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "op_1        >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "op_2        >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR p(x)   >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR length >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LGST(R)     >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "sequence #  >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "mask        >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "mask        >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "DAC: range  >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "DAC: mode   >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "DAC: offset >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "rnd hist.   >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "hist. depth >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "arp.range   >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "arp.direc.  >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "interval    >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "spread      >>", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "density     >>", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "mult/div    ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "pulsewidth  ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "clock src   ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR tap1   ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR tap2   ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "rand > n    ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "euclid: N   ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "euclid: K   ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "euclid: OFF ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "logic type  ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "op_1        ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "op_2        ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR p(x)   ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR length ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LGST(R)     ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "sequence #  ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "mask        ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "mask        ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "DAC: range  ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "DAC: mode   ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "DAC: offset ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "rnd hist.   ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "hist. depth ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "arp.range   ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "arp.direc.  ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "interval    ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "spread      ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "density     ->", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 0, "---------------------", NULL, settings::STORAGE_TYPE_U4 }, // DUMMY
   { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_U4 }, // DUMMY empty
   { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_U4 }  // screensaver
