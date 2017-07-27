@@ -66,6 +66,8 @@ uint16_t copy_length = TU::Patterns::kMax;
 uint16_t copy_mask = 0xFFFF;
 uint32_t copy_timeout = COPYTIMEOUT;
 
+uint8_t Master_Channel = 0;
+
 static const uint64_t multipliers_[] = {
 
   0xFFFFFFFF, // x1
@@ -327,6 +329,10 @@ public:
     return values_[CHANNEL_SETTING_MULT];
   }
 
+  int8_t get_effective_multiplier() {
+    return prev_multiplier_;
+  }
+  
   uint16_t get_pulsewidth() const {
     return values_[CHANNEL_SETTING_PULSEWIDTH];
   }
@@ -722,6 +728,10 @@ public:
     return clk_cnt_;
   }
 
+  uint16_t get_div_cnt() const {
+    return div_cnt_;
+  }
+
   uint16_t get_current_sequence() const {
     return sequence_last_;
   }
@@ -836,6 +846,11 @@ public:
 
   void sync() {
     pending_sync_ = true;
+    sync_ = false;
+  }
+
+  bool slave() {
+    return sync_;
   }
 
   void reset_channel_frequency() {
@@ -865,6 +880,7 @@ public:
     apply_value(CHANNEL_SETTING_CLOCK, trigger_source);
 
     force_update_ = true;
+    sync_ = false;
     gpio_state_ = OFF;
     display_state_ = _OFF;
     ticks_ = 0;
@@ -978,6 +994,7 @@ public:
     // new multiplier ?
     if (prev_multiplier_ != _multiplier) {
       pending_multiplier_ = _multiplier; // we need to wait for a new trigger to execute this
+      sync_ = true;
     }
     if (_triggered && pending_multiplier_ != prev_multiplier_) {
       _tock |= true;
@@ -1043,7 +1060,7 @@ public:
     
     // sync ? (manual)
     div_cnt_ = pending_sync_ ? 0x0 : div_cnt_;
-  
+    
     if (_multiplier <= MULT_BY_ONE && _triggered && div_cnt_ <= 0) {
       // division, so we track
       _sync = true;
@@ -2016,7 +2033,7 @@ public:
   void RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clock_channel) const;
 
 private:
-  uint16_t _sync_cnt;
+  bool sync_;
   bool force_update_;
   uint16_t _ZERO;
   uint8_t clk_src_;
@@ -2235,7 +2252,7 @@ size_t CLOCKS_save(void *storage) {
 
 size_t CLOCKS_restore(const void *storage) {
   
-  size_t used = 0;  
+  size_t used = 0;
   for (size_t i = 0; i < NUM_CHANNELS; ++i) {
     used += clock_channel[i].Restore(static_cast<const char*>(storage) + used);
     clock_channel[i].update_enabled_settings(i);
@@ -2364,6 +2381,41 @@ void CLOCKS_isr() {
   clock_channel[3].logic(CLOCK_CHANNEL_4);
   clock_channel[4].logic(CLOCK_CHANNEL_5);
   clock_channel[5].logic(CLOCK_CHANNEL_6);
+
+  // track master clock:
+  uint8_t min_mult = MULT_MAX;
+  for (size_t i = 0; i < NUM_CHANNELS; ++i) {
+    uint8_t mult = clock_channel[i].get_effective_multiplier();
+    if (mult <= min_mult) {
+      min_mult = mult;
+      Master_Channel = i;
+    }    
+  }
+
+  if (triggers & (1 << CHANNEL_TRIGGER_TR1)) {
+    // channel is about to reset, so reset all others.
+    if (min_mult <= MULT_BY_ONE && 0x1 == clock_channel[Master_Channel].get_div_cnt()) {
+
+      // did any multipliers change?
+      uint8_t slave = 0;
+      slave += clock_channel[0].slave();
+      slave += clock_channel[1].slave();
+      slave += clock_channel[2].slave();
+      slave += clock_channel[3].slave();
+      slave += clock_channel[4].slave();
+      slave += clock_channel[5].slave();
+      
+      if (slave) {
+        // if so, reset all:
+        clock_channel[0].sync();
+        clock_channel[1].sync();
+        clock_channel[2].sync();
+        clock_channel[3].sync();
+        clock_channel[4].sync();
+        clock_channel[5].sync();
+      }
+    }
+  }
 }
 
 void CLOCKS_handleButtonEvent(const UI::Event &event) {
