@@ -18,6 +18,10 @@ void FASTRUN tr2_ISR() {
   TU::DigitalInputs::clock<TU::DIGITAL_INPUT_2>();
 }
 
+void TU::DigitalInputs::Clear() {
+  clocked_mask_ = 0x0;
+}
+
 /*static*/
 void TU::DigitalInputs::Init() {
 

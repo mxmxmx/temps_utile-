@@ -24,6 +24,8 @@ public:
   static void Init();
 
   static void Scan();
+  
+  static void Clear();
 
   // @return mask of all pins clocked since last call, reset state
   static inline uint32_t clocked() {

@@ -55,8 +55,8 @@ static const uint32_t COPYTIMEOUT = 200000;
 
 extern const uint32_t BPM_microseconds_4th[];
 
-static uint32_t ticks_src1 = 0; // main clock frequency (top)
-static uint32_t ticks_src2 = 0; // sec. clock frequency (bottom)
+static uint32_t ticks_src1 = 0xFFFFFFF; // main clock frequency (top)
+static uint32_t ticks_src2 = 0xFFFFFFF; // sec. clock frequency (bottom)
 static uint32_t ticks_internal = 0; // sec. clock frequency (bottom)
 static int32_t global_div_count_TR1 = 0; // pre-clock-division
 bool RESET_GLOBAL_TR2 = true;
@@ -991,7 +991,7 @@ public:
       if (_multiplier > MULT_BY_ONE) {
         prev_channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_SCALE);
         // new frequency:
-        channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier-MULT_BY_ONE]);
+        channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier - MULT_BY_ONE]);
       }
       else {
         prev_channel_frequency_in_ticks_ = 0x0;

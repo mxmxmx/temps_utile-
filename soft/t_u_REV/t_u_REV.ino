@@ -101,14 +101,14 @@ void FASTRUN CORE_timer_ISR() {
 
 void setup() {
  
-  delay(100);
+  delay(50);
   NVIC_SET_PRIORITY(IRQ_PORTB, 0); // TR1 = 0 = PTB16
   TU::OUTPUTS::SPI_Init();
   SERIAL_PRINTLN("* t_u BOOTING...");
   SERIAL_PRINTLN("* %s", TU_VERSION);
   TU::DEBUG::Init();
+  delay(300);
   TU::DigitalInputs::Init();
-  delay(500);
   TU::ADC::Init(&TU::calibration_data.adc); // Yes, it's using the calibration_data before it's loaded...
   TU::OUTPUTS::Init(&TU::calibration_data.dac);
    
@@ -146,6 +146,7 @@ void setup() {
   TU::OUTPUTS::set_v_oct();
   // initialize apps
   TU::apps::Init(reset_settings);
+  TU::DigitalInputs::Clear();
 }
 
 /*  ---------    main loop  --------  */
