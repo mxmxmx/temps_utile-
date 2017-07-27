@@ -922,7 +922,7 @@ public:
   
   /* main channel update below: */
 
-  inline void Update(uint32_t triggers, CLOCK_CHANNEL clock_channel) {
+  inline void Update(uint32_t triggers, CLOCK_CHANNEL clock_channel, uint8_t mute) {
 
     // increment channel ticks ..
     subticks_++;
@@ -1060,7 +1060,7 @@ public:
       _sync = true;
       subticks_ = channel_frequency_in_ticks_;
     }
-    else if (_multiplier > MULT_BY_ONE)
+    else if (_multiplier > MULT_BY_ONE && mute != clk_src_)
       _sync = true;
     // end of ugly hack
 
@@ -2341,14 +2341,21 @@ void CLOCKS_isr() {
     triggers |= (1 << CHANNEL_TRIGGER_INTERNAL);
     ticks_internal = 0x0;
   }
+  
+  uint8_t mute = 0xFF;
+  if (ticks_src1 > (ext_frequency[CHANNEL_TRIGGER_TR1] << 1))
+    mute = CHANNEL_TRIGGER_TR1;
 
+  if (ticks_src2 > (ext_frequency[CHANNEL_TRIGGER_TR2] << 1))
+    mute = CHANNEL_TRIGGER_TR2;
+    
   // update channels:
-  clock_channel[CLOCK_CHANNEL_1].Update(triggers, CLOCK_CHANNEL_1);
-  clock_channel[CLOCK_CHANNEL_2].Update(triggers, CLOCK_CHANNEL_2);
-  clock_channel[CLOCK_CHANNEL_3].Update(triggers, CLOCK_CHANNEL_3);
-  clock_channel[CLOCK_CHANNEL_5].Update(triggers, CLOCK_CHANNEL_5);
-  clock_channel[CLOCK_CHANNEL_6].Update(triggers, CLOCK_CHANNEL_6);
-  clock_channel[CLOCK_CHANNEL_4].Update(triggers, CLOCK_CHANNEL_4); // = DAC channel; update last, because of the binary Sequencer thing.
+  clock_channel[CLOCK_CHANNEL_1].Update(triggers, CLOCK_CHANNEL_1, mute);
+  clock_channel[CLOCK_CHANNEL_2].Update(triggers, CLOCK_CHANNEL_2, mute);
+  clock_channel[CLOCK_CHANNEL_3].Update(triggers, CLOCK_CHANNEL_3, mute);
+  clock_channel[CLOCK_CHANNEL_5].Update(triggers, CLOCK_CHANNEL_5, mute);
+  clock_channel[CLOCK_CHANNEL_6].Update(triggers, CLOCK_CHANNEL_6, mute);
+  clock_channel[CLOCK_CHANNEL_4].Update(triggers, CLOCK_CHANNEL_4, mute); // = DAC channel; update last, because of the binary Sequencer thing.
 
   // apply logic ?
   clock_channel[0].logic(CLOCK_CHANNEL_1);
