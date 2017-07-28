@@ -2491,18 +2491,34 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
 
   if (TU::CONTROL_ENCODER_L == event.control) {
 
+    int previous_channel = clocks_state.selected_channel;
+    Clock_channel &previous= clock_channel[previous_channel];
+
+    if (previous.get_page() == TEMPO) {
+      previous.set_page(PARAMETERS);
+      clocks_state.cursor.set_editing(false);
+      previous.update_enabled_settings(previous_channel);
+      clocks_state.cursor.AdjustEnd(previous.num_enabled_settings() - 1);
+      return;
+    }
+    
     int selected_channel = clocks_state.selected_channel + event.value;
     CONSTRAIN(selected_channel, 0, NUM_CHANNELS-1);
-    clocks_state.selected_channel = selected_channel;
-
+    clocks_state.selected_channel = selected_channel; 
     Clock_channel &selected = clock_channel[clocks_state.selected_channel];
 
-    if (selected.get_page() == TEMPO || selected.get_page() == CV_SOURCES)
+    if (previous.get_page() == CV_SOURCES) 
+      selected.set_page(CV_SOURCES);
+    else if (previous.get_page() == PARAMETERS) 
       selected.set_page(PARAMETERS);
 
     selected.update_enabled_settings(clocks_state.selected_channel);
-    clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
-    clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+    if (previous.num_enabled_settings() > selected.num_enabled_settings() && clocks_state.cursor.cursor_pos() > selected.num_enabled_settings()) {
+      clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
+      clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+      clocks_state.cursor.Scroll(selected.num_enabled_settings() - 1);
+    }
+    else clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
 
   } else if (TU::CONTROL_ENCODER_R == event.control) {
 
