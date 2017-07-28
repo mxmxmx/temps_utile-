@@ -850,7 +850,8 @@ public:
   }
 
   void resync() { 
-    if (clk_src_ == CHANNEL_TRIGGER_TR1) {
+    // don't resync channels running off TR2
+    if (clk_src_ != CHANNEL_TRIGGER_TR2) {
       pending_sync_ = true;
       sync_ = false;
     }
