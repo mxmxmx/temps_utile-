@@ -2394,7 +2394,7 @@ void CLOCKS_isr() {
         }    
       }
       // channel is about to reset, so reset all others.
-      if (min_mult <= MULT_BY_ONE && clock_channel[master_channel].get_div_cnt() <= 0x0) {
+      if (min_mult <= MULT_BY_ONE && clock_channel[master_channel].get_div_cnt() <= 0x1) {
   
         // did any multipliers change?
         uint8_t slave = 0;
