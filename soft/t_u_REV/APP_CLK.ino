@@ -846,10 +846,11 @@ public:
     pending_sync_ = true;
   }
 
-  void resync() { 
+  void resync(uint32_t clk_cnt, uint32_t div_cnt ) { 
     // don't resync channels running off TR2
     if (clk_src_ != CHANNEL_TRIGGER_TR2) {
-      pending_sync_ = true;
+      clk_cnt_ = clk_cnt;
+      div_cnt_ = div_cnt;
       sync_ = false;
     }
   }
@@ -2393,27 +2394,29 @@ void CLOCKS_isr() {
           master_channel = i;
         }    
       }
-      // channel is about to reset, so reset all others.
+      // channel is about to reset, so reset slave channels -- 
       if (min_mult <= MULT_BY_ONE && clock_channel[master_channel].get_div_cnt() <= 0x1) {
   
-        // did any multipliers change?
-        uint8_t slave = 0;
-        slave += clock_channel[0].slave();
-        slave += clock_channel[1].slave();
-        slave += clock_channel[2].slave();
-        slave += clock_channel[3].slave();
-        slave += clock_channel[4].slave();
-        slave += clock_channel[5].slave();
+        for (size_t i = 0; i < NUM_CHANNELS; ++i)  {
         
-        if (slave) {
-          // if so, reset all:
-          clock_channel[0].resync();
-          clock_channel[1].resync();
-          clock_channel[2].resync();
-          clock_channel[3].resync();
-          clock_channel[4].resync();
-          clock_channel[5].resync();
-        }
+          if (clock_channel[i].slave()) {
+  
+              uint8_t mult = clock_channel[i].get_effective_multiplier();
+              uint32_t clock_count = 0; uint32_t div_count = 0;
+  
+              for (size_t j = 0; j < NUM_CHANNELS; ++j) {
+                if (i != j) {
+                    if (clock_channel[j].get_effective_multiplier() == mult) 
+                    {
+                       clock_count = clock_channel[j].get_clock_cnt();
+                       div_count = clock_channel[j].get_div_cnt();
+                    }
+                }
+              }
+              // resync channel
+              clock_channel[i].resync(clock_count, div_count);
+          }
+        } 
       }
     }
   }
