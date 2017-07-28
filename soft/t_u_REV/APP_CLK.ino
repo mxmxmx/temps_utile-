@@ -844,6 +844,7 @@ public:
 
   void sync() {
     pending_sync_ = true;
+    skip_reset_ = true;
   }
 
   void resync(uint32_t clk_cnt, uint32_t div_cnt ) { 
@@ -1303,8 +1304,9 @@ public:
           _offset += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_euclid_offset_cv_source() - 1)) + 32) >> 6;
 
         CONSTRAIN(_k, 1, _n);
-        CONSTRAIN(_offset, 1, _n);
+        CONSTRAIN(_offset, 0, _n);
         // calculate output:
+        clk_cnt_ = clk_cnt_ >= (uint8_t)_n ? 0x0 : clk_cnt_;
         _out = ((clk_cnt_ + _offset) * _k) % _n;
         _out = (_out < _k) ? ON : OFF;
       }
