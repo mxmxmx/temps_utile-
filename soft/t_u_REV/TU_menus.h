@@ -78,6 +78,13 @@ public:
     screen_line_ = 0;
   }
 
+  void reInit(int start, int end) {
+    start_ = start;
+    end_ = end;
+    cursor_pos_ = start;
+    screen_line_ = 0;
+  }
+
   void AdjustEnd(int end) {
     // WARN This has a specific use case where we don't have to adjust screen line!
     end_ = end;

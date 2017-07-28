@@ -2516,7 +2516,7 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
     
     if (previous.num_enabled_settings() > selected.num_enabled_settings()) {
       int _cursor = clocks_state.cursor.cursor_pos();
-      clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
+      clocks_state.cursor.reInit(CHANNEL_SETTING_MODE, 0);
       clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
       if (_cursor > selected.num_enabled_settings() - 1)
         clocks_state.cursor.Scroll(selected.num_enabled_settings() - 1);
