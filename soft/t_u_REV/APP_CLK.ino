@@ -889,6 +889,7 @@ public:
 
     force_update_ = true;
     sync_ = false;
+    skip_reset_ = false;
     gpio_state_ = OFF;
     display_state_ = _OFF;
     ticks_ = 0;
@@ -1039,6 +1040,8 @@ public:
 
       // ?
       if (reset_state_ < reset_) {
+        // 
+        skip_reset_ = (div_cnt_ > 0) ? true : false; // "still und leise im Hintergrund" ?
         div_cnt_ = 0x0;
         reset_counter_ = true; // reset clock counter below
         reset_me_ = false;
@@ -1125,11 +1128,14 @@ public:
       reset_me_ = true;
       reset_counter_ = false;
       // finally, process trigger + output
-      _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
-      display_state_ = _ACTIVE;
-      if (_triggered) {
-        TU::OUTPUTS::setState(clock_channel, _output);
+      if (!skip_reset_) {
+        _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
+        display_state_ = _ACTIVE;
+        if (_triggered) {
+          TU::OUTPUTS::setState(clock_channel, _output);
+        }
       }
+      skip_reset_ = false;
     }
 
     /*
@@ -2042,6 +2048,7 @@ public:
 
 private:
   bool sync_;
+  bool skip_reset_;
   bool force_update_;
   uint16_t _ZERO;
   uint8_t clk_src_;
