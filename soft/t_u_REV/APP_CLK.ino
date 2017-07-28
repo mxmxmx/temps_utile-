@@ -726,7 +726,7 @@ public:
     return clk_cnt_;
   }
 
-  uint16_t get_div_cnt() const {
+  int16_t get_div_cnt() const {
     return div_cnt_;
   }
 
@@ -2377,22 +2377,6 @@ void CLOCKS_isr() {
 
   if (ticks_src2 > (ext_frequency[CHANNEL_TRIGGER_TR2] << 1))
     mute = CHANNEL_TRIGGER_TR2;
-    
-  // update channels:
-  clock_channel[CLOCK_CHANNEL_1].Update(triggers, CLOCK_CHANNEL_1, mute);
-  clock_channel[CLOCK_CHANNEL_2].Update(triggers, CLOCK_CHANNEL_2, mute);
-  clock_channel[CLOCK_CHANNEL_3].Update(triggers, CLOCK_CHANNEL_3, mute);
-  clock_channel[CLOCK_CHANNEL_5].Update(triggers, CLOCK_CHANNEL_5, mute);
-  clock_channel[CLOCK_CHANNEL_6].Update(triggers, CLOCK_CHANNEL_6, mute);
-  clock_channel[CLOCK_CHANNEL_4].Update(triggers, CLOCK_CHANNEL_4, mute); // = DAC channel; update last, because of the binary Sequencer thing.
-
-  // apply logic ?
-  clock_channel[0].logic(CLOCK_CHANNEL_1);
-  clock_channel[1].logic(CLOCK_CHANNEL_2);
-  clock_channel[2].logic(CLOCK_CHANNEL_3);
-  clock_channel[3].logic(CLOCK_CHANNEL_4);
-  clock_channel[4].logic(CLOCK_CHANNEL_5);
-  clock_channel[5].logic(CLOCK_CHANNEL_6);
 
   if (TU::DigitalInputs::master_clock()) {
     
@@ -2410,7 +2394,7 @@ void CLOCKS_isr() {
         }    
       }
       // channel is about to reset, so reset all others.
-      if (min_mult <= MULT_BY_ONE && 0x1 == clock_channel[master_channel].get_div_cnt()) {
+      if (min_mult <= MULT_BY_ONE && clock_channel[master_channel].get_div_cnt() <= 0x0) {
   
         // did any multipliers change?
         uint8_t slave = 0;
@@ -2433,6 +2417,22 @@ void CLOCKS_isr() {
       }
     }
   }
+
+  // update channels:
+  clock_channel[CLOCK_CHANNEL_1].Update(triggers, CLOCK_CHANNEL_1, mute);
+  clock_channel[CLOCK_CHANNEL_2].Update(triggers, CLOCK_CHANNEL_2, mute);
+  clock_channel[CLOCK_CHANNEL_3].Update(triggers, CLOCK_CHANNEL_3, mute);
+  clock_channel[CLOCK_CHANNEL_5].Update(triggers, CLOCK_CHANNEL_5, mute);
+  clock_channel[CLOCK_CHANNEL_6].Update(triggers, CLOCK_CHANNEL_6, mute);
+  clock_channel[CLOCK_CHANNEL_4].Update(triggers, CLOCK_CHANNEL_4, mute); // = DAC channel; update last, because of the binary Sequencer thing.
+
+  // apply logic ?
+  clock_channel[0].logic(CLOCK_CHANNEL_1);
+  clock_channel[1].logic(CLOCK_CHANNEL_2);
+  clock_channel[2].logic(CLOCK_CHANNEL_3);
+  clock_channel[3].logic(CLOCK_CHANNEL_4);
+  clock_channel[4].logic(CLOCK_CHANNEL_5);
+  clock_channel[5].logic(CLOCK_CHANNEL_6);
 }
 
 void CLOCKS_handleButtonEvent(const UI::Event &event) {
