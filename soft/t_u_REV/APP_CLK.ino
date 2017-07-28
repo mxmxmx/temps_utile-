@@ -59,15 +59,12 @@ static uint32_t ticks_src1 = 0xFFFFFFF; // main clock frequency (top)
 static uint32_t ticks_src2 = 0xFFFFFFF; // sec. clock frequency (bottom)
 static uint32_t ticks_internal = 0; // sec. clock frequency (bottom)
 static int32_t global_div_count_TR1 = 0; // pre-clock-division
-static bool MASTER_CLOCK = 0;
 static bool RESET_GLOBAL_TR2 = true;
 
 // copy sequence, global 
 uint16_t copy_length = TU::Patterns::kMax;
 uint16_t copy_mask = 0xFFFF;
 uint32_t copy_timeout = COPYTIMEOUT;
-
-uint8_t Master_Channel = 0;
 
 static const uint64_t multipliers_[] = {
 
@@ -2399,19 +2396,21 @@ void CLOCKS_isr() {
 
   if (TU::DigitalInputs::master_clock()) {
     
-    // track master clock:
-    uint8_t min_mult = MULT_MAX;
-    for (size_t i = 0; i < NUM_CHANNELS; ++i) {
-      uint8_t mult = clock_channel[i].get_effective_multiplier();
-      if (mult <= min_mult) {
-        min_mult = mult;
-        Master_Channel = i;
-      }    
-    }
-
     if (triggers & (1 << CHANNEL_TRIGGER_TR1)) {
+
+      // track master clock:
+      uint8_t min_mult = MULT_MAX;
+      uint8_t master_channel = 0x0;
+      
+      for (size_t i = 0; i < NUM_CHANNELS; ++i) {
+        uint8_t mult = clock_channel[i].get_effective_multiplier();
+        if (mult <= min_mult) {
+          min_mult = mult;
+          master_channel = i;
+        }    
+      }
       // channel is about to reset, so reset all others.
-      if (min_mult <= MULT_BY_ONE && 0x1 == clock_channel[Master_Channel].get_div_cnt()) {
+      if (min_mult <= MULT_BY_ONE && 0x1 == clock_channel[master_channel].get_div_cnt()) {
   
         // did any multipliers change?
         uint8_t slave = 0;
