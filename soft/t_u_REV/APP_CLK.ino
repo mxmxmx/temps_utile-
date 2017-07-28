@@ -847,7 +847,13 @@ public:
 
   void sync() {
     pending_sync_ = true;
-    sync_ = false;
+  }
+
+  void resync() { 
+    if (clk_src_ == CHANNEL_TRIGGER_TR1) {
+      pending_sync_ = true;
+      sync_ = false;
+    }
   }
 
   bool slave() {
@@ -2410,12 +2416,12 @@ void CLOCKS_isr() {
         
         if (slave) {
           // if so, reset all:
-          clock_channel[0].sync();
-          clock_channel[1].sync();
-          clock_channel[2].sync();
-          clock_channel[3].sync();
-          clock_channel[4].sync();
-          clock_channel[5].sync();
+          clock_channel[0].resync();
+          clock_channel[1].resync();
+          clock_channel[2].resync();
+          clock_channel[3].resync();
+          clock_channel[4].resync();
+          clock_channel[5].resync();
         }
       }
     }
