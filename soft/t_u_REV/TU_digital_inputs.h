@@ -62,11 +62,20 @@ public:
     global_divisor_TR1_ = divisor;
   }
 
+  static inline bool master_clock() {
+    return master_clock_TR1_;
+  }
+
+  void set_master_clock(bool v) {
+    master_clock_TR1_ = v;
+  }
+
 private:
 
   static uint32_t clocked_mask_;
   static volatile uint32_t clocked_[DIGITAL_INPUT_LAST];
   static uint8_t global_divisor_TR1_;
+  static bool master_clock_TR1_;
 
   template <DigitalInput input>
   static uint32_t ScanInput() {

@@ -59,7 +59,8 @@ static uint32_t ticks_src1 = 0xFFFFFFF; // main clock frequency (top)
 static uint32_t ticks_src2 = 0xFFFFFFF; // sec. clock frequency (bottom)
 static uint32_t ticks_internal = 0; // sec. clock frequency (bottom)
 static int32_t global_div_count_TR1 = 0; // pre-clock-division
-bool RESET_GLOBAL_TR2 = true;
+static bool MASTER_CLOCK = 0;
+static bool RESET_GLOBAL_TR2 = true;
 
 // copy sequence, global 
 uint16_t copy_length = TU::Patterns::kMax;
@@ -2382,37 +2383,40 @@ void CLOCKS_isr() {
   clock_channel[4].logic(CLOCK_CHANNEL_5);
   clock_channel[5].logic(CLOCK_CHANNEL_6);
 
-  // track master clock:
-  uint8_t min_mult = MULT_MAX;
-  for (size_t i = 0; i < NUM_CHANNELS; ++i) {
-    uint8_t mult = clock_channel[i].get_effective_multiplier();
-    if (mult <= min_mult) {
-      min_mult = mult;
-      Master_Channel = i;
-    }    
-  }
+  if (TU::DigitalInputs::master_clock()) {
+    
+    // track master clock:
+    uint8_t min_mult = MULT_MAX;
+    for (size_t i = 0; i < NUM_CHANNELS; ++i) {
+      uint8_t mult = clock_channel[i].get_effective_multiplier();
+      if (mult <= min_mult) {
+        min_mult = mult;
+        Master_Channel = i;
+      }    
+    }
 
-  if (triggers & (1 << CHANNEL_TRIGGER_TR1)) {
-    // channel is about to reset, so reset all others.
-    if (min_mult <= MULT_BY_ONE && 0x1 == clock_channel[Master_Channel].get_div_cnt()) {
-
-      // did any multipliers change?
-      uint8_t slave = 0;
-      slave += clock_channel[0].slave();
-      slave += clock_channel[1].slave();
-      slave += clock_channel[2].slave();
-      slave += clock_channel[3].slave();
-      slave += clock_channel[4].slave();
-      slave += clock_channel[5].slave();
-      
-      if (slave) {
-        // if so, reset all:
-        clock_channel[0].sync();
-        clock_channel[1].sync();
-        clock_channel[2].sync();
-        clock_channel[3].sync();
-        clock_channel[4].sync();
-        clock_channel[5].sync();
+    if (triggers & (1 << CHANNEL_TRIGGER_TR1)) {
+      // channel is about to reset, so reset all others.
+      if (min_mult <= MULT_BY_ONE && 0x1 == clock_channel[Master_Channel].get_div_cnt()) {
+  
+        // did any multipliers change?
+        uint8_t slave = 0;
+        slave += clock_channel[0].slave();
+        slave += clock_channel[1].slave();
+        slave += clock_channel[2].slave();
+        slave += clock_channel[3].slave();
+        slave += clock_channel[4].slave();
+        slave += clock_channel[5].slave();
+        
+        if (slave) {
+          // if so, reset all:
+          clock_channel[0].sync();
+          clock_channel[1].sync();
+          clock_channel[2].sync();
+          clock_channel[3].sync();
+          clock_channel[4].sync();
+          clock_channel[5].sync();
+        }
       }
     }
   }

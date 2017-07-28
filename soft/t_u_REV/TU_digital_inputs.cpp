@@ -6,6 +6,7 @@
 /*static*/
 uint32_t TU::DigitalInputs::clocked_mask_;
 uint8_t TU::DigitalInputs::global_divisor_TR1_;
+bool TU::DigitalInputs::master_clock_TR1_;
 
 /*static*/
 volatile uint32_t TU::DigitalInputs::clocked_[DIGITAL_INPUT_LAST];

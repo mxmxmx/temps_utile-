@@ -15,7 +15,7 @@ namespace TU {
 
   const char * const cv_input_names[] = { "CV1", "CV2", "CV3", "CV4" };
 
-  const char * const no_yes[] = { "No", "Yes" };
+  const char * const no_yes[] = { "no", "yes" };
 
   const char * const operators[] = { "AND", "OR", "XOR", "XNOR", "NAND", "NOR" };
   
