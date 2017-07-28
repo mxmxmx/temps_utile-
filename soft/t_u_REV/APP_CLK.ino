@@ -2513,12 +2513,18 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
       selected.set_page(PARAMETERS);
 
     selected.update_enabled_settings(clocks_state.selected_channel);
-    if (previous.num_enabled_settings() > selected.num_enabled_settings() && clocks_state.cursor.cursor_pos() > selected.num_enabled_settings()) {
+    
+    if (previous.num_enabled_settings() > selected.num_enabled_settings()) {
+      int _cursor = clocks_state.cursor.cursor_pos();
       clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
       clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
-      clocks_state.cursor.Scroll(selected.num_enabled_settings() - 1);
+      if (_cursor > selected.num_enabled_settings() - 1)
+        clocks_state.cursor.Scroll(selected.num_enabled_settings() - 1);
+      else
+        clocks_state.cursor.Scroll(_cursor);
     }
-    else clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+    else 
+      clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
 
   } else if (TU::CONTROL_ENCODER_R == event.control) {
 
