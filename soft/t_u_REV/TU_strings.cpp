@@ -31,6 +31,10 @@ namespace TU {
 
   const char * const encoder_config_strings[] = { "normal", "R reversed", "L reversed", "LR reversed" };
 
+  const char * const trigger_delay_times[kNumDelayTimes] = {
+    "off", "120us", "240us", "360us", "480us", "1ms", "2ms", "4ms"
+  };
+
   const char * const pulsewidth_ms[] = {
     "echo",
     "1ms","2ms","3ms","4ms","5ms","6ms","7ms","8ms","9ms","10ms",
@@ -61,5 +65,10 @@ namespace TU {
     "251ms","252ms","253ms","254ms",
     "50%"
     };
+  };
+
+  // \sa TU_config.h -> kMaxTriggerDelayTicks
+  const uint8_t trigger_delay_ticks[kNumDelayTimes] = {
+    0, 2, 4, 6, 8, 16, 33, 66
   };
 };

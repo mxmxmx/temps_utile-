@@ -26,8 +26,11 @@ static constexpr unsigned long SCREENSAVER_TIMEOUT_MS = 25000; // time out menu 
 static constexpr unsigned long SPLASHSCREEN_DELAY_MS = 1000;
 static constexpr unsigned long SPLASHSCREEN_TIMEOUT_MS = 2048;
 static constexpr unsigned long SETTINGS_SAVE_TIMEOUT_MS = 1000;
-
 static constexpr unsigned long APP_SELECTION_TIMEOUT_MS = 25000;
+
+namespace TU {
+static constexpr size_t kMaxTriggerDelayTicks = 96;
+};
 
 #define EEPROM_CALIBRATIONDATA_START 0
 #define EEPROM_CALIBRATIONDATA_END 128
