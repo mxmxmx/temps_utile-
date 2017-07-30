@@ -1146,7 +1146,7 @@ public:
     // time to output ?
     if ((subticks_ >= channel_frequency_in_ticks_ && _sync) || Phase_.now()) {
 
-      if (Phase_.set_phase(channel_frequency_in_ticks_ - pulse_width_in_ticks_, _phase, _triggered))
+      if (Phase_.set_phase(channel_frequency_in_ticks_, pulse_width_in_ticks_, _phase, _triggered))
         return;
 
       // reset ticks:
@@ -1208,9 +1208,11 @@ public:
         bool _gates = false;
 
         // do we echo && multiply? if so, do half-duty cycle:
-        if (!_pulsewidth)
+        if (!_pulsewidth && _phase)
+          _pulsewidth = 1;
+        else if (!_pulsewidth)
           _pulsewidth = PULSEW_MAX;
-
+        
         if (_pulsewidth == PULSEW_MAX)
           _gates = true;
         // CV?
@@ -1223,7 +1225,7 @@ public:
             CONSTRAIN(_pulsewidth, 1, (PULSEW_MAX<<1) - 55);  // incl margin, max < 2x mult. see below
         }
         // recalculate (in ticks), if new pulsewidth setting:
-        if (prev_pulsewidth_ != _pulsewidth || ! subticks_) {
+        if (prev_pulsewidth_ != _pulsewidth || !subticks_) {
           if (!_gates) {
             int32_t _fraction = signed_multiply_32x16b(TICKS_TO_MS, static_cast<int32_t>(_pulsewidth)); // = * 0.6667f
             _fraction = signed_saturate_rshift(_fraction, 16, 0);
@@ -1241,9 +1243,13 @@ public:
         prev_pulsewidth_ = _pulsewidth;
 
         // limit pulsewidth, if approaching half duty cycle:
-        if (!_gates && pulse_width_in_ticks_ >= channel_frequency_in_ticks_>>1)
+        if (!_gates && pulse_width_in_ticks_ >= (channel_frequency_in_ticks_ >> 1))
           pulse_width_in_ticks_ = (channel_frequency_in_ticks_ >> 1) | 1u;
 
+        int32_t _phase_offset = Phase_.phase_offset();
+        if (_phase_offset + pulse_width_in_ticks_ >= (channel_frequency_in_ticks_ >> 1))
+          pulse_width_in_ticks_ = ((channel_frequency_in_ticks_ - _phase_offset) >> 1) | 1u;
+     
         // turn off output?
         if (subticks_ >= pulse_width_in_ticks_) {
           _output = gpio_state_ = OFF;

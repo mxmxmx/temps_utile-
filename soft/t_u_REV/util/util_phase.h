@@ -53,9 +53,10 @@ namespace util {
       swing_ = false;
       now_ = false;
       swing_ticks_ = 0x0;
+      phase_offset_ = 0x0;
     }
 
-    bool set_phase(int32_t ticks, uint8_t amount, uint8_t trigger) {
+    bool set_phase(int32_t ticks, int32_t pulsewidth, uint8_t amount, uint8_t trigger) {
 
       bool swingy_swing = false;
 
@@ -68,14 +69,11 @@ namespace util {
 
         int32_t swing_ticks, swing_amount;
 
-        swing_ticks = ticks - 200;  /// 200 * 60us margin, just to make sure.
+        swing_ticks = ticks - 0xFF; // margin
         swing_amount = signed_multiply_32x16b(multipliers[amount], swing_ticks);
         swing_amount = signed_saturate_rshift(swing_amount, 16, 0);
 
-        if (swing_amount > ticks)
-            swing_amount = ticks;
-
-        swing_ticks_ = swing_amount;
+        swing_ticks_ = phase_offset_ = swing_amount;
 
         if (swing_amount > 0) {
           swing_ = true;
@@ -93,6 +91,14 @@ namespace util {
 
     bool phase() {
       return swing_;
+    }
+
+    int32_t phase_offset() {
+      return phase_offset_;
+    }
+
+    void clear_phase_offset() {
+      phase_offset_ = 0x0;
     }
 
     bool update() {
@@ -113,6 +119,7 @@ namespace util {
 
   private:
     int32_t swing_ticks_;
+    int32_t phase_offset_;
     bool swing_;
     bool now_;
   };
