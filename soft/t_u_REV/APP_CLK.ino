@@ -861,8 +861,11 @@ public:
   }
 
   void sync() {
-    pending_sync_ = true;
-    skip_reset_ = true;
+    
+    if (!prev_phase_) {
+      pending_sync_ = true;
+      skip_reset_ = true;
+    }
   }
 
   void resync(uint32_t clk_cnt, uint32_t div_cnt ) { 
