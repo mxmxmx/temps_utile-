@@ -1143,7 +1143,7 @@ public:
     // time to output ?
     if ((subticks_ >= channel_frequency_in_ticks_ && _sync) || Phase_.now()) {
 
-      if (Phase_.set_phase(channel_frequency_in_ticks_ - pulse_width_in_ticks_, _phase, _triggered))
+      if (Phase_.set_phase(channel_frequency_in_ticks_, _phase, _triggered))
         return;
 
       // reset ticks:
