@@ -1245,11 +1245,11 @@ public:
         // limit pulsewidth, if approaching half duty cycle:
         if (!_gates && pulse_width_in_ticks_ >= (channel_frequency_in_ticks_ >> 1))
           pulse_width_in_ticks_ = (channel_frequency_in_ticks_ >> 1) | 1u;
-
+        // limit pulsewidth / phase
         int32_t _phase_offset = Phase_.phase_offset();
-        if (_phase_offset + pulse_width_in_ticks_ >= (channel_frequency_in_ticks_ >> 1))
+        if (_phase_offset && (_phase_offset + pulse_width_in_ticks_ >= channel_frequency_in_ticks_))
           pulse_width_in_ticks_ = ((channel_frequency_in_ticks_ - _phase_offset) >> 1) | 1u;
-     
+        
         // turn off output?
         if (subticks_ >= pulse_width_in_ticks_) {
           _output = gpio_state_ = OFF;
