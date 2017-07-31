@@ -99,6 +99,7 @@ namespace util {
 
     void clear_phase_offset() {
       phase_offset_ = 0x0;
+      swing_ = false;
     }
 
     bool update() {

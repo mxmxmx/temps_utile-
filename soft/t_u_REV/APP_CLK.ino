@@ -1015,8 +1015,9 @@ public:
 
     if (prev_phase_ != _phase)
       sync_ = true;
+    if (!_phase && prev_phase_) Phase_.clear_phase_offset();
     prev_phase_ = _phase;
-    
+        
     if (get_phase_cv_source()) {
       _phase += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_phase_cv_source() - 1)) + 7) >> 4;
       CONSTRAIN(_phase, 0, PHASEOFFSET_MAX);
