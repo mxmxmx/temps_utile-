@@ -1022,7 +1022,12 @@ public:
         CONSTRAIN(_phase, 0, PHASEOFFSET_MAX);
       }
     }
-    else _phase = 0x0;
+    else { 
+      // pending sync: set _phase to zero and skip just to make sure nothing funny happens
+      if (prev_phase_) 
+        skip_reset_ = true;
+      _phase = 0x0;
+    }
 
     // 5. increase latency?
     trigger_delay_.Update();
