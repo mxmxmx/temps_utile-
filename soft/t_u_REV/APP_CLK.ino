@@ -861,11 +861,8 @@ public:
   }
 
   void sync() {
-    
-    if (!prev_phase_) {
-      pending_sync_ = true;
-      skip_reset_ = (div_cnt_ > 0x1) ? true : false;
-    }
+    skip_reset_ = (div_cnt_ > 0x1) ? true : false;
+    pending_sync_ = true;
   }
 
   void resync(uint32_t clk_cnt, uint32_t div_cnt ) { 
@@ -1011,17 +1008,21 @@ public:
     _sync = false;
 
     // 4. swing?
-    _phase = get_phase();
-
-    if (prev_phase_ != _phase)
-      sync_ = true;
-    if (!_phase && prev_phase_) Phase_.clear_phase_offset();
-    prev_phase_ = _phase;
-        
-    if (get_phase_cv_source()) {
-      _phase += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_phase_cv_source() - 1)) + 7) >> 4;
-      CONSTRAIN(_phase, 0, PHASEOFFSET_MAX);
+    if (!pending_sync_) {
+      
+      _phase = get_phase();
+  
+      if (prev_phase_ != _phase)
+        sync_ = true;
+      if (!_phase && prev_phase_) Phase_.clear_phase_offset();
+      prev_phase_ = _phase;
+          
+      if (get_phase_cv_source()) {
+        _phase += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_phase_cv_source() - 1)) + 7) >> 4;
+        CONSTRAIN(_phase, 0, PHASEOFFSET_MAX);
+      }
     }
+    else _phase = 0x0;
 
     // 5. increase latency?
     trigger_delay_.Update();
