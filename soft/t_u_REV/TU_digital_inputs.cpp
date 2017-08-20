@@ -6,6 +6,7 @@
 /*static*/
 uint32_t TU::DigitalInputs::clocked_mask_;
 uint8_t TU::DigitalInputs::global_divisor_TR1_;
+bool TU::DigitalInputs::master_clock_TR1_;
 
 /*static*/
 volatile uint32_t TU::DigitalInputs::clocked_[DIGITAL_INPUT_LAST];
@@ -16,6 +17,10 @@ void FASTRUN tr1_ISR() {
 
 void FASTRUN tr2_ISR() {
   TU::DigitalInputs::clock<TU::DIGITAL_INPUT_2>();
+}
+
+void TU::DigitalInputs::Clear() {
+  clocked_mask_ = 0x0;
 }
 
 /*static*/

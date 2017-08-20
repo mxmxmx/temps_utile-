@@ -49,7 +49,7 @@ struct GlobalSettings {
 
   bool encoders_enable_acceleration;
   bool reserved0;
-  bool reserved1;
+  bool TR1_master;
   uint8_t global_div1;
   uint16_t current_app_id;
   TU::Pattern user_patterns[TU::Patterns::PATTERN_USER_LAST];
@@ -90,6 +90,7 @@ void save_global_settings() {
 
   TU::DigitalInputs inputs; 
   global_settings.global_div1 = inputs.global_div_TR1();
+  global_settings.TR1_master = inputs.master_clock();
 
   memcpy(global_settings.user_patterns, TU::user_patterns, sizeof(TU::user_patterns));
   
@@ -207,7 +208,7 @@ void Init(bool reset_settings) {
   global_settings.current_app_id = DEFAULT_APP_ID;
   global_settings.encoders_enable_acceleration = TU_ENCODERS_ENABLE_ACCELERATION_DEFAULT;
   global_settings.reserved0 = false;
-  global_settings.reserved1 = false;
+  global_settings.TR1_master = false;
   global_settings.global_div1 = 0x0;
 
   if (reset_settings) {
@@ -248,6 +249,9 @@ void Init(bool reset_settings) {
   
     TU::DigitalInputs inputs; 
     inputs.set_global_div_TR1(global_settings.global_div1);
+
+    SERIAL_PRINTLN("TR1 master clock, TR1: %i", global_settings.TR1_master);
+    inputs.set_master_clock(global_settings.TR1_master);
 
     SERIAL_PRINTLN("Loading app data: struct size is %u, PAGESIZE=%u, PAGES=%u, LENGTH=%u",
                   sizeof(AppData),

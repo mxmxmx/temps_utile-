@@ -14,7 +14,7 @@ static const uint8_t global_divisors[] {
 
 enum GLOBAL_CONFIG_Setting {
   GLOBAL_CONFIG_SETTING_DIV1,
-  GLOBAL_CONFIG_SETTING_DUMMY,
+  GLOBAL_CONFIG_SETTING_SLAVE_TR1,
   GLOBAL_CONFIG_SETTING_MORE_DUMMY,
   GLOBAL_CONFIG_SETTING_STILL_MORE_DUMMY,
   GLOBAL_CONFIG_SETTING_LAST
@@ -27,12 +27,17 @@ public:
     
     InitDefaults();
     global_div1_ = 0x0;
+    TR1_master_ = 0x0;
     ticks_ = 0x0;
     update_enabled_settings();
   }
 
   uint8_t global_div1() const {
     return values_[GLOBAL_CONFIG_SETTING_DIV1];
+  }
+
+  bool TR1_master() const {
+    return values_[GLOBAL_CONFIG_SETTING_SLAVE_TR1];  
   }
   
   uint32_t ticks() const {
@@ -47,6 +52,12 @@ public:
         TU::DigitalInputs inputs; 
         inputs.set_global_div_TR1(global_divisors[global_div1()]);
         global_div1_ = global_div1();
+    }
+
+    if (TR1_master_ != TR1_master()) {
+        TU::DigitalInputs inputs;
+        inputs.set_master_clock(TR1_master());
+        TR1_master_ = TR1_master();
     }
   }
 
@@ -63,7 +74,7 @@ public:
     GLOBAL_CONFIG_Setting *settings = enabled_settings_;
     
     *settings++ = GLOBAL_CONFIG_SETTING_DIV1;
-    *settings++ = GLOBAL_CONFIG_SETTING_DUMMY;
+    *settings++ = GLOBAL_CONFIG_SETTING_SLAVE_TR1;
     *settings++ = GLOBAL_CONFIG_SETTING_MORE_DUMMY;
     *settings++ = GLOBAL_CONFIG_SETTING_STILL_MORE_DUMMY;
     
@@ -89,6 +100,7 @@ public:
       break;
     }
     apply_value(GLOBAL_CONFIG_SETTING_DIV1, _div);
+    apply_value(GLOBAL_CONFIG_SETTING_SLAVE_TR1, inputs.master_clock());
   }
 
   void RenderScreensaver() const;
@@ -96,6 +108,7 @@ public:
 private:
   int num_enabled_settings_;
   uint8_t global_div1_;
+  bool TR1_master_;
   uint32_t ticks_;
   GLOBAL_CONFIG_Setting enabled_settings_[GLOBAL_CONFIG_SETTING_LAST];
 };
@@ -106,10 +119,11 @@ const char* const g_divisors[CHANNEL_TRIGGER_LAST] = {
   "-", "24PPQ", "48PPQ", "96PPQ"
 };
 
+
 SETTINGS_DECLARE(Global_Config,  GLOBAL_CONFIG_SETTING_LAST) {
   
   { 0, 0, 3, "TR1 global div", g_divisors, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 0, "-", nullptr, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 1, "TR1 master", TU::Strings::no_yes, settings::STORAGE_TYPE_U4 },
   { 0, 0, 0, "-", nullptr, settings::STORAGE_TYPE_U4 },
   { 0, 0, 0, "-", nullptr, settings::STORAGE_TYPE_U4 }
 };
@@ -195,7 +209,6 @@ void GLOBAL_CONFIG_menu() {
     const settings::value_attr &attr = Global_Config::value_attr(setting);
 
     switch (setting) {
-      case GLOBAL_CONFIG_SETTING_DUMMY:
       case GLOBAL_CONFIG_SETTING_MORE_DUMMY:
       case GLOBAL_CONFIG_SETTING_STILL_MORE_DUMMY:
         list_item.DrawNoValue<false>(value, attr);
@@ -222,7 +235,7 @@ void GLOBAL_CONFIG_handleButtonEvent(const UI::Event &event) {
   if (TU::CONTROL_BUTTON_R == event.control) {
 
       GLOBAL_CONFIG_Setting setting = global_config.enabled_setting_at(config_app.cursor_pos());   
-      if (setting == GLOBAL_CONFIG_SETTING_DIV1)
+      if (setting == GLOBAL_CONFIG_SETTING_DIV1 || setting == GLOBAL_CONFIG_SETTING_SLAVE_TR1)
         config_app.cursor.toggle_editing();
   }
 }

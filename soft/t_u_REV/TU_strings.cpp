@@ -15,7 +15,7 @@ namespace TU {
 
   const char * const cv_input_names[] = { "CV1", "CV2", "CV3", "CV4" };
 
-  const char * const no_yes[] = { "No", "Yes" };
+  const char * const no_yes[] = { "no", "yes" };
 
   const char * const operators[] = { "AND", "OR", "XOR", "XNOR", "NAND", "NOR" };
   
@@ -30,6 +30,10 @@ namespace TU {
   const char * const binary_tracking[] = { "P_W", "state"};
 
   const char * const encoder_config_strings[] = { "normal", "R reversed", "L reversed", "LR reversed" };
+
+  const char * const trigger_delay_times[kNumDelayTimes] = {
+    "off", "120us", "240us", "360us", "480us", "1ms", "2ms", "4ms"
+  };
 
   const char * const pulsewidth_ms[] = {
     "echo",
@@ -61,5 +65,10 @@ namespace TU {
     "251ms","252ms","253ms","254ms",
     "50%"
     };
+  };
+
+  // \sa TU_config.h -> kMaxTriggerDelayTicks
+  const uint8_t trigger_delay_ticks[kNumDelayTimes] = {
+    0, 2, 4, 6, 8, 16, 33, 66
   };
 };

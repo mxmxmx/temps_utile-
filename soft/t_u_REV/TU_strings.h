@@ -1,8 +1,12 @@
 #ifndef TU_STRINGS_H_
 #define TU_STRINGS_H_
 
+#include <stdint.h>
+
 namespace TU {
 
+  static const int kNumDelayTimes = 8;
+  
   namespace Strings {
     extern const char * const seq_playmodes[];
     extern const char * const cv_seq_playmodes[];
@@ -18,7 +22,10 @@ namespace TU {
     extern const char * const binary_tracking[];
     extern const char * const encoder_config_strings[];
     extern const char * const pulsewidth_ms[];
+    extern const char * const trigger_delay_times[kNumDelayTimes];
   };
+
+  extern const uint8_t trigger_delay_ticks[];
 };
 
 
