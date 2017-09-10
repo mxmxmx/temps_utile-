@@ -125,6 +125,24 @@ static const uint8_t divisors_[] = {
   1
 };
 
+static const uint8_t multipliers_values_[] = {
+
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  12,
+  16,
+  24,
+  32,
+  48,
+  64
+};
+
 enum ChannelSetting {
   // shared
   CHANNEL_SETTING_MODE,
@@ -1145,7 +1163,7 @@ public:
       subticks_ = channel_frequency_in_ticks_;
       mult_cnt_ = 0x0;
     }
-    else if (_multiplier > MULT_BY_ONE && mult_cnt_ <= (_multiplier - MULT_BY_ONE) && mute != clk_src_)
+    else if (_multiplier > MULT_BY_ONE && mult_cnt_ <= (multipliers_values_[_multiplier - MULT_BY_ONE]) && mute != clk_src_)
       _sync = true;
     
     // end of ugly hack
@@ -1155,7 +1173,6 @@ public:
 
       if (Phase_.set_phase(channel_frequency_in_ticks_, pulse_width_in_ticks_, _phase, _triggered))
         return;
-
       // reset ticks:
       subticks_ = 0x0;
 
@@ -2458,10 +2475,10 @@ void CLOCKS_isr() {
   }
   
   uint8_t mute = 0xFF;
-  if (ticks_src1 > (ext_frequency[CHANNEL_TRIGGER_TR1] << 1))
+  if (ticks_src1 > (ext_frequency[CHANNEL_TRIGGER_TR1] << 2))
     mute = CHANNEL_TRIGGER_TR1;
 
-  if (ticks_src2 > (ext_frequency[CHANNEL_TRIGGER_TR2] << 1))
+  if (ticks_src2 > (ext_frequency[CHANNEL_TRIGGER_TR2] << 2))
     mute = CHANNEL_TRIGGER_TR2;
 
   if (TU::DigitalInputs::master_clock()) {
