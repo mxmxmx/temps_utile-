@@ -940,9 +940,7 @@ public:
     div_cnt_ = 0;
     clk_src_ = get_clock_source();
     seq_direction_ = true;
-    reset_ = false;
-    reset_counter_ = false;
-    reset_me_ = false;
+    pending_reset_ = 0;
     logic_ = false;
     prev_mask_rotate_ = 0xFF;
     menu_page_ = PARAMETERS;
@@ -1072,6 +1070,7 @@ public:
       pending_multiplier_ = _multiplier; // we need to wait for a new trigger to execute this
       sync_ = true;
     }
+
     if (_triggered && pending_multiplier_ != prev_multiplier_) {
       _tock |= true;
       prev_multiplier_ = pending_multiplier_ = _multiplier;
@@ -1100,20 +1099,21 @@ public:
 
     // reset?
     _reset_source = get_reset_source();
-
-    if (_reset_source < CHANNEL_TRIGGER_NONE && reset_me_) {
+    if (_reset_source < CHANNEL_TRIGGER_NONE && pending_reset_ <= 0) {
 
       uint8_t reset_state_ = !_reset_source ? digitalReadFast(TR1) : digitalReadFast(TR2);
-
-      // ?
-      if (reset_state_ < reset_) {
-        // 
-        skip_reset_ = (div_cnt_ > 0) ? true : false; // "still und leise im Hintergrund" ?
-        div_cnt_ = 0x0;
-        reset_counter_ = true; // reset clock counter below
-        reset_me_ = false;
+      if (pending_reset_ < 0 && reset_state_) { // reset gate went low again, we can reset
+        pending_reset_ = 0;
       }
-      reset_ = reset_state_;
+      else if (!pending_reset_ && !reset_state_) { // reset gate went high
+        pending_reset_ = 1;
+      }
+    }
+
+    if (_triggered && pending_reset_ > 0) { // wait until the next trigger to do it
+      // skip_reset_ probably unnecessary here
+      // skip_reset_ = (div_cnt_ > 0) ? true : false; // "still und leise im Hintergrund" ?
+      div_cnt_ = 0x0;
     }
 
     // in sequencer mode, do we advance sequences by TR2?
@@ -1178,7 +1178,7 @@ public:
 
       //reject, if clock is too jittery or skip quasi-double triggers when ext. frequency increases:
       if (!get_trigger_delay()) {
-        if ((_subticks < tickjitter_) || (_subticks < prev_channel_frequency_in_ticks_ && reset_me_))
+        if ((_subticks < tickjitter_) || (_subticks < prev_channel_frequency_in_ticks_ && !pending_reset_))
           return;
       }
 
@@ -1195,18 +1195,18 @@ public:
       clk_cnt_++; mult_cnt_++;
 
       // reset counter ? (SEQ/Euclidian)
-      if (reset_counter_) 
-        clk_cnt_ = 0x0;
-      
       // resync/clear pending sync
-      if (_triggered && pending_sync_) {
-        pending_sync_ = false;
+      if (_triggered && (pending_reset_ > 0 || pending_sync_)) {
+        if (pending_reset_) {
+          pending_reset_ = -1;
+        }
+        if (pending_sync_) {
+          pending_sync_ = false;
+        }
         clk_cnt_ = 0x0;
       }
-   
+
       // clear for reset:
-      reset_me_ = true;
-      reset_counter_ = false;
       // finally, process trigger + output
       if (!skip_reset_) {
         _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
@@ -1653,7 +1653,7 @@ public:
             
             uint8_t _length = get_cv_sequence_length();
             int8_t _playmode_cv = get_cv_playmode();
-            bool reset_ = !clk_cnt_ ? true : false;
+            bool _reset = !clk_cnt_ ? true : false;
             
             switch(_playmode_cv) {
 
@@ -1662,7 +1662,7 @@ public:
               {
                 seq_cnt_++;
                  
-                if (seq_cnt_ >= _length || reset_)
+                if (seq_cnt_ >= _length || _reset)
                   seq_cnt_ = 0x0; // reset
 
                 // there's no off state in terms of clocks, so...
@@ -1683,7 +1683,7 @@ public:
               {
                 seq_cnt_--;
                  
-                if (seq_cnt_ < 0x0 || reset_) 
+                if (seq_cnt_ < 0x0 || _reset)
                   seq_cnt_ = _length - 0x1; // reset
 
                 // ... reset mask until we come up with a better idea:
@@ -1704,14 +1704,14 @@ public:
                 
                 if (seq_direction_) {
                   seq_cnt_++;
-                  if (reset_)
+                  if (_reset)
                     seq_cnt_ = 0x0;
                   else if (seq_cnt_ >= _length - 1)
                     seq_direction_ = false;
                 }
                 else {
                   seq_cnt_--;
-                  if (reset_)
+                  if (_reset)
                     seq_cnt_ = _length - 0x1;
                   else if (seq_cnt_ <= 0)
                     seq_direction_ = true;
@@ -1729,7 +1729,7 @@ public:
                 
                 if (seq_direction_) {
                   seq_cnt_++;
-                   if (reset_)
+                   if (_reset)
                     seq_cnt_ = 0x0;
                    else if (seq_cnt_ > _length - 1) {
                     seq_direction_ = false;
@@ -1738,7 +1738,7 @@ public:
                 }
                 else {
                   seq_cnt_--;
-                  if (reset_)
+                  if (_reset)
                     seq_cnt_ = _length - 0x1;
                   else if (seq_cnt_ < 0) {
                     seq_direction_ = true;
@@ -1756,7 +1756,7 @@ public:
                 cv_display_mask_ = 0xFFFF;
                 //update_cv_pattern_mask(0xFFFF);
                 
-                int rnd = reset_ ? 0x0 : random(_length);
+                int rnd = _reset ? 0x0 : random(_length);
                 _out = get_pitch_at_step(rnd);
                 clk_cnt_ = rnd;
               }
@@ -1764,7 +1764,7 @@ public:
               case _ARP: 
               // ARP 
               {
-                if (reset_)
+                if (_reset)
                   arpeggiator_.reset();
                 // range:  
                 int _range = get_arp_range();
@@ -2145,9 +2145,7 @@ private:
   bool force_update_;
   uint16_t _ZERO;
   uint8_t clk_src_;
-  bool reset_;
-  bool reset_me_;
-  bool reset_counter_;
+  int8_t pending_reset_;
   uint32_t ticks_;
   uint32_t subticks_;
   uint32_t burst_ticks_;
