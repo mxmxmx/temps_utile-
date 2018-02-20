@@ -41,7 +41,11 @@ public:
   #ifdef MOD_OFFSET
     static constexpr int kOctaveZero = 1;
   #else
+    #ifdef MODEL_2TT
+    static constexpr int kOctaveZero = 0;
+    #else
     static constexpr int kOctaveZero = 2;
+    #endif
   #endif
 
   struct CalibrationData {
