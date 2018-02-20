@@ -35,7 +35,7 @@ const TU::CalibrationData kCalibrationDefaults = {
   // DAC
   { {
     #ifdef MODEL_2TT
-    {514, 1375, 2236, 3097, 3960}  //  1.2V/oct ==> ? check ...
+    {572, 1432, 2288, 3146, 4095}   // 
     #else
     {514, 1375, 2236, 3097, 3960}  //  1.0V/oct ==> 1 octave ~ 430
     #endif
