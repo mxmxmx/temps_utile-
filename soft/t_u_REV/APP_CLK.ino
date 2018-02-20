@@ -1932,11 +1932,11 @@ public:
 
     if (menu_page_ == CV_SOURCES) {
 
-      if (mode != DAC)
-        *settings++ = CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE;
-
       *settings++ = CHANNEL_SETTING_MULT_CV_SOURCE;
       *settings++ = CHANNEL_SETTING_SWING_CV_SOURCE;
+      
+      if (mode != DAC)
+        *settings++ = CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE;
 
       switch (mode) {
 
@@ -2018,11 +2018,11 @@ public:
 
     else if (menu_page_ == PARAMETERS) {
 
-      if (mode != DAC)
-        *settings++ = CHANNEL_SETTING_PULSEWIDTH;
-
       *settings++ = CHANNEL_SETTING_MULT;
       *settings++ = CHANNEL_SETTING_SWING;
+      
+      if (mode != DAC)
+        *settings++ = CHANNEL_SETTING_PULSEWIDTH;
 
       switch (mode) {
 
