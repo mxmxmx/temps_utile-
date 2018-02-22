@@ -70,6 +70,7 @@ uint16_t OUTPUTS::calibrated_v_oct_;
 }; // namespace TU
 
 const uint16_t _MAX_VALUE = 4095;
+const int8_t _DAC_CHANNEL = CLOCK_CHANNEL_4;
 
 void set_Output1(uint8_t data) {
   digitalWriteFast(CLK1, data);

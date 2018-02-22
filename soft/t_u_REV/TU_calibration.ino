@@ -21,7 +21,11 @@ using TU::OUTPUTS;
   #endif
 #endif
 
+#ifdef MODEL_2TT
+static constexpr uint16_t _ADC_OFFSET = (uint16_t)((float)pow(2,TU::ADC::kAdcResolution)*1.0f); // ADC offset
+#else
 static constexpr uint16_t _ADC_OFFSET = (uint16_t)((float)pow(2,TU::ADC::kAdcResolution)*0.5f); // ADC offset
+#endif
 
 namespace TU {
 CalibrationStorage calibration_storage;
@@ -355,7 +359,7 @@ void calibration_update(CalibrationState &state) {
 
   switch (step->calibration_type) {
     case CALIBRATE_NONE:
-      OUTPUTS::set_all(0);
+      OUTPUTS::zero_all();
       break;
     case CALIBRATE_DAC_OUTPUT:
       TU::calibration_data.dac.calibration_points[0x0][step->index] = state.encoder_value;
@@ -363,7 +367,7 @@ void calibration_update(CalibrationState &state) {
       break;
     case CALIBRATE_ADC_OFFSET:
       TU::calibration_data.adc.offset[step->index] = state.encoder_value;
-      OUTPUTS::set_all(0);
+      OUTPUTS::zero_all();
       break;
     case CALIBRATE_DISPLAY:
       TU::calibration_data.display_offset = state.encoder_value;
