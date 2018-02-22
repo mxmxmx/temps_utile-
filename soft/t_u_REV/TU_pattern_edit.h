@@ -203,7 +203,11 @@ void PatternEditor<Owner>::Draw() {
     #ifdef MOD_OFFSET
       y += 40;
     #else
+      #ifdef MODEL_2TT
+      y += 45;
+      #else
       y += 35;
+      #endif
     #endif
     uint16_t mask = mask_;
     uint8_t clock_pos = owner_->get_clock_cnt();
@@ -253,7 +257,11 @@ void PatternEditor<Owner>::Draw() {
           graphics.drawRect(x, y + 17, 4, 2);
       #else 
         if (_clock)
+          #ifdef MODEL_2TT
+          graphics.drawRect(x, y + 12, 4, 2);
+          #else
           graphics.drawRect(x, y + 22, 4, 2);
+          #endif
       #endif
          
     }

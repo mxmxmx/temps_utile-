@@ -2,6 +2,7 @@
 #define TU_PATTERNS_PRESETS_H_
 
 #include <Arduino.h>
+#include "TU_calibration.h"
 
 namespace TU {
 
@@ -9,12 +10,11 @@ namespace TU {
     // size and length is stored in app settings
     int16_t notes[16];
   };
-
-
+  
   const Pattern patterns[] = {
     
     // default
-    { 0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0}
+    { 0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0 }
   
   };
 }
