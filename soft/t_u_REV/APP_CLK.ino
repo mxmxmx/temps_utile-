@@ -2336,6 +2336,7 @@ Clock_channel clock_channel[NUM_CHANNELS];
 void CLOCKS_init() {
 
   TU::Patterns::Init();
+  TU::Patterns::Fill();
 
   ext_frequency[CHANNEL_TRIGGER_TR1]  = 0xFFFFFFFF;
   ext_frequency[CHANNEL_TRIGGER_TR2]  = 0xFFFFFFFF;

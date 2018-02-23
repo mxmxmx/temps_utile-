@@ -1,11 +1,10 @@
 #ifndef TU_PATTERNS_PRESETS_H_
 #define TU_PATTERNS_PRESETS_H_
 
-#include <Arduino.h>
-#include "TU_calibration.h"
+#include "Arduino.h"
 
 namespace TU {
-
+  
   struct Pattern {
     // size and length is stored in app settings
     int16_t notes[16];
