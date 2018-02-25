@@ -2244,7 +2244,11 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   #ifdef MOD_OFFSET
   { 0, -1, 5, "DAC: offset", NULL, settings::STORAGE_TYPE_I8 },
   #else
-  { 0, -3, 3, "DAC: offset", NULL, settings::STORAGE_TYPE_I8 },
+    #ifdef MODEL_2TT
+    {  0, 0, 6, "DAC: offset", NULL, settings::STORAGE_TYPE_I8 },
+    #else
+    { 0, -3, 3, "DAC: offset", NULL, settings::STORAGE_TYPE_I8 },
+    #endif
   #endif
   { 0, 0, _DAC_MODES_LAST - 1, "DAC: mode", TU::Strings::dac_modes, settings::STORAGE_TYPE_U4 },
   { 0, 0, 1, "track -->", TU::Strings::binary_tracking, settings::STORAGE_TYPE_U4 },

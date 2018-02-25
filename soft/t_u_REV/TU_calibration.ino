@@ -39,7 +39,7 @@ const TU::CalibrationData kCalibrationDefaults = {
   // DAC
   { {
     #ifdef MODEL_2TT
-    {572, 1432, 2288, 3146, 4095}   // 
+    {437, 1147, 1854, 2562, 3271}   //  1.2
     #else
     {514, 1375, 2236, 3097, 3960}   //  1.0V/oct ==> 1 octave ~ 430
     #endif
@@ -147,10 +147,10 @@ const CalibrationStep calibration_steps[CALIBRATION_STEP_LAST] = {
   #else
     #ifdef MODEL_2TT
     { DAC_4VM, "DAC  0.0 volts", "-->  0.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 0, nullptr, 0, OUTPUTS::MAX_VALUE },
-    { DAC_2VM, "DAC +2.0 volts", "--> +2.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 1, nullptr, 0, OUTPUTS::MAX_VALUE },
-    { DAC_ZERO,"DAC +4.0 volts", "--> +4.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 2, nullptr, 0, OUTPUTS::MAX_VALUE },
-    { DAC_2V,  "DAC +6.0 volts", "--> +6.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 3, nullptr, 0, OUTPUTS::MAX_VALUE },
-    { DAC_4V,  "DAC +8.0 volts", "--> +8.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 4, nullptr, 0, OUTPUTS::MAX_VALUE },
+    { DAC_2VM, "DAC +2.4 volts", "--> +2.4V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 1, nullptr, 0, OUTPUTS::MAX_VALUE },
+    { DAC_ZERO,"DAC +4.8 volts", "--> +4.8V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 2, nullptr, 0, OUTPUTS::MAX_VALUE },
+    { DAC_2V,  "DAC +7.2 volts", "--> +7.2V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 3, nullptr, 0, OUTPUTS::MAX_VALUE },
+    { DAC_4V,  "DAC +9.6 volts", "--> +9.6V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 4, nullptr, 0, OUTPUTS::MAX_VALUE },
     #else
     { DAC_4VM, "DAC -4.0 volts", "--> -4.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 0, nullptr, 0, OUTPUTS::MAX_VALUE },
     { DAC_2VM, "DAC -2.0 volts", "--> -2.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 1, nullptr, 0, OUTPUTS::MAX_VALUE },
