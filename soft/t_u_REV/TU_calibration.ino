@@ -136,7 +136,12 @@ const char *default_help_r = "[R] => Adjust";
 const char *select_help    = "[R] => Select";
 
 const CalibrationStep calibration_steps[CALIBRATION_STEP_LAST] = {
+
+#ifdef MODEL_2TT
+  { HELLO, "2TT calibration", "use defaults? ", select_help, start_footer, CALIBRATE_NONE, 0, TU::Strings::no_yes, 0, 1 },
+#else
   { HELLO, "T_U calibration", "use defaults? ", select_help, start_footer, CALIBRATE_NONE, 0, TU::Strings::no_yes, 0, 1 },
+#endif  
   { CENTER_DISPLAY, "center display", "pixel offset ", default_help_r, default_footer, CALIBRATE_DISPLAY, 0, nullptr, 0, 2 },
   #ifdef MOD_OFFSET
   { DAC_4VM, "DAC -2.0 volts", "--> -2.0V ", default_help_r, default_footer, CALIBRATE_DAC_OUTPUT, 0, nullptr, 0, OUTPUTS::MAX_VALUE },
