@@ -150,11 +150,16 @@ void PatternEditor<Owner>::Draw() {
       int32_t v_oct  = TU::OUTPUTS::get_v_oct();
       int32_t pitch  = owner_->dac_offset() * v_oct + (int)owner_->get_pitch_at_step(cursor_pos_) - TU::calibration_data.dac.calibration_points[0x0][TU::OUTPUTS::kOctaveZero];
       CONSTRAIN(pitch, -TU::calibration_data.dac.calibration_points[0x0][TU::OUTPUTS::kOctaveZero], TU::OUTPUTS::PITCH_LIMIT - TU::calibration_data.dac.calibration_points[0x0][TU::OUTPUTS::kOctaveZero]);
-      
+
+      float display_pitch = (float)pitch / v_oct;
+      #ifdef MODEL_2TT
+        display_pitch *= 1.2f;
+      #endif
       if (pitch >= 0) 
-        graphics.printf(" %.2fv", (float)pitch / v_oct);
+        graphics.printf(" %.2fv", display_pitch);
       else 
-        graphics.printf("%.2fv", (float)pitch / v_oct);
+        graphics.printf("%.2fv", display_pitch);
+      //   
       if (owner_-> dac_correction() != 0xFFF)
         graphics.print(" (+ -)");
     } // 
