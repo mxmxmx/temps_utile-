@@ -254,7 +254,9 @@ void PatternEditor<Owner>::Draw() {
       }
   
       if (i == cursor_pos_) {
-        if (fine_coarse_) //(TU::ui.read_immediate(TU::CONTROL_BUTTON_L))
+        if (fine_coarse_)
+          graphics.drawFrame(x - 3, y - 5, 10, 10);
+        else if (TU::ui.read_immediate(TU::CONTROL_BUTTON_L))
           graphics.drawFrame(x - 3, y - 5, 10, 10);
         else 
           graphics.drawFrame(x - 2, y - 4, 8, 8);
@@ -361,10 +363,12 @@ void PatternEditor<Owner>::HandleEncoderEvent(const UI::Event &event) {
         int16_t pitch = owner_->get_pitch_at_step(cursor_pos_);  
         int16_t delta = event.value;
 
-        if (!fine_coarse_) 
-            pitch += (delta << 4); // coarse
-        else 
-            pitch += delta; // fine
+        if (fine_coarse_)
+          pitch += delta; // fine
+        else if (TU::ui.read_immediate(TU::CONTROL_BUTTON_L))
+          pitch += delta; // fine
+        else
+          pitch += (delta << 4); // coarse
             
         CONSTRAIN(pitch, TU::calibration_data.dac.calibration_points[0x0][0x0], TU::OUTPUTS::PITCH_LIMIT);    
         // set:
