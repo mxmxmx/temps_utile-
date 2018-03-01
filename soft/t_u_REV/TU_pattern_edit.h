@@ -359,9 +359,9 @@ void PatternEditor<Owner>::HandleEncoderEvent(const UI::Event &event) {
         int16_t delta = event.value;
 
         if (TU::ui.read_immediate(TU::CONTROL_BUTTON_L)) 
-            pitch += delta; // fine
-        else 
             pitch += (delta << 4); // coarse
+        else 
+            pitch += delta; // fine
             
         CONSTRAIN(pitch, TU::calibration_data.dac.calibration_points[0x0][0x0], TU::OUTPUTS::PITCH_LIMIT);    
         // set:
