@@ -135,9 +135,12 @@ UiMode Ui::Splashscreen(bool &reset_settings) {
     GRAPHICS_BEGIN_FRAME(true);
 
     menu::DefaultTitleBar::Draw();
-    graphics.print("temps_utile");
- 
-    weegfx::coord_t y = menu::CalcLineY(0);
+#ifdef MODEL_2TT
+  graphics.print("Time & Triggers");
+#else
+  graphics.print("temps_utile");
+#endif
+       weegfx::coord_t y = menu::CalcLineY(0);
 
     graphics.setPrintPos(menu::kIndentDx, y + menu::kTextDy);
     graphics.print("[L] => calibration");
