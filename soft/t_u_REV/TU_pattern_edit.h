@@ -24,6 +24,8 @@ public:
     cursor_pos_ = 0;
     num_slots_ = 0;
     edit_this_sequence_ = 0;
+    edit_mode_ = 0;
+    fine_coarse_ = 0;
   }
 
   bool active() const {
@@ -61,6 +63,7 @@ private:
   size_t cursor_pos_;
   size_t num_slots_;
   bool edit_mode_;
+  bool fine_coarse_;
 
   void BeginEditing(bool mode);
 
@@ -153,7 +156,7 @@ void PatternEditor<Owner>::Draw() {
 
       float display_pitch = (float)pitch / v_oct;
       #ifdef MODEL_2TT
-        display_pitch *= 1.2f;
+        display_pitch *= 1.2075f;
       #endif
       if (pitch >= 0) 
         graphics.printf(" %.2fv", display_pitch);
@@ -203,7 +206,7 @@ void PatternEditor<Owner>::Draw() {
     }
   }
   else {
-    
+    // pitch sequencer:
     x += 3 + (w >> 0x1) - (num_slots << 0x2); 
     #ifdef MOD_OFFSET
       y += 40;
@@ -251,7 +254,7 @@ void PatternEditor<Owner>::Draw() {
       }
   
       if (i == cursor_pos_) {
-        if (TU::ui.read_immediate(TU::CONTROL_BUTTON_L))
+        if (fine_coarse_) //(TU::ui.read_immediate(TU::CONTROL_BUTTON_L))
           graphics.drawFrame(x - 3, y - 5, 10, 10);
         else 
           graphics.drawFrame(x - 2, y - 4, 8, 8);
@@ -358,7 +361,7 @@ void PatternEditor<Owner>::HandleEncoderEvent(const UI::Event &event) {
         int16_t pitch = owner_->get_pitch_at_step(cursor_pos_);  
         int16_t delta = event.value;
 
-        if (TU::ui.read_immediate(TU::CONTROL_BUTTON_L)) 
+        if (!fine_coarse_) 
             pitch += (delta << 4); // coarse
         else 
             pitch += delta; // fine
@@ -395,7 +398,10 @@ void PatternEditor<Owner>::handleButtonUp(const UI::Event &event) {
       num_slots_ = owner_->get_sequence_length(edit_this_sequence_);
       mask_ = owner_->get_mask(edit_this_sequence_);
     }
-    // else  // todo
+    else {
+      // toggle fine/coarse
+      fine_coarse_ = (~fine_coarse_) & 1u;
+    }
 }
 
 template <typename Owner>
@@ -476,6 +482,7 @@ template <typename Owner>
 void PatternEditor<Owner>::BeginEditing(bool mode) {
 
   cursor_pos_ = 0;
+  fine_coarse_ = 0;
   edit_mode_ = mode;
   uint8_t seq = owner_->get_sequence();
   
