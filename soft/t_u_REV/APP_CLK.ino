@@ -2751,8 +2751,13 @@ void CLOCKS_upButton() {
     switch (_menu_page) {
 
       case TEMPO:
-        selected.set_page(PARAMETERS);
+      {
         clocks_state.cursor = clocks_state.cursor_state;
+        // disallow case where things would end up in editor:
+        if (selected.enabled_setting_at(clocks_state.cursor_pos()) == CHANNEL_SETTING_SEQ_MASK_CV_SOURCE)
+          clocks_state.cursor.set_editing(false); 
+        selected.set_page(PARAMETERS);
+      }
         break;
       default:
         clocks_state.cursor_state = clocks_state.cursor;
