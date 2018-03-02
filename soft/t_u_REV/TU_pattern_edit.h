@@ -431,13 +431,18 @@ void PatternEditor<Owner>::handleButtonLeft(const UI::Event &) {
 
   if (cursor_pos_ < num_slots_) {
     // toggle slot active state; allow 0 mask
-    // disable toggle for CV-SEQ, bc it doesn't make sense
+    // disable toggle for CV-SEQ, bc it doesn't make sense (except for ARP. aka playmode = 5)
     if (!edit_mode_ || owner_->get_cv_playmode() == 5) {
         if (mask & m)
           mask &= ~m;
         else 
           mask |= m;
         apply_mask(mask);
+    }
+    else if (edit_mode_ && owner_->get_cv_playmode() < 5) {
+    // for all other sequencer modes: force 0xFFFF
+      mask = 0xFFFF;
+      apply_mask(mask);  
     }
   }
 }
@@ -500,7 +505,11 @@ void PatternEditor<Owner>::BeginEditing(bool mode) {
     // to do: enable seq 2-4
     edit_this_sequence_ = 0x0;
     num_slots_ = owner_->get_cv_sequence_length();
-    mask_ = owner_->get_cv_mask();
+    // clear mask, if not opening ARP
+    if (owner_->get_cv_playmode() < 5)
+      mask_ = 0xFFFF;
+    else
+      mask_ = owner_->get_cv_mask();
   }
 }
 
