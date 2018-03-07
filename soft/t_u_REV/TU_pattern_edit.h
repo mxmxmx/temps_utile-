@@ -24,6 +24,8 @@ public:
     cursor_pos_ = 0;
     num_slots_ = 0;
     edit_this_sequence_ = 0;
+    edit_mode_ = 0;
+    fine_coarse_ = 0;
   }
 
   bool active() const {
@@ -61,6 +63,7 @@ private:
   size_t cursor_pos_;
   size_t num_slots_;
   bool edit_mode_;
+  bool fine_coarse_;
 
   void BeginEditing(bool mode);
 
@@ -150,11 +153,16 @@ void PatternEditor<Owner>::Draw() {
       int32_t v_oct  = TU::OUTPUTS::get_v_oct();
       int32_t pitch  = owner_->dac_offset() * v_oct + (int)owner_->get_pitch_at_step(cursor_pos_) - TU::calibration_data.dac.calibration_points[0x0][TU::OUTPUTS::kOctaveZero];
       CONSTRAIN(pitch, -TU::calibration_data.dac.calibration_points[0x0][TU::OUTPUTS::kOctaveZero], TU::OUTPUTS::PITCH_LIMIT - TU::calibration_data.dac.calibration_points[0x0][TU::OUTPUTS::kOctaveZero]);
-      
+
+      float display_pitch = (float)pitch / v_oct;
+      #ifdef MODEL_2TT
+        display_pitch *= 1.2075f;
+      #endif
       if (pitch >= 0) 
-        graphics.printf(" %.2fv", (float)pitch / v_oct);
+        graphics.printf(" %.2fv", display_pitch);
       else 
-        graphics.printf("%.2fv", (float)pitch / v_oct);
+        graphics.printf("%.2fv", display_pitch);
+      //   
       if (owner_-> dac_correction() != 0xFFF)
         graphics.print(" (+ -)");
     } // 
@@ -198,12 +206,16 @@ void PatternEditor<Owner>::Draw() {
     }
   }
   else {
-    
+    // pitch sequencer:
     x += 3 + (w >> 0x1) - (num_slots << 0x2); 
     #ifdef MOD_OFFSET
       y += 40;
     #else
+      #ifdef MODEL_2TT
+      y += 45;
+      #else
       y += 35;
+      #endif
     #endif
     uint16_t mask = mask_;
     uint8_t clock_pos = owner_->get_clock_cnt();
@@ -242,7 +254,9 @@ void PatternEditor<Owner>::Draw() {
       }
   
       if (i == cursor_pos_) {
-        if (TU::ui.read_immediate(TU::CONTROL_BUTTON_L))
+        if (fine_coarse_)
+          graphics.drawFrame(x - 3, y - 5, 10, 10);
+        else if (TU::ui.read_immediate(TU::CONTROL_BUTTON_L))
           graphics.drawFrame(x - 3, y - 5, 10, 10);
         else 
           graphics.drawFrame(x - 2, y - 4, 8, 8);
@@ -253,7 +267,11 @@ void PatternEditor<Owner>::Draw() {
           graphics.drawRect(x, y + 17, 4, 2);
       #else 
         if (_clock)
+          #ifdef MODEL_2TT
+          graphics.drawRect(x, y + 12, 4, 2);
+          #else
           graphics.drawRect(x, y + 22, 4, 2);
+          #endif
       #endif
          
     }
@@ -345,10 +363,12 @@ void PatternEditor<Owner>::HandleEncoderEvent(const UI::Event &event) {
         int16_t pitch = owner_->get_pitch_at_step(cursor_pos_);  
         int16_t delta = event.value;
 
-        if (TU::ui.read_immediate(TU::CONTROL_BUTTON_L)) 
-            pitch += delta; // fine
-        else 
-            pitch += (delta << 4); // coarse
+        if (fine_coarse_)
+          pitch += delta; // fine
+        else if (TU::ui.read_immediate(TU::CONTROL_BUTTON_L))
+          pitch += delta; // fine
+        else
+          pitch += (delta << 4); // coarse
             
         CONSTRAIN(pitch, TU::calibration_data.dac.calibration_points[0x0][0x0], TU::OUTPUTS::PITCH_LIMIT);    
         // set:
@@ -382,7 +402,10 @@ void PatternEditor<Owner>::handleButtonUp(const UI::Event &event) {
       num_slots_ = owner_->get_sequence_length(edit_this_sequence_);
       mask_ = owner_->get_mask(edit_this_sequence_);
     }
-    // else  // todo
+    else {
+      // toggle fine/coarse
+      fine_coarse_ = (~fine_coarse_) & 1u;
+    }
 }
 
 template <typename Owner>
@@ -408,13 +431,18 @@ void PatternEditor<Owner>::handleButtonLeft(const UI::Event &) {
 
   if (cursor_pos_ < num_slots_) {
     // toggle slot active state; allow 0 mask
-    // disable toggle for CV-SEQ, bc it doesn't make sense
+    // disable toggle for CV-SEQ, bc it doesn't make sense (except for ARP. aka playmode = 5)
     if (!edit_mode_ || owner_->get_cv_playmode() == 5) {
         if (mask & m)
           mask &= ~m;
         else 
           mask |= m;
         apply_mask(mask);
+    }
+    else if (edit_mode_ && owner_->get_cv_playmode() < 5) {
+    // for all other sequencer modes: force 0xFFFF
+      mask = 0xFFFF;
+      apply_mask(mask);  
     }
   }
 }
@@ -463,6 +491,7 @@ template <typename Owner>
 void PatternEditor<Owner>::BeginEditing(bool mode) {
 
   cursor_pos_ = 0;
+  fine_coarse_ = 0;
   edit_mode_ = mode;
   uint8_t seq = owner_->get_sequence();
   
@@ -476,7 +505,11 @@ void PatternEditor<Owner>::BeginEditing(bool mode) {
     // to do: enable seq 2-4
     edit_this_sequence_ = 0x0;
     num_slots_ = owner_->get_cv_sequence_length();
-    mask_ = owner_->get_cv_mask();
+    // clear mask, if not opening ARP
+    if (owner_->get_cv_playmode() < 5)
+      mask_ = 0xFFFF;
+    else
+      mask_ = owner_->get_cv_mask();
   }
 }
 

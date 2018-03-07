@@ -41,7 +41,11 @@ public:
   #ifdef MOD_OFFSET
     static constexpr int kOctaveZero = 1;
   #else
+    #ifdef MODEL_2TT
+    static constexpr int kOctaveZero = 0;
+    #else
     static constexpr int kOctaveZero = 2;
+    #endif
   #endif
 
   struct CalibrationData {
@@ -51,9 +55,9 @@ public:
   static void Init(CalibrationData *calibration_data);
   static void SPI_Init();
   
-  static void set_all(uint32_t value) {
-    for (int i = CLOCK_CHANNEL_1; i < CLOCK_CHANNEL_LAST; ++i)
-      values_[i] = USAT16(value);
+  static void zero_all() {
+    for (int i = CLOCK_CHANNEL_1; i < CLOCK_CHANNEL_LAST; i++)
+      values_[i] = get_zero_offset(i);
   }
 
   template <CLOCK_CHANNEL channel>
@@ -82,10 +86,10 @@ public:
     return states_[index];
   }
 
-  static uint32_t get_zero_offset(CLOCK_CHANNEL channel) {
+  static uint32_t get_zero_offset(int channel) {
     
     if (channel == _DAC_CHANNEL) 
-      return calibration_data_->calibration_points[0x0][0x2]; 
+      return calibration_data_->calibration_points[0x0][kOctaveZero]; 
     else 
       return 0x0;
   }

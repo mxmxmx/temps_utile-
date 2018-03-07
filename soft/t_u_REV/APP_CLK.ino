@@ -751,7 +751,7 @@ public:
     write_pattern_->notes[step] = pitch;
 
     if (get_cv_playmode() == _ARP) // to do
-      cv_pattern_changed(get_cv_mask(),true);
+      cv_pattern_changed(get_cv_mask(), true);
   }
 
   int16_t dac_correction() const {
@@ -792,6 +792,12 @@ public:
       display_mask_ = mask;
   }
 
+  void init_pattern(uint16_t mask) {
+    force_update_ = true;
+    display_mask_ = mask;
+    arpeggiator_.UpdateArpeggiator(0x0, get_cv_mask(), get_cv_sequence_length());
+  }
+
   uint8_t get_gpio_state() const {
     return gpio_state_;
   }
@@ -809,11 +815,12 @@ public:
       // rotate already
       mask_rotate_ = (TU::ADC::value(static_cast<ADC_CHANNEL>(mask_rotate_ - 1)) + 127) >> 8;
 
-      if (force || (prev_mask_rotate_ != mask_rotate_)) {
+      if (force || (prev_mask_rotate_ != mask_rotate_) || (prev_cv_playmode_ != get_cv_playmode()) ) {
         cv_display_mask_ = TU::PatternEditor<Clock_channel>::RotateMask(get_cv_mask(), get_cv_sequence_length(), mask_rotate_);
         arpeggiator_.UpdateArpeggiator(0x0, cv_display_mask_, get_cv_sequence_length());
       }
       prev_mask_rotate_ = mask_rotate_;
+      prev_cv_playmode_ = get_cv_playmode();
     }
   }
 
@@ -943,6 +950,7 @@ public:
     pending_reset_ = 0;
     logic_ = false;
     prev_mask_rotate_ = 0xFF;
+    prev_cv_playmode_ = get_cv_playmode();
     menu_page_ = PARAMETERS;
     dac_overflow_ = 0xFFF;
 
@@ -1932,11 +1940,11 @@ public:
 
     if (menu_page_ == CV_SOURCES) {
 
-      if (mode != DAC)
-        *settings++ = CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE;
-
       *settings++ = CHANNEL_SETTING_MULT_CV_SOURCE;
       *settings++ = CHANNEL_SETTING_SWING_CV_SOURCE;
+      
+      if (mode != DAC)
+        *settings++ = CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE;
 
       switch (mode) {
 
@@ -2018,11 +2026,11 @@ public:
 
     else if (menu_page_ == PARAMETERS) {
 
-      if (mode != DAC)
-        *settings++ = CHANNEL_SETTING_PULSEWIDTH;
-
       *settings++ = CHANNEL_SETTING_MULT;
       *settings++ = CHANNEL_SETTING_SWING;
+      
+      if (mode != DAC)
+        *settings++ = CHANNEL_SETTING_PULSEWIDTH;
 
       switch (mode) {
 
@@ -2178,6 +2186,7 @@ private:
   uint8_t menu_page_;
   uint16_t bpm_last_;
   int16_t prev_mask_rotate_;
+  int8_t prev_cv_playmode_;
   int16_t dac_overflow_;
 
   util::TuringShiftRegister turing_machine_;
@@ -2244,7 +2253,11 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   #ifdef MOD_OFFSET
   { 0, -1, 5, "DAC: offset", NULL, settings::STORAGE_TYPE_I8 },
   #else
-  { 0, -3, 3, "DAC: offset", NULL, settings::STORAGE_TYPE_I8 },
+    #ifdef MODEL_2TT
+    {  0, 0, 6, "DAC: offset", NULL, settings::STORAGE_TYPE_I8 },
+    #else
+    { 0, -3, 3, "DAC: offset", NULL, settings::STORAGE_TYPE_I8 },
+    #endif
   #endif
   { 0, 0, _DAC_MODES_LAST - 1, "DAC: mode", TU::Strings::dac_modes, settings::STORAGE_TYPE_U4 },
   { 0, 0, 1, "track -->", TU::Strings::binary_tracking, settings::STORAGE_TYPE_U4 },
@@ -2253,7 +2266,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { LFSR_MIN << 1, LFSR_MIN, LFSR_MAX, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },
   { 128, 0, 255, "LFSR p(x)", NULL, settings::STORAGE_TYPE_U8 },
   { 1, 1, 255, "LGST(R)", NULL, settings::STORAGE_TYPE_U8 },
-  { 0, 0, 4, "arp.range", NULL, settings::STORAGE_TYPE_U4 },
+  { 1, 0, 4, "arp.range", NULL, settings::STORAGE_TYPE_U4 },
   { 0, 0, 3, "arp.direction", arp_directions, settings::STORAGE_TYPE_U4 },
   { 65535, 0, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 1
   { 65535, 0, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 2
@@ -2336,6 +2349,7 @@ Clock_channel clock_channel[NUM_CHANNELS];
 void CLOCKS_init() {
 
   TU::Patterns::Init();
+  TU::Patterns::Fill();
 
   ext_frequency[CHANNEL_TRIGGER_TR1]  = 0xFFFFFFFF;
   ext_frequency[CHANNEL_TRIGGER_TR2]  = 0xFFFFFFFF;
@@ -2371,7 +2385,7 @@ size_t CLOCKS_restore(const void *storage) {
     clock_channel[i].update_enabled_settings(i);
     // update display sequence + mask:
     clock_channel[i].set_display_sequence(clock_channel[i].get_sequence());
-    clock_channel[i].pattern_changed(clock_channel[i].get_mask(clock_channel[i].get_sequence()), true);
+    clock_channel[i].init_pattern(clock_channel[i].get_mask(clock_channel[i].get_sequence()));
     clock_channel[i].reset_channel_frequency();
   }
   clocks_state.cursor.AdjustEnd(clock_channel[0].num_enabled_settings() - 1);
@@ -2666,9 +2680,14 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
           case CHANNEL_SETTING_MODE:
           case CHANNEL_SETTING_MODE4:
           case CHANNEL_SETTING_DAC_MODE:
-          case CHANNEL_SETTING_CV_SEQUENCE_PLAYMODE:
             selected.update_enabled_settings(clocks_state.selected_channel);
             clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+            break;
+          case CHANNEL_SETTING_CV_SEQUENCE_PLAYMODE: 
+          // update ARP if need be
+            selected.update_enabled_settings(clocks_state.selected_channel);
+            clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
+            selected.cv_pattern_changed(selected.get_cv_mask(), false);
             break;
           // special cases:
           case CHANNEL_SETTING_EUCLID_N:
@@ -2732,8 +2751,13 @@ void CLOCKS_upButton() {
     switch (_menu_page) {
 
       case TEMPO:
-        selected.set_page(PARAMETERS);
+      {
         clocks_state.cursor = clocks_state.cursor_state;
+        // disallow case where things would end up in editor:
+        if (selected.enabled_setting_at(clocks_state.cursor_pos()) == CHANNEL_SETTING_SEQ_MASK_CV_SOURCE)
+          clocks_state.cursor.set_editing(false); 
+        selected.set_page(PARAMETERS);
+      }
         break;
       default:
         clocks_state.cursor_state = clocks_state.cursor;
