@@ -40,6 +40,8 @@ const TU::CalibrationData kCalibrationDefaults = {
   { {
     #ifdef MODEL_2TT
     {0, 901, 1809, 2723, 3632}      //  1.2V/oct for 2TT
+    #elif defined(MOD_OFFSET)
+    {5, 865, 1725, 2585, 3445}      //  1.0V/oct ==> 1 octave ~ 430
     #else
     {514, 1375, 2236, 3097, 3960}   //  1.0V/oct ==> 1 octave ~ 430
     #endif
