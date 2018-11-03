@@ -32,6 +32,7 @@ enum StorageType {
   STORAGE_TYPE_I8, STORAGE_TYPE_U8,
   STORAGE_TYPE_I16, STORAGE_TYPE_U16,
   STORAGE_TYPE_I32, STORAGE_TYPE_U32,
+  STORAGE_TYPE_NOP,
 };
 
 struct value_attr {
@@ -132,6 +133,7 @@ public:
         case STORAGE_TYPE_U16: write_ptr = write_setting<uint16_t>(write_ptr, s); break;
         case STORAGE_TYPE_I32: write_ptr = write_setting<int32_t>(write_ptr, s); break;
         case STORAGE_TYPE_U32: write_ptr = write_setting<uint32_t>(write_ptr, s); break;
+        case STORAGE_TYPE_NOP: break;
       }
     }
     if (nibbles_)
@@ -152,6 +154,7 @@ public:
         case STORAGE_TYPE_U16: read_ptr = read_setting<uint16_t>(read_ptr, s); break;
         case STORAGE_TYPE_I32: read_ptr = read_setting<int32_t>(read_ptr, s); break;
         case STORAGE_TYPE_U32: read_ptr = read_setting<uint32_t>(read_ptr, s); break;
+        case STORAGE_TYPE_NOP: break;
       }
     }
     return (size_t)(read_ptr - static_cast<const uint8_t *>(storage));

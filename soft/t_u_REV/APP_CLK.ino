@@ -221,7 +221,7 @@ enum ChannelSetting {
   CHANNEL_SETTING_BURST_MAX_INTERVAL_CV_SOURCE,
   CHANNEL_SETTING_BURST_DENSITY_CV_SOURCE,
   CHANNEL_SETTING_BURST_SOURCES_CV_SOURCE,
-  CHANNEL_SETTING_DUMMY,
+  CHANNEL_SETTING_SEPARATOR,
   CHANNEL_SETTING_DUMMY_EMPTY,
   CHANNEL_SETTING_SCREENSAVER,
   CHANNEL_SETTING_LAST
@@ -1956,12 +1956,12 @@ public:
           *settings++ = CHANNEL_SETTING_LOGIC_TYPE_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_LOGIC_OP1_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_LOGIC_OP2_CV_SOURCE;
-          *settings++ = CHANNEL_SETTING_DUMMY;
+          *settings++ = CHANNEL_SETTING_SEPARATOR;
           break;
         case CLOCKMODE::SEQ:
           *settings++ = CHANNEL_SETTING_SEQ_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_MASK_CV_SOURCE;
-          *settings++ = CHANNEL_SETTING_DUMMY; // playmode CV
+          *settings++ = CHANNEL_SETTING_SEPARATOR; // playmode CV
           break;
         case CLOCKMODE::BURST:
           *settings++ = CHANNEL_SETTING_BURST_MAX_INTERVAL_CV_SOURCE;
@@ -1977,7 +1977,7 @@ public:
 
           switch (dac_mode()) {
             case DACMODE::BINARY:
-              *settings++ = CHANNEL_SETTING_DUMMY;
+              *settings++ = CHANNEL_SETTING_SEPARATOR;
               break;
             case DACMODE::RANDOM:
               *settings++ = CHANNEL_SETTING_DAC_RANGE_CV_SOURCE;
@@ -2313,9 +2313,9 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, 4, "interval    ->", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "spread      ->", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "density     ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 0, "---------------------", NULL, settings::STORAGE_TYPE_U4 }, // DUMMY
-  { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_U4 }, // DUMMY empty
-  { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_U4 }  // screensaver
+  { 0, 0, 0, "---------------------", NULL, settings::STORAGE_TYPE_NOP }, // SEPARATOR
+  { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_NOP }, // DUMMY empty
+  { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_NOP }  // screensaver
 };
 
 
@@ -2841,7 +2841,7 @@ void CLOCKS_rightButton() {
       clocks_state.pattern_editor.Edit(&selected, pattern, PITCH);
     }
      break;
-    case CHANNEL_SETTING_DUMMY:
+    case CHANNEL_SETTING_SEPARATOR:
     case CHANNEL_SETTING_DUMMY_EMPTY:
       break;
     default:
@@ -2977,7 +2977,7 @@ void CLOCKS_menu() {
         menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_cv_display_mask(), channel.get_cv_sequence_length(), channel.get_clock_cnt());
         list_item.DrawNoValue<false>(value, attr);
         break;
-      case CHANNEL_SETTING_DUMMY:
+      case CHANNEL_SETTING_SEPARATOR:
       case CHANNEL_SETTING_DUMMY_EMPTY:
         list_item.DrawNoValue<false>(value, attr);
         break;
