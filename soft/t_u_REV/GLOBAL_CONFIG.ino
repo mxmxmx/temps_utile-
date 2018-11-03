@@ -15,8 +15,6 @@ static const uint8_t global_divisors[] {
 enum GLOBAL_CONFIG_Setting {
   GLOBAL_CONFIG_SETTING_DIV1,
   GLOBAL_CONFIG_SETTING_SLAVE_TR1,
-  GLOBAL_CONFIG_SETTING_MORE_DUMMY,
-  GLOBAL_CONFIG_SETTING_STILL_MORE_DUMMY,
   GLOBAL_CONFIG_SETTING_LAST
 };
 
@@ -75,8 +73,6 @@ public:
     
     *settings++ = GLOBAL_CONFIG_SETTING_DIV1;
     *settings++ = GLOBAL_CONFIG_SETTING_SLAVE_TR1;
-    *settings++ = GLOBAL_CONFIG_SETTING_MORE_DUMMY;
-    *settings++ = GLOBAL_CONFIG_SETTING_STILL_MORE_DUMMY;
     
     num_enabled_settings_ = settings - enabled_settings_;
   }
@@ -124,8 +120,6 @@ SETTINGS_DECLARE(Global_Config,  GLOBAL_CONFIG_SETTING_LAST) {
   
   { 0, 0, 3, "TR1 global div", g_divisors, settings::STORAGE_TYPE_U4 },
   { 0, 0, 1, "TR1 master", TU::Strings::no_yes, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 0, "-", nullptr, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 0, "-", nullptr, settings::STORAGE_TYPE_U4 }
 };
 
 class Config_App {
@@ -144,7 +138,6 @@ public:
   }
 
   menu::ScreenCursor<menu::kScreenLines> cursor;
-  menu::ScreenCursor<menu::kScreenLines> cursor_state;
 };
 
 Global_Config global_config;
@@ -209,13 +202,9 @@ void GLOBAL_CONFIG_menu() {
     const settings::value_attr &attr = Global_Config::value_attr(setting);
 
     switch (setting) {
-      case GLOBAL_CONFIG_SETTING_MORE_DUMMY:
-      case GLOBAL_CONFIG_SETTING_STILL_MORE_DUMMY:
-        list_item.DrawNoValue<false>(value, attr);
-      break;
-      default:
-        list_item.DrawDefault(value, attr);
-      break;
+    default:
+      list_item.DrawDefault(value, attr);
+    break;
     }
   } 
 }
