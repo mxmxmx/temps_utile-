@@ -98,6 +98,19 @@ public:
     return apply_value(index, values_[index] + delta);
   }
 
+  bool change_value_max(size_t index, int delta, int max) {
+    if (index < num_settings) {
+      int clamped = value_attr_[index].clamp(values_[index] + delta);
+      if (clamped > max)
+        clamped = max;
+      if (values_[index] != clamped) {
+        values_[index] = clamped;
+        return true;
+      }
+    }
+    return false;
+  }
+
   static const settings::value_attr &value_attr(size_t i) {
     return value_attr_[i];
   }
