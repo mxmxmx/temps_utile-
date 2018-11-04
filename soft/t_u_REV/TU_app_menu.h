@@ -29,6 +29,7 @@
 #include "UI/ui_events.h"
 #include "src/display.h"
 #include "TU_menus.h"
+#include "TU_global_config.h"
 
 namespace TU {
 
@@ -41,6 +42,7 @@ public:
     LOAD_PAGE,
     SAVE_PAGE,
     APPS_PAGE,
+    CONF_PAGE,
     PAGE_LAST
   };
 
@@ -77,8 +79,22 @@ private:
   };
   std::array<Page, PAGE_LAST> pages_;
 
+  int num_enabled_settings_;
+  GLOBAL_CONFIG_SETTING enabled_settings_[GLOBAL_CONFIG_SETTING_LAST];
+
+  int num_enabled_settings() const {
+    return num_enabled_settings_;
+  }
+
+  GLOBAL_CONFIG_SETTING enabled_setting_at(int index) const {
+    return enabled_settings_[index];
+  }
+
+  void update_enabled_settings();
+
   void DrawAppsPage() const;
   void DrawSlotsPage(PAGE page) const;
+  void DrawConfPage() const;
 };
 
 }; // namespace TU

@@ -42,6 +42,10 @@ void AppMenu::Init()
   pages_[LOAD_PAGE].Init("Load", 0, apps::slot_storage.num_slots() - 1);
   pages_[SAVE_PAGE].Init("Save", 0, apps::slot_storage.num_slots() - 1);
   pages_[APPS_PAGE].Init("Init", 0, apps::num_available_apps() - 1);
+
+  update_enabled_settings();
+  pages_[CONF_PAGE].Init("Conf", 0, GLOBAL_CONFIG_SETTING_LAST - 1);
+  pages_[CONF_PAGE].cursor.AdjustEnd(num_enabled_settings() - 1);
 }
 
 void AppMenu::Draw() const
@@ -58,6 +62,8 @@ void AppMenu::Draw() const
 
   if (APPS_PAGE == current_page_)
     DrawAppsPage();
+  else if (CONF_PAGE == current_page_)
+    DrawConfPage();
   else
     DrawSlotsPage(current_page_);
 }
@@ -112,30 +118,63 @@ void AppMenu::DrawSlotsPage(PAGE page) const
   }
 }
 
+void AppMenu::DrawConfPage() const
+{
+  auto &cursor = pages_[CONF_PAGE].cursor;
+
+  menu::SettingsList<menu::kScreenLines, 0, menu::kDefaultValueX> settings_list(cursor);
+  menu::SettingsListItem list_item;
+  while (settings_list.available()) {
+    const int setting = enabled_setting_at(settings_list.Next(list_item));
+    list_item.DrawDefault(global_config.get_value(setting), global_config.value_attr(setting));
+  } 
+}
+
 AppMenu::Action AppMenu::HandleEvent(const UI::Event &event)
 {
+  auto &current_page_cursor = pages_[current_page_].cursor;
+
   if (UI::EVENT_ENCODER == event.type) {
     if (CONTROL_ENCODER_L == event.control) {
       int page = current_page_ + event.value;
       CONSTRAIN(page, 0, PAGE_LAST - 1);
       current_page_ = static_cast<PAGE>(page);
     } else if (CONTROL_ENCODER_R == event.control) {
-      pages_[current_page_].cursor.Scroll(event.value);
+      if (CONF_PAGE == current_page_ && current_page_cursor.editing()) {
+        GLOBAL_CONFIG_SETTING setting = enabled_setting_at(current_page_cursor.cursor_pos());
+        if (global_config.change_value(setting, event.value))
+          global_config.Apply();
+      } else {
+        current_page_cursor.Scroll(event.value);
+      }
     }
   } else {
     if (CONTROL_BUTTON_DOWN == event.control)
       return { current_page_, ACTION_EXIT, 0 };
  
-    if (CONTROL_BUTTON_R == event.control && UI::EVENT_BUTTON_LONG_PRESS == event.type) {
-      switch(current_page_) {
-      case LOAD_PAGE: return { current_page_, ACTION_LOAD, pages_[SAVE_PAGE].cursor.cursor_pos() };
-      case SAVE_PAGE: return { current_page_, ACTION_SAVE, pages_[LOAD_PAGE].cursor.cursor_pos() };
-      case APPS_PAGE: return { current_page_, ACTION_INIT, pages_[APPS_PAGE].cursor.cursor_pos() };
-      default: break;
-      }       
+    if (CONTROL_BUTTON_R == event.control) {
+      if (UI::EVENT_BUTTON_LONG_PRESS == event.type) {
+        switch(current_page_) {
+        case LOAD_PAGE: return { current_page_, ACTION_LOAD, current_page_cursor.cursor_pos() };
+        case SAVE_PAGE: return { current_page_, ACTION_SAVE, current_page_cursor.cursor_pos() };
+        case APPS_PAGE: return { current_page_, ACTION_INIT, current_page_cursor.cursor_pos() };
+        default: break;
+        }       
+      } else {
+        if (CONF_PAGE == current_page_)
+          current_page_cursor.toggle_editing();
+      }
     }
   }
   return { current_page_, ACTION_NONE, 0 };
+}
+
+void AppMenu::update_enabled_settings()
+{
+  GLOBAL_CONFIG_SETTING *settings = enabled_settings_;
+  *settings++ = GLOBAL_CONFIG_SETTING_DIV1;
+  *settings++ = GLOBAL_CONFIG_SETTING_SLAVE_TR1;
+  num_enabled_settings_ = settings - enabled_settings_;
 }
 
 };
