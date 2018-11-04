@@ -35,7 +35,7 @@
 
 TU::App available_apps[] = {
   DECLARE_APP('C','L', "6xclocks", CLOCKS, CLOCKS_isr),
-  DECLARE_APP('G','C', "global settings", GLOBAL_CONFIG, GLOBAL_CONFIG_isr)
+  //DECLARE_APP('G','C', "global settings", GLOBAL_CONFIG, GLOBAL_CONFIG_isr)
 };
 
 static constexpr int NUM_AVAILABLE_APPS = ARRAY_SIZE(available_apps);
@@ -49,8 +49,7 @@ struct GlobalSettings {
 
   bool encoders_enable_acceleration;
   bool reserved0;
-  bool TR1_master;
-  uint8_t global_div1;
+
   uint16_t current_app_id;
   TU::Pattern user_patterns[TU::Patterns::PATTERN_USER_LAST];
 };
@@ -87,10 +86,6 @@ static const uint16_t DEFAULT_APP_ID = available_apps[DEFAULT_APP_INDEX].id;
 
 void save_global_settings() {
   SERIAL_PRINTLN("Saving global settings...");
-
-  TU::DigitalInputs inputs; 
-  global_settings.global_div1 = inputs.global_div_TR1();
-  global_settings.TR1_master = inputs.master_clock();
 
   memcpy(global_settings.user_patterns, TU::user_patterns, sizeof(TU::user_patterns));
   
@@ -202,14 +197,14 @@ int index_of(uint16_t id) {
 
 void Init(bool reset_settings) {
 
+  global_config.Init();
+
   for (auto &app : available_apps)
     app.Init();
 
   global_settings.current_app_id = DEFAULT_APP_ID;
   global_settings.encoders_enable_acceleration = TU_ENCODERS_ENABLE_ACCELERATION_DEFAULT;
   global_settings.reserved0 = false;
-  global_settings.TR1_master = false;
-  global_settings.global_div1 = 0x0;
 
   if (reset_settings) {
     if (ui.ConfirmReset()) {
@@ -244,14 +239,6 @@ void Init(bool reset_settings) {
     
     SERIAL_PRINTLN("Encoder acceleration: %s", global_settings.encoders_enable_acceleration ? "enabled" : "disabled");
     ui.encoders_enable_acceleration(global_settings.encoders_enable_acceleration);
-  
-    SERIAL_PRINTLN("Global divisor, TR1: %i", global_settings.global_div1);
-  
-    TU::DigitalInputs inputs; 
-    inputs.set_global_div_TR1(global_settings.global_div1);
-
-    SERIAL_PRINTLN("TR1 master clock, TR1: %i", global_settings.TR1_master);
-    inputs.set_master_clock(global_settings.TR1_master);
 
     SERIAL_PRINTLN("Loading app data: struct size is %u, PAGESIZE=%u, PAGES=%u, LENGTH=%u",
                   sizeof(AppData),
@@ -264,6 +251,7 @@ void Init(bool reset_settings) {
     } else {
       restore_app_data();
     }
+    global_config.Apply();
   }
 
   int current_app_index = apps::index_of(global_settings.current_app_id);

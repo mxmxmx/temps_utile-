@@ -33,6 +33,7 @@ void Ui::Init() {
   encoder_right_.Init(TU_GPIO_ENC_PINMODE);
   encoder_left_.Init(TU_GPIO_ENC_PINMODE);
   event_queue_.Init();
+  global_config_menu_.Init();
 }
 
 void Ui::configure_encoders(EncoderConfig encoder_config) {

@@ -6,6 +6,7 @@
 #include "UI/ui_button.h"
 #include "UI/ui_encoder.h"
 #include "UI/ui_event_queue.h"
+#include "TU_global_config_menu.h"
 
 namespace TU {
 
@@ -110,6 +111,8 @@ private:
   UI::Encoder<encL1, encL2> encoder_left_;
 
   UI::EventQueue<kEventQueueDepth> event_queue_;
+
+  GlobalConfigMenu global_config_menu_;
 
   inline void PushEvent(UI::EventType t, uint16_t c, int16_t v, uint16_t m) {
 #ifdef TU_UI_DEBUG
