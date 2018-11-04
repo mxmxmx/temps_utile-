@@ -23,8 +23,11 @@
 #ifndef TU_APP_H_
 #define TU_APP_H_
 
+#include "TU_core.h"
 #include "UI/ui_events.h"
 #include "src/util_misc.h"
+#include "src/util_slot_storage.h"
+#include "util/EEPROMStorage.h"
 
 namespace TU {
 
@@ -65,9 +68,35 @@ struct App {
   void (*isr)();
 };
 
+#define DECLARE_APP_INTERFACE(prefix) \
+  extern void prefix ## _init(); \
+  extern size_t prefix ## _storageSize(); \
+  extern size_t prefix ## _save(void *); \
+  extern size_t prefix ## _restore(const void *); \
+  extern void prefix ## _handleAppEvent(TU::AppEvent); \
+  extern void prefix ## _loop(); \
+  extern void prefix ## _menu(); \
+  extern void prefix ## _screensaver(); \
+  extern void prefix ## _handleButtonEvent(const UI::Event &); \
+  extern void prefix ## _handleEncoderEvent(const UI::Event &); \
+  extern void prefix ## _isr(); \
+
+#define INSTATIATE_APP(a, b, name, prefix) \
+{ TWOCC<a,b>::value, name, \
+  prefix ## _init, prefix ## _storageSize, prefix ## _save, prefix ## _restore, \
+  prefix ## _handleAppEvent, \
+  prefix ## _loop, prefix ## _menu, prefix ## _screensaver, \
+  prefix ## _handleButtonEvent, \
+  prefix ## _handleEncoderEvent, \
+  prefix ## _isr \
+}
+
 namespace apps {
 
-  extern App *current_app;
+  using SlotStorage = util::SlotStorage<EEPROMStorage, EEPROM_APPDATA_START, EEPROM_APPDATA_END, 3>;
+
+  extern const App *current_app;
+  extern SlotStorage slot_storage;
 
   void Init(bool reset_settings);
 
@@ -77,8 +106,13 @@ namespace apps {
       current_app->isr();
   }
 
-  App *find(uint16_t id);
+  const App *find(uint16_t id);
   int index_of(uint16_t id);
+
+  size_t num_available_apps();
+  const App *app_desc(size_t index);
+
+  uint16_t current_app_id();
 
 }; // namespace apps
 

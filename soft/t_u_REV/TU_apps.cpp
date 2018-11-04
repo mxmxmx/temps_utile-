@@ -24,6 +24,7 @@
 #include "TU_patterns.h"
 #include "TU_global_config.h"
 #include "TU_ui.h"
+#include "TU_apps_storage.h"
 
 #include "src/util_misc.h"
 #include "src/util_pagestorage.h"
@@ -34,6 +35,8 @@ static constexpr TU::App available_apps[] = {
 };
 
 static constexpr int NUM_AVAILABLE_APPS = ARRAY_SIZE(available_apps);
+static constexpr int DEFAULT_APP_INDEX = 0;
+static constexpr uint16_t DEFAULT_APP_ID = available_apps[DEFAULT_APP_INDEX].id;
 
 namespace TU {
 
@@ -54,10 +57,6 @@ struct GlobalState {
 // this a bit more flexible during development.
 // Chunks are aligned on 2-byte boundaries for arbitrary reasons (thankfully M4
 // allows unaligned access...)
-struct ChunkHeader {
-  uint16_t id;
-  uint16_t length;
-} __attribute__((packed));
 
 struct AppData {
   static constexpr uint32_t FOURCC = FOURCC<'T','U','A',4>::value;
@@ -76,8 +75,6 @@ GlobalStateStorage global_state_storage;
 AppData app_settings;
 AppDataStorage app_data_storage;
 
-static constexpr int DEFAULT_APP_INDEX = 0;
-static constexpr uint16_t DEFAULT_APP_ID = available_apps[DEFAULT_APP_INDEX].id;
 
 void save_global_state() {
   SERIAL_PRINTLN("Saving global settings...");
