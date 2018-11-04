@@ -163,7 +163,7 @@ void FASTRUN loop() {
 
     // don't change current_app while it's running
     if (TU::UI_MODE_APP_SETTINGS == ui_mode) {
-      TU::ui.AppSettings();
+      TU::ui.RunAppMenu();
       ui_mode = TU::UI_MODE_MENU;
     }
 

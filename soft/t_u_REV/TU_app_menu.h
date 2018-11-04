@@ -22,47 +22,65 @@
 // 
 // See http://creativecommons.org/licenses/MIT/ for more information.
 //
-#ifndef TU_GLOBAL_CONFIG_MENU_H_
-#define TU_GLOBAL_CONFIG_MENU_H_
+#ifndef TU_APP_MENU_H_
+#define TU_APP_MENU_H_
 
-#include "TU_global_config.h"
-#include "TU_apps.h"
+#include <array>
+#include "UI/ui_events.h"
 #include "src/display.h"
 #include "TU_menus.h"
 
 namespace TU {
 
-class GlobalConfigMenu {
+class AppMenu {
 public:
+
   void Init();
 
-  bool visible() const {
-    return visible_;
-  }
+  enum PAGE {
+    LOAD_PAGE,
+    SAVE_PAGE,
+    APPS_PAGE,
+    PAGE_LAST
+  };
+
+  enum ACTION_TYPE {
+    ACTION_NONE,
+    ACTION_EXIT,
+    ACTION_LOAD,
+    ACTION_SAVE,
+    ACTION_INIT,
+  };
+
+  struct Action {
+    PAGE page = PAGE_LAST;
+    ACTION_TYPE type = ACTION_NONE;
+    int index = 0;
+
+    bool valid() const {
+      return ACTION_NONE != type;
+    }
+  };
 
   void Draw() const;
-  void HandleButtonEvent(const UI::Event &event);
-  void HandleEncoderEvent(const UI::Event &event);
+  Action HandleEvent(const UI::Event &event);
 
 private:
-  bool visible_;
 
-  int num_enabled_settings_;
-  GLOBAL_CONFIG_SETTING enabled_settings_[GLOBAL_CONFIG_SETTING_LAST];
+  PAGE current_page_;
 
-  menu::ScreenCursor<menu::kScreenLines> cursor_;
+  struct Page {
+    const char *name;
+    menu::ScreenCursor<menu::kScreenLines> cursor;
 
-  int num_enabled_settings() const {
-    return num_enabled_settings_;
-  }
+    void Init(const char *n, int start, int end);
+  };
+  std::array<Page, PAGE_LAST> pages_;
 
-  GLOBAL_CONFIG_SETTING enabled_setting_at(int index) const {
-    return enabled_settings_[index];
-  }
-
-  void update_enabled_settings();
+  void DrawAppsPage() const;
+  void DrawSlotsPage(PAGE page) const;
 };
 
 }; // namespace TU
 
-#endif // TU_GLOBAL_CONFIG_MENU_H_
+#endif // TU_APP_MENU_H_

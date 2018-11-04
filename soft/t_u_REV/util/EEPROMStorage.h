@@ -47,6 +47,17 @@ struct EEPROMStorage {
     while (length--)
       *dst++ = *e++;
   }
+
+  template <typename T>
+  static size_t write(size_t addr, const T &t) {
+    EEPROM.put(addr, t);
+    return sizeof(T);
+  }
+
+  template <typename T>
+  static T& read(size_t addr, T &t) {
+    return EEPROM.get(addr, t);
+  }
 };
 
 #endif // EEPROMSTORAGE_H_

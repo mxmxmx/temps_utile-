@@ -44,7 +44,7 @@ void GlobalConfigMenu::update_enabled_settings()
   num_enabled_settings_ = settings - enabled_settings_;
 }
 
-void GlobalConfigMenu::Draw()
+void GlobalConfigMenu::Draw() const
 {
   menu::TitleBar<0, 4, 0>::Draw();
   menu::SettingsList<menu::kScreenLines, 0, menu::kDefaultValueX> settings_list(cursor_);

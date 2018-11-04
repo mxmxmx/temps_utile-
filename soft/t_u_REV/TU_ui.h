@@ -7,6 +7,7 @@
 #include "UI/ui_encoder.h"
 #include "UI/ui_event_queue.h"
 #include "TU_global_config_menu.h"
+#include "TU_app_menu.h"
 
 namespace TU {
 
@@ -53,8 +54,8 @@ public:
   bool ConfirmReset();
   void DebugStats();
   void Calibrate();
-  void AppSettings();
-  UiMode DispatchEvents(TU::App *app);
+  void RunAppMenu();
+  UiMode DispatchEvents(const TU::App *app);
 
   void Poll();
 
@@ -113,6 +114,7 @@ private:
   UI::EventQueue<kEventQueueDepth> event_queue_;
 
   GlobalConfigMenu global_config_menu_;
+  AppMenu app_menu_;
 
   inline void PushEvent(UI::EventType t, uint16_t c, int16_t v, uint16_t m) {
 #ifdef TU_UI_DEBUG

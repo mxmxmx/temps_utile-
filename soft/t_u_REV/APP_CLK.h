@@ -22,47 +22,11 @@
 // 
 // See http://creativecommons.org/licenses/MIT/ for more information.
 //
-#ifndef TU_GLOBAL_CONFIG_MENU_H_
-#define TU_GLOBAL_CONFIG_MENU_H_
 
-#include "TU_global_config.h"
+#ifndef TU_APP_CLK_H_
+#define TU_APP_CLK_H_
+
 #include "TU_apps.h"
-#include "src/display.h"
-#include "TU_menus.h"
+DECLARE_APP_INTERFACE(CLOCKS)
 
-namespace TU {
-
-class GlobalConfigMenu {
-public:
-  void Init();
-
-  bool visible() const {
-    return visible_;
-  }
-
-  void Draw() const;
-  void HandleButtonEvent(const UI::Event &event);
-  void HandleEncoderEvent(const UI::Event &event);
-
-private:
-  bool visible_;
-
-  int num_enabled_settings_;
-  GLOBAL_CONFIG_SETTING enabled_settings_[GLOBAL_CONFIG_SETTING_LAST];
-
-  menu::ScreenCursor<menu::kScreenLines> cursor_;
-
-  int num_enabled_settings() const {
-    return num_enabled_settings_;
-  }
-
-  GLOBAL_CONFIG_SETTING enabled_setting_at(int index) const {
-    return enabled_settings_[index];
-  }
-
-  void update_enabled_settings();
-};
-
-}; // namespace TU
-
-#endif // TU_GLOBAL_CONFIG_MENU_H_
+#endif // TU_APP_CLK_H_
