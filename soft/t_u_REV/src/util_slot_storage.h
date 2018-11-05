@@ -27,6 +27,7 @@
 
 #include <stdint.h>
 #include <array>
+#include <string.h>
 
 namespace util {
 
@@ -46,22 +47,32 @@ public:
     return NUM_SLOTS;
   }
 
-  struct Slot {
-    bool empty() const {
-      return id == 0;
-    }
-
+  struct SlotHeader {
     uint16_t id;
     uint16_t valid_length;
     uint16_t crc;
-    uint8_t data[SLOT_SIZE - 3 * sizeof(uint16_t)];
+  };
+
+  struct Slot {
+    bool empty() const {
+      return header.id == 0;
+    }
+
+    static constexpr size_t kDataSize = SLOT_SIZE - sizeof(SlotHeader);
+
+    size_t data_size() const {
+      return kDataSize;
+    }
+
+    SlotHeader header;
+    uint8_t data[kDataSize];
 
     void Reset() {
       memset(this, 0, sizeof(*this));
     }
 
     bool CheckCRC() const {
-      return crc == CalcCRC();
+      return header.crc == CalcCRC();
     }
 
     uint16_t CalcCRC() const {

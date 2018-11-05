@@ -25,9 +25,7 @@
 
 #include "TU_core.h"
 #include "UI/ui_events.h"
-#include "src/util_misc.h"
-#include "src/util_slot_storage.h"
-#include "util/EEPROMStorage.h"
+#include "TU_app_storage.h"
 
 namespace TU {
 
@@ -50,12 +48,14 @@ enum AppEvent {
 //
 struct App {
   uint16_t id;
+  uint16_t storage_version;
 	const char *name;
 
   void (*Init)(); // one-time init
   size_t (*storageSize)(); // binary size of storage requirements
   size_t (*Save)(void *);
   size_t (*Restore)(const void *);
+  void (*Reset)();
 
   void (*HandleAppEvent)(AppEvent); // Generic event handler
 
@@ -73,6 +73,7 @@ struct App {
   extern size_t prefix ## _storageSize(); \
   extern size_t prefix ## _save(void *); \
   extern size_t prefix ## _restore(const void *); \
+  extern void prefix ## _reset(); \
   extern void prefix ## _handleAppEvent(TU::AppEvent); \
   extern void prefix ## _loop(); \
   extern void prefix ## _menu(); \
@@ -81,9 +82,12 @@ struct App {
   extern void prefix ## _handleEncoderEvent(const UI::Event &); \
   extern void prefix ## _isr(); \
 
-#define INSTATIATE_APP(a, b, name, prefix) \
-{ TWOCC<a,b>::value, name, \
+#define INSTANTIATE_APP(id, version, name, prefix) \
+{ TWOCCS(id), \
+  version, \
+  name, \
   prefix ## _init, prefix ## _storageSize, prefix ## _save, prefix ## _restore, \
+  prefix ## _reset, \
   prefix ## _handleAppEvent, \
   prefix ## _loop, prefix ## _menu, prefix ## _screensaver, \
   prefix ## _handleButtonEvent, \
@@ -93,10 +97,7 @@ struct App {
 
 namespace apps {
 
-  using SlotStorage = util::SlotStorage<EEPROMStorage, EEPROM_APPDATA_START, EEPROM_APPDATA_END, 3>;
-
   extern const App *current_app;
-  extern SlotStorage slot_storage;
 
   void Init(bool reset_settings);
 

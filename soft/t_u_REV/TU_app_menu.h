@@ -64,6 +64,8 @@ public:
     }
   };
 
+  void Resume();
+
   void Draw() const;
   Action HandleEvent(const UI::Event &event);
 

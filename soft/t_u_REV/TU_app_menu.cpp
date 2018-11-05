@@ -39,13 +39,18 @@ void AppMenu::Page::Init(const char *n, int start, int end)
 void AppMenu::Init()
 {
   current_page_ = APPS_PAGE;
-  pages_[LOAD_PAGE].Init("Load", 0, apps::slot_storage.num_slots() - 1);
-  pages_[SAVE_PAGE].Init("Save", 0, apps::slot_storage.num_slots() - 1);
+  pages_[LOAD_PAGE].Init("Load", 0, app_storage.num_slots() - 1);
+  pages_[SAVE_PAGE].Init("Save", 0, app_storage.num_slots() - 1);
   pages_[APPS_PAGE].Init("Init", 0, apps::num_available_apps() - 1);
 
   update_enabled_settings();
   pages_[CONF_PAGE].Init("Conf", 0, GLOBAL_CONFIG_SETTING_LAST - 1);
   pages_[CONF_PAGE].cursor.AdjustEnd(num_enabled_settings() - 1);
+}
+
+void AppMenu::Resume()
+{
+  pages_[CONF_PAGE].cursor.set_editing(false);
 }
 
 void AppMenu::Draw() const
@@ -100,16 +105,16 @@ void AppMenu::DrawSlotsPage(PAGE page) const
        current <= cursor.last_visible();
        ++current, item.y += menu::kMenuLineH) {
 
-    auto &slot = apps::slot_storage[current];
+    auto &slot = app_storage[current];
     auto app = apps::find(slot.id);
 
     item.selected = current == cursor.cursor_pos();
     item.SetPrintPos();
-    graphics.movePrintPos(weegfx::Graphics::kFixedFontW, 0);  
-    if (slot.empty()) {
-      graphics.print("<empty>");
-    } else {
-      graphics.print(app ? app->name : "???");
+    graphics.movePrintPos(weegfx::Graphics::kFixedFontW, 0);
+    switch(slot.state) {
+      case SLOT_STATE::EMPTY: graphics.print("<empty>"); break;
+      default:
+        graphics.print(app ? app->name : "???");
     }
 
     // if (apps::current_app_id() == slot.id)

@@ -2363,6 +2363,10 @@ void CLOCKS_init() {
   clocks_state.cursor.AdjustEnd(clock_channel[0].num_enabled_settings() - 1);
 }
 
+void CLOCKS_reset() {
+  CLOCKS_init();
+}
+
 size_t CLOCKS_storageSize() {
   return NUM_CHANNELS * Clock_channel::storageSize();
 }
