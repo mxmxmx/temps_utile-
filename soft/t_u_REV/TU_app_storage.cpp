@@ -29,16 +29,63 @@ namespace TU {
 
 void AppStorage::Load()
 {
+  slot_storage_.Load();
+
   SERIAL_PRINTLN("AppStorage: LENGTH=%u, NUM_SLOTS=%u, SLOT_SIZE=%u",slot_storage_.LENGTH, slot_storage_.num_slots(), slot_storage_.SLOT_SIZE);
   for (size_t s = 0; s < slot_storage_.num_slots(); ++s) {
-    auto &slot = slot_storage_[s];
-    if (!slot.CheckCRC()) {
-      SERIAL_PRINTLN("Slot %u: id=%02x, valid_length=%u -- CRC check failed, resetting...", s, slot.header.id, slot.header.valid_length);
-      slot.Reset();
-    } else {
-      SERIAL_PRINTLN("Slot %u: id=%02x, valid_length=%u", s, slot.header.id, slot.header.valid_length);
-    }
+    CheckSlot(s);
   }
+}
+
+void AppStorage::CheckSlot(size_t slot_index)
+{
+  auto &slot = slot_storage_[slot_index];
+  auto &slot_info = slots_[slot_index];
+
+  slot_info.id = slot.header.id;
+  if (!slot.header.id || !slot.header.valid_length) {
+    SERIAL_PRINTLN("Slot %u: id=%02x, valid_length=%u -- Empty", slot_index, slot.header.id, slot.header.valid_length);
+    slot_info.state = SLOT_STATE::EMPTY;
+    return;
+  }
+
+  slot_info.state = SLOT_STATE::CORRUPT;
+  if (!slot.CheckCRC()) {
+    SERIAL_PRINTLN("Slot %u: id=%02x, valid_length=%u -- CRC check failed", slot_index, slot.header.id, slot.header.valid_length);
+    return;
+  }
+
+  SERIAL_PRINTLN("Slot %u: id=%02x, valid_length=%u", slot_index, slot.header.id, slot.header.valid_length);
+  auto app = apps::find(slot_info.id);
+  if (!app) {
+    SERIAL_PRINTLN("Slot %u: id=%02x -- App not found!", slot_index, slot.header.id);
+    return;
+  }
+  SERIAL_PRINTLN("Slot %u: id=%02x found app '%s'", slot_index, slot.header.id, app->name);
+
+  if (slot.header.version != app->storage_version) {
+    SERIAL_PRINTLN("Slot %u: id=%02x -- version mismatch, expected %02x, got %02x", slot_index, slot.header.id, app->storage_version, slot.header.version);
+  }
+
+  size_t expected_length = app->storageSize();
+  if (slot.header.valid_length != expected_length) {
+    SERIAL_PRINTLN("Slot %u: id=%02x -- storage length mismatch, expected %u, got %u", slot_index, slot.header.id, expected_length, slot.header.valid_length);
+    return;
+  }
+
+  slot_info.state = SLOT_STATE::OK;
+}
+
+bool AppStorage::SaveAppToSlot(const App *app, size_t slot_index)
+{
+  SERIAL_PRINTLN("Save %02x '%s' to slot %u", app->id, app->name, slot_index);
+  return false;
+}
+
+bool AppStorage::LoadAppFromSlot(const App *app, size_t slot_index)
+{
+  SERIAL_PRINTLN("Load %02x '%s' from slot %u", app->id, app->name, slot_index);
+  return false;
 }
 
 }; // namespace TU

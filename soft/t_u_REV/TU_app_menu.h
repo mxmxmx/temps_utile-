@@ -72,7 +72,6 @@ public:
 private:
 
   PAGE current_page_;
-
   struct Page {
     const char *name;
     menu::ScreenCursor<menu::kScreenLines> cursor;
@@ -83,6 +82,8 @@ private:
 
   int num_enabled_settings_;
   GLOBAL_CONFIG_SETTING enabled_settings_[GLOBAL_CONFIG_SETTING_LAST];
+
+  const char *message_;
 
   int num_enabled_settings() const {
     return num_enabled_settings_;

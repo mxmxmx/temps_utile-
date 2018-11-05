@@ -47,13 +47,13 @@ AppStorage app_storage;
 // Global settings are stored separately to actual app setings.
 // The theory is that they might not change as often.
 struct GlobalState {
-  static constexpr uint32_t FOURCC = FOURCC<'T','U','X',2>::value;
+  static constexpr uint32_t FOURCC = FOURCC<'T','U','X',3>::value;
 
   bool encoders_enable_acceleration;
   bool reserved0;
 
   uint16_t current_app_id;
-  TU::Pattern user_patterns[TU::Patterns::PATTERN_USER_LAST];
+  uint16_t last_slot_index;
 };
 
 typedef PageStorage<EEPROMStorage, EEPROM_GLOBALSTATE_START, EEPROM_GLOBALSTATE_END, GlobalState> GlobalStateStorage;
@@ -61,19 +61,16 @@ typedef PageStorage<EEPROMStorage, EEPROM_GLOBALSTATE_START, EEPROM_GLOBALSTATE_
 GlobalState global_state;
 GlobalStateStorage global_state_storage;
 
-void save_global_state() {
-  SERIAL_PRINTLN("Saving global settings...");
-
-  memcpy(global_state.user_patterns, TU::user_patterns, sizeof(TU::user_patterns));
-  
+static void SaveGlobalState() {
+  SERIAL_PRINTLN("Saving global state...");
   global_state_storage.Save(global_state);
-  SERIAL_PRINTLN("Saved global settings in page_index %d", global_state_storage.page_index());
+
+  SERIAL_PRINTLN("Saved global state in page_index %d", global_state_storage.page_index());
 }
 
 static bool SaveAppToSlot(const App *app, size_t slot_index);
 static bool LoadAppFromSlot(size_t slot_index);
 static bool LoadAppFromDefaults(size_t app_index);
-
 
 namespace apps {
 
@@ -85,7 +82,7 @@ void set_current_app(int index) {
 }
 
 const App *find(uint16_t id) {
-  for (auto &app : available_apps)
+  for (const auto &app : available_apps)
     if (app.id == id) return &app;
   return nullptr;
 }
@@ -111,15 +108,20 @@ uint16_t current_app_id() {
   return current_app->id;
 }
 
+size_t last_slot_index() {
+  return global_state.last_slot_index;
+}
+
 void Init(bool reset_settings) {
 
   global_config.Init();
   for (auto &app : available_apps)
     app.Init();
 
-  global_state.current_app_id = DEFAULT_APP_ID;
   global_state.encoders_enable_acceleration = TU_ENCODERS_ENABLE_ACCELERATION_DEFAULT;
   global_state.reserved0 = false;
+  global_state.current_app_id = DEFAULT_APP_ID;
+  global_state.last_slot_index = app_storage.num_slots();
 
   if (reset_settings) {
     if (ui.ConfirmReset()) {
@@ -148,7 +150,6 @@ void Init(bool reset_settings) {
     } else {
       SERIAL_PRINTLN("Loaded settings from page_index %d, current_app_id is %02x",
                     global_state_storage.page_index(),global_state.current_app_id);
-      memcpy(user_patterns, global_state.user_patterns, sizeof(user_patterns));
     }
     
     SERIAL_PRINTLN("Encoder acceleration: %s", global_state.encoders_enable_acceleration ? "enabled" : "disabled");
@@ -262,27 +263,34 @@ bool Ui::ConfirmReset() {
 
 static bool SaveAppToSlot(const App *app, size_t slot_index)
 {
-  SERIAL_PRINTLN("Save %02x to slot %u", app->id, slot_index);
-/*
-  auto &slot = apps::slot_storage[slot_index];
-  slot.Reset();
-
-  ChunkStream chunk_stream{slot.data, slot.data_size()};
-
-
-
-//  slot.header.id = app->id;
-//  slot.header.valid_length = app->Save(slot.data);
-//  slot.header.crc = slot.CalcCRC();
-
-  apps::slot_storage.Write(slot_index);
-*/
+  app_storage.SaveAppToSlot(app, slot_index);
+  global_state.last_slot_index = slot_index;
+  SaveGlobalState();
   return true;
 }
 
 static bool LoadAppFromSlot(size_t slot_index)
 {
-  return false;
+  auto &slot = app_storage[slot_index];
+  if (!slot.loadable())
+    return false;
+
+  auto app = apps::find(slot.id);
+
+  CORE::app_isr_enabled = false;
+  delay(1);
+
+  bool loaded = false;
+  if (app_storage.LoadAppFromSlot(app, slot_index)) {
+    global_state.last_slot_index = slot_index;
+    SaveGlobalState();
+    loaded = true;
+  } else {
+    // Defaults?
+  }
+
+  CORE::app_isr_enabled = true;
+  return loaded;
 }
 
 static bool LoadAppFromDefaults(size_t app_index)

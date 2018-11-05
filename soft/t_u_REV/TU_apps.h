@@ -115,6 +115,8 @@ namespace apps {
 
   uint16_t current_app_id();
 
+  size_t last_slot_index();
+
 }; // namespace apps
 
 }; // namespace TU

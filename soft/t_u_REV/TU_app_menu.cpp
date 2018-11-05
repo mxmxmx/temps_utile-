@@ -41,7 +41,15 @@ void AppMenu::Init()
   current_page_ = APPS_PAGE;
   pages_[LOAD_PAGE].Init("Load", 0, app_storage.num_slots() - 1);
   pages_[SAVE_PAGE].Init("Save", 0, app_storage.num_slots() - 1);
-  pages_[APPS_PAGE].Init("Init", 0, apps::num_available_apps() - 1);
+  pages_[APPS_PAGE].Init("Apps", 0, apps::num_available_apps() - 1);
+
+  size_t last_slot_index = apps::last_slot_index();
+  if (last_slot_index < app_storage.num_slots()) {
+    pages_[LOAD_PAGE].cursor.Scroll(last_slot_index);
+    pages_[SAVE_PAGE].cursor.Scroll(last_slot_index);
+  }
+
+  message_ = nullptr;
 
   update_enabled_settings();
   pages_[CONF_PAGE].Init("Conf", 0, GLOBAL_CONFIG_SETTING_LAST - 1);
@@ -71,6 +79,9 @@ void AppMenu::Draw() const
     DrawConfPage();
   else
     DrawSlotsPage(current_page_);
+
+  if (message_)
+    ;
 }
 
 void AppMenu::DrawAppsPage() const
@@ -100,6 +111,8 @@ void AppMenu::DrawSlotsPage(PAGE page) const
   item.x = 0;
   item.y = menu::CalcLineY(0);
 
+  int last_slot_index = apps::last_slot_index();
+
   auto &cursor = pages_[page].cursor;
   for (int current = cursor.first_visible();
        current <= cursor.last_visible();
@@ -110,15 +123,19 @@ void AppMenu::DrawSlotsPage(PAGE page) const
 
     item.selected = current == cursor.cursor_pos();
     item.SetPrintPos();
-    graphics.movePrintPos(weegfx::Graphics::kFixedFontW, 0);
-    switch(slot.state) {
-      case SLOT_STATE::EMPTY: graphics.print("<empty>"); break;
-      default:
-        graphics.print(app ? app->name : "???");
-    }
 
-    // if (apps::current_app_id() == slot.id)
-    //    graphics.drawBitmap8(item.x + 2, item.y + 1, 4, bitmap_indicator_4x8);
+    if (current == last_slot_index)
+      graphics.drawBitmap8(item.x + 2, item.y + 1, 4, bitmap_indicator_4x8);
+    graphics.movePrintPos(weegfx::Graphics::kFixedFontW, 0);
+
+    if (SLOT_STATE::CORRUPT == slot.state)
+      graphics.print('!');
+
+    if (SLOT_STATE::EMPTY != slot.state)
+      graphics.printf(app ? app->name : "???? (0x%02x)", app->id);
+    else
+      graphics.print("empty");
+
     item.DrawCustom();
   }
 }

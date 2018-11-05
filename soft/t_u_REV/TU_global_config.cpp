@@ -51,7 +51,6 @@ GlobalConfig global_config;
 void GlobalConfig::Init()
 {
   InitDefaults();
-  Apply();
 }
 
 void GlobalConfig::Apply()

@@ -36,13 +36,10 @@ static constexpr size_t kMaxTriggerDelayTicks = 96;
 #define EEPROM_CALIBRATIONDATA_END 128
 
 #define EEPROM_GLOBALSTATE_START EEPROM_CALIBRATIONDATA_END
-#define EEPROM_GLOBALSTATE_END 512
+#define EEPROM_GLOBALSTATE_END (EEPROM_GLOBALSTATE_START + 64)
 
 #define EEPROM_APPDATA_START EEPROM_GLOBALSTATE_END
 #define EEPROM_APPDATA_END EEPROMStorage::LENGTH
-
-// This is the available space for all apps' settings (\sa TU_apps.ino)
-#define EEPROM_APPDATA_BINARY_SIZE (500 - 4)
 
 #define TU_UI_DEBUG
 #define TU_UI_SEPARATE_ISR

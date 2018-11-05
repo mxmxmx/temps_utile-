@@ -49,6 +49,7 @@ public:
 
   struct SlotHeader {
     uint16_t id;
+    uint16_t version;
     uint16_t valid_length;
     uint16_t crc;
   };
