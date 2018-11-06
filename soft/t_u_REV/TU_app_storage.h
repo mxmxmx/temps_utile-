@@ -52,6 +52,8 @@ struct SlotInfo {
 // Augment the base slots with some helpful wrapperonis
 class AppStorage {
 public:
+  static constexpr size_t kNumSlots = 3;
+  using SlotStorage = util::SlotStorage<EEPROMStorage, EEPROM_APPDATA_START, EEPROM_APPDATA_END, kNumSlots>;
 
   void Load();
 
@@ -63,12 +65,14 @@ public:
     return slots_[i];
   }
 
+  const SlotStorage::Slot & storage_slot(size_t i) const {
+    return slot_storage_[i];
+  }
+
   bool SaveAppToSlot(const App *app, size_t slot_index);
-  bool LoadAppFromSlot(const App *app, size_t slot_index);
+  bool LoadAppFromSlot(const App *app, size_t slot_index) const;
 
 private:
-  static constexpr size_t kNumSlots = 3;
-  using SlotStorage = util::SlotStorage<EEPROMStorage, EEPROM_APPDATA_START, EEPROM_APPDATA_END, kNumSlots>;
 
   SlotStorage slot_storage_;
   std::array<SlotInfo, kNumSlots> slots_;

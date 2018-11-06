@@ -49,7 +49,7 @@ void AppMenu::Init()
     pages_[SAVE_PAGE].cursor.Scroll(last_slot_index);
   }
 
-  message_ = nullptr;
+  debug_display_ = false;
 
   update_enabled_settings();
   pages_[CONF_PAGE].Init("Conf", 0, GLOBAL_CONFIG_SETTING_LAST - 1);
@@ -59,6 +59,7 @@ void AppMenu::Init()
 void AppMenu::Resume()
 {
   pages_[CONF_PAGE].cursor.set_editing(false);
+  debug_display_ = false;
 }
 
 void AppMenu::Draw() const
@@ -80,7 +81,7 @@ void AppMenu::Draw() const
   else
     DrawSlotsPage(current_page_);
 
-  if (message_)
+  if (debug_display_)
     ;
 }
 
@@ -118,8 +119,8 @@ void AppMenu::DrawSlotsPage(PAGE page) const
        current <= cursor.last_visible();
        ++current, item.y += menu::kMenuLineH) {
 
-    auto &slot = app_storage[current];
-    auto app = apps::find(slot.id);
+    auto &slot_info = app_storage[current];
+    auto app = apps::find(slot_info.id);
 
     item.selected = current == cursor.cursor_pos();
     item.SetPrintPos();
@@ -128,13 +129,18 @@ void AppMenu::DrawSlotsPage(PAGE page) const
       graphics.drawBitmap8(item.x + 2, item.y + 1, 4, bitmap_indicator_4x8);
     graphics.movePrintPos(weegfx::Graphics::kFixedFontW, 0);
 
-    if (SLOT_STATE::CORRUPT == slot.state)
+    if (SLOT_STATE::CORRUPT == slot_info.state)
       graphics.print('!');
 
-    if (SLOT_STATE::EMPTY != slot.state)
-      graphics.printf(app ? app->name : "???? (0x%02x)", app->id);
-    else
-      graphics.print("empty");
+    if (!debug_display_) {
+      if (SLOT_STATE::EMPTY != slot_info.state)
+        graphics.printf(app ? app->name : "???? (%02x)", app->id);
+      else
+        graphics.print("empty");
+    } else {
+      auto &slot = app_storage.storage_slot(current);
+      graphics.printf("%04x %04x %u", slot_info.id, slot.header.version, slot.header.valid_length);
+    }
 
     item.DrawCustom();
   }
@@ -185,6 +191,8 @@ AppMenu::Action AppMenu::HandleEvent(const UI::Event &event)
       } else {
         if (CONF_PAGE == current_page_)
           current_page_cursor.toggle_editing();
+        else if (LOAD_PAGE == current_page_ || SAVE_PAGE == current_page_)
+          debug_display_ = !debug_display_;
       }
     }
   }

@@ -91,6 +91,10 @@ public:
     return slots_[index];
   }
 
+  const Slot & operator [](size_t index) const {
+    return slots_[index];
+  }
+
   void Write(size_t slot_index) {
     STORAGE::write(slot_address(slot_index), slots_[slot_index]);
   }

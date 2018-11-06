@@ -44,32 +44,32 @@ void AppStorage::CheckSlot(size_t slot_index)
 
   slot_info.id = slot.header.id;
   if (!slot.header.id || !slot.header.valid_length) {
-    SERIAL_PRINTLN("Slot %u: id=%02x, valid_length=%u -- Empty", slot_index, slot.header.id, slot.header.valid_length);
+    SERIAL_PRINTLN("Slot %u: id=%04x, valid_length=%u -- Empty", slot_index, slot.header.id, slot.header.valid_length);
     slot_info.state = SLOT_STATE::EMPTY;
     return;
   }
 
   slot_info.state = SLOT_STATE::CORRUPT;
   if (!slot.CheckCRC()) {
-    SERIAL_PRINTLN("Slot %u: id=%02x, valid_length=%u -- CRC check failed", slot_index, slot.header.id, slot.header.valid_length);
+    SERIAL_PRINTLN("Slot %u: id=%04x, valid_length=%u -- CRC check failed", slot_index, slot.header.id, slot.header.valid_length);
     return;
   }
 
-  SERIAL_PRINTLN("Slot %u: id=%02x, valid_length=%u", slot_index, slot.header.id, slot.header.valid_length);
+  SERIAL_PRINTLN("Slot %u: id=%04x, valid_length=%u", slot_index, slot.header.id, slot.header.valid_length);
   auto app = apps::find(slot_info.id);
   if (!app) {
-    SERIAL_PRINTLN("Slot %u: id=%02x -- App not found!", slot_index, slot.header.id);
+    SERIAL_PRINTLN("Slot %u: id=%04x -- App not found!", slot_index, slot.header.id);
     return;
   }
-  SERIAL_PRINTLN("Slot %u: id=%02x found app '%s'", slot_index, slot.header.id, app->name);
+  SERIAL_PRINTLN("Slot %u: id=%04x found app '%s'", slot_index, slot.header.id, app->name);
 
   if (slot.header.version != app->storage_version) {
-    SERIAL_PRINTLN("Slot %u: id=%02x -- version mismatch, expected %02x, got %02x", slot_index, slot.header.id, app->storage_version, slot.header.version);
+    SERIAL_PRINTLN("Slot %u: id=%04x -- version mismatch, expected %04x, got %04x", slot_index, slot.header.id, app->storage_version, slot.header.version);
   }
 
   size_t expected_length = app->storageSize();
   if (slot.header.valid_length != expected_length) {
-    SERIAL_PRINTLN("Slot %u: id=%02x -- storage length mismatch, expected %u, got %u", slot_index, slot.header.id, expected_length, slot.header.valid_length);
+    SERIAL_PRINTLN("Slot %u: id=%04x -- storage length mismatch, expected %u, got %u", slot_index, slot.header.id, expected_length, slot.header.valid_length);
     return;
   }
 
@@ -78,13 +78,25 @@ void AppStorage::CheckSlot(size_t slot_index)
 
 bool AppStorage::SaveAppToSlot(const App *app, size_t slot_index)
 {
-  SERIAL_PRINTLN("Save %02x '%s' to slot %u", app->id, app->name, slot_index);
-  return false;
+  SERIAL_PRINTLN("Save %04x '%s' to slot %u", app->id, app->name, slot_index);
+  auto &slot = slot_storage_[slot_index];
+
+  slot.header.id = app->id;
+  slot.header.version = app->storage_version;
+  slot.header.valid_length = app->Save(slot.data);
+  slot.header.crc = slot.CalcCRC();
+  slot_storage_.Write(slot_index);
+
+  auto &slot_info = slots_[slot_index];
+  slot_info.id = app->id;
+  slot_info.state = SLOT_STATE::OK;
+  return true;
 }
 
-bool AppStorage::LoadAppFromSlot(const App *app, size_t slot_index)
+bool AppStorage::LoadAppFromSlot(const App *app, size_t slot_index) const
 {
-  SERIAL_PRINTLN("Load %02x '%s' from slot %u", app->id, app->name, slot_index);
+  SERIAL_PRINTLN("Load %04x '%s' from slot %u", app->id, app->name, slot_index);
+
   return false;
 }
 

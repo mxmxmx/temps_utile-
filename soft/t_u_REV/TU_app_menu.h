@@ -83,7 +83,7 @@ private:
   int num_enabled_settings_;
   GLOBAL_CONFIG_SETTING enabled_settings_[GLOBAL_CONFIG_SETTING_LAST];
 
-  const char *message_;
+  bool debug_display_;
 
   int num_enabled_settings() const {
     return num_enabled_settings_;

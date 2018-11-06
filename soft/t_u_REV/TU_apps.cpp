@@ -68,7 +68,7 @@ static void SaveGlobalState() {
   SERIAL_PRINTLN("Saved global state in page_index %d", global_state_storage.page_index());
 }
 
-static bool SaveAppToSlot(const App *app, size_t slot_index);
+static bool SaveCurrentAppToSlot(size_t slot_index);
 static bool LoadAppFromSlot(size_t slot_index);
 static bool LoadAppFromDefaults(size_t app_index);
 
@@ -148,7 +148,7 @@ void Init(bool reset_settings) {
     if (!global_state_storage.Load(global_state)) {
       SERIAL_PRINTLN("Settings not loaded or invalid, using defaults...");
     } else {
-      SERIAL_PRINTLN("Loaded settings from page_index %d, current_app_id is %02x",
+      SERIAL_PRINTLN("Loaded settings from page_index %d, current_app_id is %04x",
                     global_state_storage.page_index(),global_state.current_app_id);
     }
     
@@ -198,7 +198,7 @@ void Ui::RunAppMenu() {
         if (AppMenu::ACTION_EXIT == action.type) {
           exit_loop = true;
         } else if (AppMenu::ACTION_SAVE == action.type) {
-          if (SaveAppToSlot(apps::current_app, action.index))
+          if (SaveCurrentAppToSlot(action.index))
             exit_loop = true;
         } else if(AppMenu::ACTION_LOAD == action.type) {
           if (LoadAppFromSlot(action.index))
@@ -261,9 +261,9 @@ bool Ui::ConfirmReset() {
   return confirm;
 }
 
-static bool SaveAppToSlot(const App *app, size_t slot_index)
+static bool SaveCurrentAppToSlot(size_t slot_index)
 {
-  app_storage.SaveAppToSlot(app, slot_index);
+  app_storage.SaveAppToSlot(apps::current_app, slot_index);
   global_state.last_slot_index = slot_index;
   SaveGlobalState();
   return true;
@@ -275,20 +275,20 @@ static bool LoadAppFromSlot(size_t slot_index)
   if (!slot.loadable())
     return false;
 
-  auto app = apps::find(slot.id);
-
+  bool loaded = false;
+#if 0
   CORE::app_isr_enabled = false;
   delay(1);
 
-  bool loaded = false;
   if (app_storage.LoadAppFromSlot(app, slot_index)) {
+    apps::set_current_app(slot_index);
     global_state.last_slot_index = slot_index;
     SaveGlobalState();
     loaded = true;
   } else {
     // Defaults?
   }
-
+#endif
   CORE::app_isr_enabled = true;
   return loaded;
 }
