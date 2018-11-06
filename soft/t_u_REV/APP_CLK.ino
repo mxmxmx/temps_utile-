@@ -2368,7 +2368,9 @@ void CLOCKS_reset() {
 }
 
 size_t CLOCKS_storageSize() {
-  return NUM_CHANNELS * Clock_channel::storageSize();
+  return 
+    NUM_CHANNELS * Clock_channel::storageSize() + 
+    TU::GlobalConfig::storageSize();
 }
 
 size_t CLOCKS_save(void *storage) {
@@ -2377,6 +2379,8 @@ size_t CLOCKS_save(void *storage) {
   for (size_t i = 0; i < NUM_CHANNELS; ++i) {
     used += clock_channel[i].Save(static_cast<char*>(storage) + used);
   }
+
+  used += TU::global_config.Save(static_cast<char*>(storage) + used);
   return used;
 }
 
@@ -2397,6 +2401,10 @@ size_t CLOCKS_restore(const void *storage) {
   ext_frequency[CHANNEL_TRIGGER_INTERNAL] = BPM_microseconds_4th[clock_channel[0].get_internal_timer() - BPM_MIN];
   // update channel 4:
   clock_channel[CLOCK_CHANNEL_4].cv_pattern_changed(clock_channel[CLOCK_CHANNEL_4].get_cv_mask(), true);
+
+  used += TU::global_config.Restore(static_cast<const char*>(storage) + used);
+  TU::global_config.Apply();
+
   return used;
 }
 
