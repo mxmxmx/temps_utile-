@@ -28,6 +28,8 @@
 #include "TU_ui.h"
 #include "TU_apps.h"
 
+static constexpr uint32_t kBlinkTicks = 200;
+
 namespace TU {
 
 void AppMenu::Page::Init(const char *n, int start, int end)
@@ -50,6 +52,7 @@ void AppMenu::Init()
   }
 
   debug_display_ = false;
+  slot_armed_ = 0;
 
   update_enabled_settings();
   pages_[CONF_PAGE].Init("Conf", 0, GLOBAL_CONFIG_SETTING_LAST - 1);
@@ -60,6 +63,28 @@ void AppMenu::Resume()
 {
   pages_[CONF_PAGE].cursor.set_editing(false);
   debug_display_ = false;
+  slot_armed_ = 0;
+}
+
+void AppMenu::Tick()
+{
+  uint32_t t = ui.ticks();
+
+  if (ui.read_immediate(CONTROL_BUTTON_R)) {
+    if (t - ui.button_press_time(CONTROL_BUTTON_R) >= Ui::kLongPressTicks && !slot_armed_) {
+      slot_armed_ = 1;
+      ticks_ = t;
+    }
+  } else {
+    slot_armed_ = 0;
+  }
+
+  if (slot_armed_) {
+    if (t - ticks_ > kBlinkTicks) {
+      ++slot_armed_;
+      ticks_ = t;
+    }
+  }
 }
 
 void AppMenu::Draw() const
@@ -80,9 +105,6 @@ void AppMenu::Draw() const
     DrawConfPage();
   else
     DrawSlotsPage(current_page_);
-
-  if (debug_display_)
-    ;
 }
 
 void AppMenu::DrawAppsPage() const
@@ -96,7 +118,13 @@ void AppMenu::DrawAppsPage() const
        current <= cursor.last_visible();
        ++current, item.y += menu::kMenuLineH) {
     auto app_desc = apps::app_desc(current);
-    item.selected = current == cursor.cursor_pos();
+
+    if (current == cursor.cursor_pos()) {
+      item.selected = slot_armed_ < 8 || slot_armed_ & 0x1;
+    } else {
+      item.selected = false;
+    }
+
     item.SetPrintPos();
     graphics.movePrintPos(weegfx::Graphics::kFixedFontW, 0);  
     graphics.print(app_desc->name);
@@ -122,7 +150,14 @@ void AppMenu::DrawSlotsPage(PAGE page) const
     auto &slot_info = app_storage[current];
     auto app = apps::find(slot_info.id);
 
-    item.selected = current == cursor.cursor_pos();
+    if (current == cursor.cursor_pos()) {
+      if (LOAD_PAGE == page && !slot_info.loadable())
+        item.selected = true;
+      else
+        item.selected = slot_armed_ < 4 || slot_armed_ & 0x1;
+    } else {
+      item.selected = false;
+    }
     item.SetPrintPos();
 
     if (current == last_slot_index)

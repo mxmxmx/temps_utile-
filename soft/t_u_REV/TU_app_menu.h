@@ -59,6 +59,8 @@ public:
     ACTION_TYPE type = ACTION_NONE;
     int index = 0;
 
+    Action(PAGE p, ACTION_TYPE t, int i) : page(p), type(t), index(i) { }
+
     bool valid() const {
       return ACTION_NONE != type;
     }
@@ -66,6 +68,7 @@ public:
 
   void Resume();
 
+  void Tick();
   void Draw() const;
   Action HandleEvent(const UI::Event &event);
 
@@ -84,6 +87,9 @@ private:
   GLOBAL_CONFIG_SETTING enabled_settings_[GLOBAL_CONFIG_SETTING_LAST];
 
   bool debug_display_;
+  uint32_t slot_armed_;
+  bool blink_;
+  uint32_t ticks_;
 
   int num_enabled_settings() const {
     return num_enabled_settings_;

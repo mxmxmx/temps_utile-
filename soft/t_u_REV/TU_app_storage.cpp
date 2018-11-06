@@ -78,7 +78,7 @@ void AppStorage::CheckSlot(size_t slot_index)
 
 bool AppStorage::SaveAppToSlot(const App *app, size_t slot_index)
 {
-  SERIAL_PRINTLN("Save %04x '%s' to slot %u", app->id, app->name, slot_index);
+  SERIAL_PRINTLN("Saving %04x '%s' to slot %u", app->id, app->name, slot_index);
   auto &slot = slot_storage_[slot_index];
 
   slot.header.id = app->id;
@@ -95,9 +95,19 @@ bool AppStorage::SaveAppToSlot(const App *app, size_t slot_index)
 
 bool AppStorage::LoadAppFromSlot(const App *app, size_t slot_index) const
 {
-  SERIAL_PRINTLN("Load %04x '%s' from slot %u", app->id, app->name, slot_index);
+  SERIAL_PRINTLN("Loading %04x '%s' from slot %u", app->id, app->name, slot_index);
+  auto &slot = slot_storage_[slot_index];
+  if (app->id != slot.header.id || app->storage_version != slot.header.version)
+    return false;
 
-  return false;
+  app->Reset();
+  size_t len = app->Restore(slot.data);
+  if (len != slot.header.valid_length) {
+    SERIAL_PRINTLN("Load %04x from slot %u, restored %u but expected %u bytes", app->id, slot_index, len, slot.header.valid_length);
+    return false;
+  } else {
+    return true;
+  }
 }
 
 }; // namespace TU

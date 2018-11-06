@@ -62,6 +62,17 @@ public:
     return button_state_ & control;
   }
 
+  inline uint32_t button_press_time(UiControl control) {
+    switch (control) {
+    case CONTROL_BUTTON_UP: return button_press_time_[0];
+    case CONTROL_BUTTON_DOWN: return button_press_time_[1];
+    case CONTROL_BUTTON_L: return button_press_time_[2];
+    case CONTROL_BUTTON_R: return button_press_time_[3];
+    default:
+    return 0;
+    }
+  }
+
   inline void encoders_enable_acceleration(bool enable) {
     encoder_left_.enable_acceleration(enable);
     encoder_right_.enable_acceleration(enable);

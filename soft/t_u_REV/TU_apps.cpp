@@ -76,8 +76,13 @@ namespace apps {
 
 const App *current_app = &available_apps[DEFAULT_APP_INDEX];
 
-void set_current_app(int index) {
+void SetCurrentApp(int index) {
   current_app = &available_apps[index];
+  global_state.current_app_id = current_app->id;
+}
+
+void SetCurrentApp(const App *app) {
+  current_app = app;
   global_state.current_app_id = current_app->id;
 }
 
@@ -156,11 +161,12 @@ void Init(bool reset_settings) {
     ui.encoders_enable_acceleration(global_state.encoders_enable_acceleration);
 
     app_storage.Load();
-    // Get last used slot
-    // If slot not valid, or app load fails, fall back on defaults
   }
   global_config.Apply();
 
+
+  // Get last used slot
+  // If slot not valid, or app load fails, fall back on defaults
   int current_app_index = apps::index_of(global_state.current_app_id);
   if (current_app_index < 0 || current_app_index >= NUM_AVAILABLE_APPS) {
     SERIAL_PRINTLN("App id %02x not found, using default...", global_state.current_app_id);
@@ -168,7 +174,7 @@ void Init(bool reset_settings) {
     current_app_index = DEFAULT_APP_INDEX;
   }
 
-  set_current_app(current_app_index);
+  SetCurrentApp(current_app_index);
   current_app->HandleAppEvent(APP_EVENT_RESUME);
 
   delay(100);
@@ -209,6 +215,7 @@ void Ui::RunAppMenu() {
         }
       }
     }
+    app_menu_.Tick();
 
     GRAPHICS_BEGIN_FRAME(true);
     app_menu_.Draw();
@@ -271,24 +278,27 @@ static bool SaveCurrentAppToSlot(size_t slot_index)
 
 static bool LoadAppFromSlot(size_t slot_index)
 {
-  auto &slot = app_storage[slot_index];
-  if (!slot.loadable())
+  auto &slot_info = app_storage[slot_index];
+  if (!slot_info.loadable())
     return false;
 
-  bool loaded = false;
-#if 0
+  auto app = apps::find(slot_info.id);
+  if (!app)
+    return false;
+
   CORE::app_isr_enabled = false;
   delay(1);
 
+  bool loaded = false;
   if (app_storage.LoadAppFromSlot(app, slot_index)) {
-    apps::set_current_app(slot_index);
+    apps::SetCurrentApp(app);
     global_state.last_slot_index = slot_index;
     SaveGlobalState();
     loaded = true;
   } else {
     // Defaults?
   }
-#endif
+
   CORE::app_isr_enabled = true;
   return loaded;
 }
@@ -301,7 +311,7 @@ static bool LoadAppFromDefaults(size_t app_index)
   global_config.InitDefaults();
   global_config.Apply();
 
-  apps::set_current_app(app_index);
+  apps::SetCurrentApp(app_index);
   apps::current_app->Reset();
 
   CORE::app_isr_enabled = true;
