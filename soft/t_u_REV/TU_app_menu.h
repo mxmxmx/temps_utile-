@@ -87,9 +87,10 @@ private:
   GLOBAL_CONFIG_SETTING enabled_settings_[GLOBAL_CONFIG_SETTING_LAST];
 
   bool debug_display_;
+
   uint32_t slot_armed_;
-  bool blink_;
   uint32_t ticks_;
+  bool action_aborted_;
 
   int num_enabled_settings() const {
     return num_enabled_settings_;

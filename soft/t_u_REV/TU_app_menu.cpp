@@ -53,6 +53,7 @@ void AppMenu::Init()
 
   debug_display_ = false;
   slot_armed_ = 0;
+  action_aborted_ = false;
 
   update_enabled_settings();
   pages_[CONF_PAGE].Init("Conf", 0, GLOBAL_CONFIG_SETTING_LAST - 1);
@@ -64,13 +65,14 @@ void AppMenu::Resume()
   pages_[CONF_PAGE].cursor.set_editing(false);
   debug_display_ = false;
   slot_armed_ = 0;
+  action_aborted_ = false;
 }
 
 void AppMenu::Tick()
 {
   uint32_t t = ui.ticks();
 
-  if (ui.read_immediate(CONTROL_BUTTON_R)) {
+  if (ui.read_immediate(CONTROL_BUTTON_R) && !action_aborted_) {
     if (t - ui.button_press_time(CONTROL_BUTTON_R) >= Ui::kLongPressTicks && !slot_armed_) {
       slot_armed_ = 1;
       ticks_ = t;
@@ -195,6 +197,14 @@ void AppMenu::DrawConfPage() const
 
 AppMenu::Action AppMenu::HandleEvent(const UI::Event &event)
 {
+  // This is a bit of a hack to allow "aborting" the R button action.
+  // Any other event whil it is pressed will cause it to be ignored until it is
+  // released, then repressed. Ideally, this might be a feature of the UI; ;the
+  // IgnoreButton feature isn't quite sufficient in this case.
+  if (event.mask & CONTROL_BUTTON_R && event.control != CONTROL_BUTTON_R) {
+    action_aborted_ = true;
+  }
+
   auto &current_page_cursor = pages_[current_page_].cursor;
 
   if (UI::EVENT_ENCODER == event.type) {
@@ -217,12 +227,15 @@ AppMenu::Action AppMenu::HandleEvent(const UI::Event &event)
  
     if (CONTROL_BUTTON_R == event.control) {
       if (UI::EVENT_BUTTON_LONG_PRESS == event.type) {
-        switch(current_page_) {
-        case LOAD_PAGE: return { current_page_, ACTION_LOAD, current_page_cursor.cursor_pos() };
-        case SAVE_PAGE: return { current_page_, ACTION_SAVE, current_page_cursor.cursor_pos() };
-        case APPS_PAGE: return { current_page_, ACTION_INIT, current_page_cursor.cursor_pos() };
-        default: break;
-        }       
+        if (!action_aborted_) {
+          switch(current_page_) {
+          case LOAD_PAGE: return { current_page_, ACTION_LOAD, current_page_cursor.cursor_pos() };
+          case SAVE_PAGE: return { current_page_, ACTION_SAVE, current_page_cursor.cursor_pos() };
+          case APPS_PAGE: return { current_page_, ACTION_INIT, current_page_cursor.cursor_pos() };
+          default: break;
+          }
+        }
+        action_aborted_ = false;
       } else {
         if (CONF_PAGE == current_page_)
           current_page_cursor.toggle_editing();
