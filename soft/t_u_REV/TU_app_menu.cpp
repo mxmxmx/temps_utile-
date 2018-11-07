@@ -164,10 +164,11 @@ void AppMenu::DrawSlotsPage(PAGE page) const
 
     if (current == last_slot_index)
       graphics.drawBitmap8(item.x + 2, item.y + 1, 4, bitmap_indicator_4x8);
-    graphics.movePrintPos(weegfx::Graphics::kFixedFontW, 0);
 
     if (SLOT_STATE::CORRUPT == slot_info.state)
       graphics.print('!');
+    else
+      graphics.movePrintPos(weegfx::Graphics::kFixedFontW, 0);
 
     if (!debug_display_) {
       if (SLOT_STATE::EMPTY != slot_info.state)

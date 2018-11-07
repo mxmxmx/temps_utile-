@@ -52,7 +52,7 @@ struct SlotInfo {
 // Augment the base slots with some helpful wrapperonis
 class AppStorage {
 public:
-  static constexpr size_t kNumSlots = 3;
+  static constexpr size_t kNumSlots = 4;
   using SlotStorage = util::SlotStorage<EEPROMStorage, EEPROM_APPDATA_START, EEPROM_APPDATA_END, kNumSlots>;
 
   void Load();

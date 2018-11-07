@@ -44,6 +44,11 @@ struct value_attr {
   const char * const *value_names;
   StorageType storage_type;
 
+  // These can be used to introduce some dependent variables that are only
+  // saved if parent_index > 0 and parent_value == get_value(parent_index - 1)
+  int parent_index;
+  int parent_value;
+
   int default_value() const {
     return default_;
   }
@@ -126,7 +131,10 @@ public:
     nibbles_ = 0;
     uint8_t *write_ptr = static_cast<uint8_t *>(storage);
     for (size_t s = 0; s < num_settings; ++s) {
-      switch(value_attr_[s].storage_type) {
+      auto attr = value_attr_[s];
+      if (!check_parent_value(attr))
+        continue;
+      switch(attr.storage_type) {
         case STORAGE_TYPE_U4: write_ptr = write_nibble(write_ptr, s); break;
         case STORAGE_TYPE_I8: write_ptr = write_setting<int8_t>(write_ptr, s); break;
         case STORAGE_TYPE_U8: write_ptr = write_setting<uint8_t>(write_ptr, s); break;
@@ -147,7 +155,10 @@ public:
     nibbles_ = 0;
     const uint8_t *read_ptr = static_cast<const uint8_t *>(storage);
     for (size_t s = 0; s < num_settings; ++s) {
-      switch(value_attr_[s].storage_type) {
+      auto attr = value_attr_[s];
+      if (!check_parent_value(attr))
+        continue;
+      switch(attr.storage_type) {
         case STORAGE_TYPE_U4: read_ptr = read_nibble(read_ptr, s); break;
         case STORAGE_TYPE_I8: read_ptr = read_setting<int8_t>(read_ptr, s); break;
         case STORAGE_TYPE_U8: read_ptr = read_setting<uint8_t>(read_ptr, s); break;
@@ -246,11 +257,20 @@ protected:
     s += nibbles >> 1;
     return s;
   }
+
+  bool check_parent_value(const settings::value_attr &attr) const {
+    if (!attr.parent_index)
+      return true;
+    return attr.parent_value == get_value(attr.parent_index - 1);
+  }
 };
 
 #define SETTINGS_DECLARE(clazz, last) \
 template <> const size_t settings::SettingsBase<clazz, last>::storage_size_ = settings::SettingsBase<clazz, last>::calc_storage_size(); \
 template <> const settings::value_attr settings::SettingsBase<clazz, last>::value_attr_[] =
+
+#define VALID_IF(parent, value) \
+parent + 1, static_cast<int>(value)
 
 }; // namespace settings
 
