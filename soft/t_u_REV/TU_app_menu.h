@@ -52,6 +52,7 @@ public:
     ACTION_LOAD,
     ACTION_SAVE,
     ACTION_INIT,
+    ACTION_SWITCH,
   };
 
   struct Action {

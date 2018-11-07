@@ -237,10 +237,13 @@ AppMenu::Action AppMenu::HandleEvent(const UI::Event &event)
         }
         action_aborted_ = false;
       } else {
-        if (CONF_PAGE == current_page_)
-          current_page_cursor.toggle_editing();
-        else if (LOAD_PAGE == current_page_ || SAVE_PAGE == current_page_)
-          debug_display_ = !debug_display_;
+        switch (current_page_) {
+        case LOAD_PAGE:
+        case SAVE_PAGE: debug_display_ = !debug_display_; break;
+        case APPS_PAGE: return { current_page_, ACTION_SWITCH, current_page_cursor.cursor_pos() }; break;
+        case CONF_PAGE: current_page_cursor.toggle_editing(); break;
+        default: break;
+        }
       }
     }
   }

@@ -227,6 +227,16 @@ bool AppSwitcher::LoadAppFromDefaults(size_t app_index)
   return true;
 }
 
+void AppSwitcher::SwitchToApp(size_t app_index)
+{
+  AppHandle app = app_desc(app_index);
+  if (app != current_app_) {
+    CORE::ISRGuard isr_guard;
+    SetCurrentApp(app_index);
+  }
+}
+
+
 void Ui::RunAppMenu()
 {
 
@@ -247,16 +257,24 @@ void Ui::RunAppMenu()
         ui.DebugStats();
       } else {
         auto action = app_menu_.HandleEvent(event);
-        if (AppMenu::ACTION_EXIT == action.type) {
+        switch (action.type) {
+        case AppMenu::ACTION_EXIT:
           exit_loop = true;
-        } else if (AppMenu::ACTION_SAVE == action.type) {
+          break;
+        case AppMenu::ACTION_SAVE:
           if (app_switcher.SaveCurrentAppToSlot(action.index))
             exit_loop = true;
-        } else if(AppMenu::ACTION_LOAD == action.type) {
+          break;
+        case AppMenu::ACTION_LOAD:
           if (app_switcher.LoadAppFromSlot(action.index, true))
             exit_loop = true;
-        } else if (AppMenu::ACTION_INIT == action.type) {
+          break;
+        case AppMenu::ACTION_INIT:
           app_switcher.LoadAppFromDefaults(action.index);
+          exit_loop = true;
+          break;
+        case AppMenu::ACTION_SWITCH:
+          app_switcher.SwitchToApp(action.index);
           exit_loop = true;
         }
       }

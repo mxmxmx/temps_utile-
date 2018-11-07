@@ -55,11 +55,16 @@ void GlobalConfig::Init()
 
 void GlobalConfig::Apply()
 {
-  SERIAL_PRINTLN("Global divisor, TR1: %i", global_divisors[global_div1()]);
-  SERIAL_PRINTLN("TR1 master clock, TR1: %i", TR1_master());
+  auto div = global_divisors[global_div1()];
+  if (DigitalInputs::global_div_TR1() != div) {
+    SERIAL_PRINTLN("Global divisor, TR1: %i", div);
+    DigitalInputs::set_global_div_TR1(div);
+  }
 
-  TU::DigitalInputs::set_global_div_TR1(global_divisors[global_div1()]);
-  TU::DigitalInputs::set_master_clock(TR1_master());
+  if (DigitalInputs::master_clock() != TR1_master()) {
+    SERIAL_PRINTLN("TR1 master clock, TR1: %i", TR1_master());
+    DigitalInputs::set_master_clock(TR1_master());
+  }
 }
 
 void GlobalConfig::Reset()

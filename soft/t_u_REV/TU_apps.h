@@ -126,6 +126,7 @@ public:
   bool SaveCurrentAppToSlot(size_t slot_index);
   bool LoadAppFromSlot(size_t slot_index, bool save_state);
   bool LoadAppFromDefaults(size_t app_index);
+  void SwitchToApp(size_t app_index);
 
 private:
   AppHandle current_app_;
