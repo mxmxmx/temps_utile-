@@ -2370,26 +2370,35 @@ void CLOCKS_reset() {
 
 size_t CLOCKS_storageSize() {
   return 
+    sizeof(TU::user_patterns) +
     NUM_CHANNELS * Clock_channel::storageSize() + 
     TU::GlobalConfig::storageSize();
 }
 
 size_t CLOCKS_save(void *storage) {
 
+  uint8_t *p = static_cast<uint8_t *>(storage);
   size_t used = 0;
+  memcpy(p, TU::user_patterns, sizeof(TU::user_patterns));
+  used += sizeof(TU::user_patterns);
+
   for (size_t i = 0; i < NUM_CHANNELS; ++i) {
-    used += clock_channel[i].Save(static_cast<char*>(storage) + used);
+    used += clock_channel[i].Save(p + used);
   }
 
-  used += TU::global_config.Save(static_cast<char*>(storage) + used);
+  used += TU::global_config.Save(p + used);
   return used;
 }
 
 size_t CLOCKS_restore(const void *storage) {
 
+  const uint8_t *p = static_cast<const uint8_t *>(storage);
   size_t used = 0;
+  memcpy(TU::user_patterns, p, sizeof(TU::user_patterns));
+  used += sizeof(TU::user_patterns);
+
   for (size_t i = 0; i < NUM_CHANNELS; ++i) {
-    used += clock_channel[i].Restore(static_cast<const char*>(storage) + used);
+    used += clock_channel[i].Restore(p + used);
     clock_channel[i].update_enabled_settings();
     // update display sequence + mask:
     clock_channel[i].set_display_sequence(clock_channel[i].get_sequence());
@@ -2403,7 +2412,7 @@ size_t CLOCKS_restore(const void *storage) {
   // update channel 4:
   clock_channel[CLOCK_CHANNEL_4].cv_pattern_changed(clock_channel[CLOCK_CHANNEL_4].get_cv_mask(), true);
 
-  used += TU::global_config.Restore(static_cast<const char*>(storage) + used);
+  used += TU::global_config.Restore(p + used);
   TU::global_config.Apply();
 
   return used;
