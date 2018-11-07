@@ -120,9 +120,6 @@ public:
     return current_app_;
   }
 
-  void SetCurrentApp(size_t index);
-  void SetCurrentApp(AppHandle app);
-
   bool SaveCurrentAppToSlot(size_t slot_index);
   bool LoadAppFromSlot(size_t slot_index, bool save_state);
   bool LoadAppFromDefaults(size_t app_index);
@@ -132,6 +129,9 @@ private:
   AppHandle current_app_;
 
   int index_of(uint16_t id) const;
+
+  void set_current_app(size_t index);
+  void set_current_app(AppHandle app);
 };
 
 extern AppSwitcher app_switcher;

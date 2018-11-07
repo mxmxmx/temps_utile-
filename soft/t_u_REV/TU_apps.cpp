@@ -168,7 +168,7 @@ void AppSwitcher::Init(bool reset_settings) {
   }
 
   if (use_default_app) {
-    SetCurrentApp(DEFAULT_APP_INDEX);
+    set_current_app(DEFAULT_APP_INDEX);
   }
 
   current_app()->HandleAppEvent(APP_EVENT_RESUME);
@@ -176,12 +176,12 @@ void AppSwitcher::Init(bool reset_settings) {
   delay(100);
 }
 
-void AppSwitcher::SetCurrentApp(size_t index) {
+void AppSwitcher::set_current_app(size_t index) {
   current_app_ = &available_apps[index];
   global_state.current_app_id = current_app_->id;
 }
 
-void AppSwitcher::SetCurrentApp(AppHandle app) {
+void AppSwitcher::set_current_app(AppHandle app) {
   current_app_ = app;
   global_state.current_app_id = current_app_->id;
 }
@@ -207,7 +207,7 @@ bool AppSwitcher::LoadAppFromSlot(size_t slot_index, bool save_state)
   CORE::ISRGuard isr_guard{};
   bool loaded = false;
   if (app_storage.LoadAppFromSlot(app, slot_index)) {
-    SetCurrentApp(app);
+    set_current_app(app);
     if (save_state) {
       global_state.last_slot_index = slot_index;
       SaveGlobalState();
@@ -222,7 +222,7 @@ bool AppSwitcher::LoadAppFromSlot(size_t slot_index, bool save_state)
 bool AppSwitcher::LoadAppFromDefaults(size_t app_index)
 {
   CORE::ISRGuard isr_guard;
-  SetCurrentApp(app_index);
+  set_current_app(app_index);
   current_app()->Reset();
   return true;
 }
@@ -232,7 +232,7 @@ void AppSwitcher::SwitchToApp(size_t app_index)
   AppHandle app = app_desc(app_index);
   if (app != current_app_) {
     CORE::ISRGuard isr_guard;
-    SetCurrentApp(app_index);
+    set_current_app(app_index);
   }
 }
 
@@ -276,6 +276,7 @@ void Ui::RunAppMenu()
         case AppMenu::ACTION_SWITCH:
           app_switcher.SwitchToApp(action.index);
           exit_loop = true;
+        default: break;
         }
       }
     }
@@ -295,7 +296,6 @@ void Ui::RunAppMenu()
 
 bool Ui::ConfirmReset()
 {
-
   SetButtonIgnoreMask();
 
   bool done = false;
