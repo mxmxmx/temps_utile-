@@ -43,9 +43,9 @@ void AppMenu::Init()
   current_page_ = APPS_PAGE;
   pages_[LOAD_PAGE].Init("Load", 0, app_storage.num_slots() - 1);
   pages_[SAVE_PAGE].Init("Save", 0, app_storage.num_slots() - 1);
-  pages_[APPS_PAGE].Init("Apps", 0, apps::num_available_apps() - 1);
+  pages_[APPS_PAGE].Init("Apps", 0, app_switcher.num_available_apps() - 1);
 
-  size_t last_slot_index = apps::last_slot_index();
+  size_t last_slot_index = app_switcher.last_slot_index();
   if (last_slot_index < app_storage.num_slots()) {
     pages_[LOAD_PAGE].cursor.Scroll(last_slot_index);
     pages_[SAVE_PAGE].cursor.Scroll(last_slot_index);
@@ -119,7 +119,7 @@ void AppMenu::DrawAppsPage() const
   for (int current = cursor.first_visible();
        current <= cursor.last_visible();
        ++current, item.y += menu::kMenuLineH) {
-    auto app_desc = apps::app_desc(current);
+    auto app_desc = app_switcher.app_desc(current);
 
     if (current == cursor.cursor_pos()) {
       item.selected = slot_armed_ < 8 || slot_armed_ & 0x1;
@@ -130,7 +130,7 @@ void AppMenu::DrawAppsPage() const
     item.SetPrintPos();
     graphics.movePrintPos(weegfx::Graphics::kFixedFontW, 0);  
     graphics.print(app_desc->name);
-    if (apps::current_app_id() == app_desc->id)
+    if (app_switcher.current_app_id() == app_desc->id)
        graphics.drawBitmap8(item.x + 2, item.y + 1, 4, bitmap_indicator_4x8);
     item.DrawCustom();
   }
@@ -142,7 +142,7 @@ void AppMenu::DrawSlotsPage(PAGE page) const
   item.x = 0;
   item.y = menu::CalcLineY(0);
 
-  int last_slot_index = apps::last_slot_index();
+  int last_slot_index = app_switcher.last_slot_index();
 
   auto &cursor = pages_[page].cursor;
   for (int current = cursor.first_visible();
@@ -150,7 +150,7 @@ void AppMenu::DrawSlotsPage(PAGE page) const
        ++current, item.y += menu::kMenuLineH) {
 
     auto &slot_info = app_storage[current];
-    auto app = apps::find(slot_info.id);
+    auto app = app_switcher.find(slot_info.id);
 
     if (current == cursor.cursor_pos()) {
       if (LOAD_PAGE == page && !slot_info.loadable())

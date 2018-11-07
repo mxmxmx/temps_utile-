@@ -2364,6 +2364,7 @@ void CLOCKS_init() {
 }
 
 void CLOCKS_reset() {
+  TU::global_config.Reset();
   CLOCKS_init();
 }
 

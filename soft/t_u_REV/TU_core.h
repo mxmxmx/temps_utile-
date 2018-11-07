@@ -11,6 +11,21 @@ namespace TU {
   extern volatile uint32_t ticks;
   extern volatile bool app_isr_enabled;
 
+  class ISRGuard {
+  public:
+    ISRGuard() {
+      enabled_ = CORE::app_isr_enabled;
+      CORE::app_isr_enabled = false;
+      delay(1);
+    }
+
+    ~ISRGuard() {
+      CORE::app_isr_enabled = enabled_;
+    }
+
+  private:
+    bool enabled_;
+  };
   }; // namespace CORE
 
 
@@ -29,6 +44,7 @@ namespace TU {
 
     uint32_t last_ticks;
   };
+
 }; // namespace TU
 
 #endif // TU_CORE_H_

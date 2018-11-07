@@ -48,6 +48,8 @@ public:
   }
 
   void Apply();
+
+  void Reset();
 };
 
 extern GlobalConfig global_config;

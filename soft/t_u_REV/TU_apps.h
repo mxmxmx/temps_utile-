@@ -47,8 +47,8 @@ enum AppEvent {
 // function is in a critical path anyway.
 //
 struct App {
-  uint16_t id;
-  uint16_t storage_version;
+  const uint16_t id;
+  const uint16_t storage_version;
 	const char *name;
 
   void (*Init)(); // one-time init
@@ -67,6 +67,8 @@ struct App {
   void (*HandleEncoderEvent)(const UI::Event &);
   void (*isr)();
 };
+
+using AppHandle = const App *;
 
 #define DECLARE_APP_INTERFACE(prefix) \
   extern void prefix ## _init(); \
@@ -95,29 +97,43 @@ struct App {
   prefix ## _isr \
 }
 
-namespace apps {
-
-  extern const App *current_app;
+class AppSwitcher {
+public:
 
   void Init(bool reset_settings);
 
-  inline void ISR() __attribute__((always_inline));
-  inline void ISR() {
-    if (current_app && current_app->isr)
-      current_app->isr();
+  inline void ISR() __attribute__((always_inline)) {
+    if (current_app_ && current_app_->isr)
+      current_app_->isr();
   }
 
-  const App *find(uint16_t id);
-  int index_of(uint16_t id);
+  AppHandle find(uint16_t id) const;
 
-  size_t num_available_apps();
-  const App *app_desc(size_t index);
+  size_t num_available_apps() const;
+  AppHandle app_desc(size_t index) const;
 
-  uint16_t current_app_id();
+  uint16_t current_app_id() const;
 
-  size_t last_slot_index();
+  size_t last_slot_index() const;
 
-}; // namespace apps
+  AppHandle current_app() const {
+    return current_app_;
+  }
+
+  void SetCurrentApp(size_t index);
+  void SetCurrentApp(AppHandle app);
+
+  bool SaveCurrentAppToSlot(size_t slot_index);
+  bool LoadAppFromSlot(size_t slot_index, bool save_state);
+  bool LoadAppFromDefaults(size_t app_index);
+
+private:
+  AppHandle current_app_;
+
+  int index_of(uint16_t id) const;
+};
+
+extern AppSwitcher app_switcher;
 
 }; // namespace TU
 

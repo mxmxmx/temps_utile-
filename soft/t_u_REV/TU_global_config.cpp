@@ -62,4 +62,10 @@ void GlobalConfig::Apply()
   TU::DigitalInputs::set_master_clock(TR1_master());
 }
 
+void GlobalConfig::Reset()
+{
+  InitDefaults();
+  Apply();
+}
+
 }; // namespace TU

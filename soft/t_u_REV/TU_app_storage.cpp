@@ -56,7 +56,7 @@ void AppStorage::CheckSlot(size_t slot_index)
   }
 
   SERIAL_PRINTLN("Slot %u: id=%04x, valid_length=%u", slot_index, slot.header.id, slot.header.valid_length);
-  auto app = apps::find(slot_info.id);
+  auto app = app_switcher.find(slot_info.id);
   if (!app) {
     SERIAL_PRINTLN("Slot %u: id=%04x -- App not found!", slot_index, slot.header.id);
     return;

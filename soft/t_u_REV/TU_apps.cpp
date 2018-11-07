@@ -43,6 +43,7 @@ static constexpr uint16_t DEFAULT_APP_ID = available_apps[DEFAULT_APP_INDEX].id;
 namespace TU {
 
 AppStorage app_storage;
+AppSwitcher app_switcher;
 
 // Global settings are stored separately to actual app setings.
 // The theory is that they might not change as often.
@@ -56,44 +57,27 @@ struct GlobalState {
   uint16_t last_slot_index;
 };
 
-typedef PageStorage<EEPROMStorage, EEPROM_GLOBALSTATE_START, EEPROM_GLOBALSTATE_END, GlobalState> GlobalStateStorage;
+using GlobalStateStorage = PageStorage<EEPROMStorage, EEPROM_GLOBALSTATE_START, EEPROM_GLOBALSTATE_END, GlobalState>;
 
 GlobalState global_state;
 GlobalStateStorage global_state_storage;
 
-static void SaveGlobalState() {
+static void SaveGlobalState()
+{
   SERIAL_PRINTLN("Saving global state...");
   global_state_storage.Save(global_state);
 
   SERIAL_PRINTLN("Saved global state in page_index %d", global_state_storage.page_index());
 }
 
-static bool SaveCurrentAppToSlot(size_t slot_index);
-static bool LoadAppFromSlot(size_t slot_index);
-static bool LoadAppFromDefaults(size_t app_index);
-
-namespace apps {
-
-const App *current_app = &available_apps[DEFAULT_APP_INDEX];
-
-void SetCurrentApp(int index) {
-  current_app = &available_apps[index];
-  global_state.current_app_id = current_app->id;
-}
-
-void SetCurrentApp(const App *app) {
-  current_app = app;
-  global_state.current_app_id = current_app->id;
-}
-
-const App *find(uint16_t id) {
+AppHandle AppSwitcher::find(uint16_t id) const {
   for (const auto &app : available_apps)
     if (app.id == id) return &app;
   return nullptr;
 }
 
-int index_of(uint16_t id) {
-  int i = 0;
+int AppSwitcher::index_of(uint16_t id) const {
+  int i = -1;
   for (const auto &app : available_apps) {
     if (app.id == id) return i;
     ++i;
@@ -101,23 +85,25 @@ int index_of(uint16_t id) {
   return i;
 }
 
-size_t num_available_apps() {
+size_t AppSwitcher::num_available_apps() const {
   return NUM_AVAILABLE_APPS;
 }
 
-const App *app_desc(size_t index) {
+AppHandle AppSwitcher::app_desc(size_t index) const {
   return &available_apps[index];
 }
 
-uint16_t current_app_id() {
-  return current_app->id;
+uint16_t AppSwitcher::current_app_id() const {
+  return current_app_->id;
 }
 
-size_t last_slot_index() {
+size_t AppSwitcher::last_slot_index() const {
   return global_state.last_slot_index;
 }
 
-void Init(bool reset_settings) {
+void AppSwitcher::Init(bool reset_settings) {
+
+  current_app_ = &available_apps[DEFAULT_APP_INDEX];
 
   global_config.Init();
   for (auto &app : available_apps)
@@ -153,10 +139,9 @@ void Init(bool reset_settings) {
     if (!global_state_storage.Load(global_state)) {
       SERIAL_PRINTLN("Settings not loaded or invalid, using defaults...");
     } else {
-      SERIAL_PRINTLN("Loaded settings from page_index %d, current_app_id is %04x",
-                    global_state_storage.page_index(),global_state.current_app_id);
+      SERIAL_PRINTLN("Loaded settings from page_index %d, current_app_id=%04x, last_slot_index=%u",
+                    global_state_storage.page_index(), global_state.current_app_id, global_state.last_slot_index);
     }
-    
     SERIAL_PRINTLN("Encoder acceleration: %s", global_state.encoders_enable_acceleration ? "enabled" : "disabled");
     ui.encoders_enable_acceleration(global_state.encoders_enable_acceleration);
 
@@ -164,29 +149,90 @@ void Init(bool reset_settings) {
   }
   global_config.Apply();
 
-
-  // Get last used slot
-  // If slot not valid, or app load fails, fall back on defaults
-  int current_app_index = apps::index_of(global_state.current_app_id);
-  if (current_app_index < 0 || current_app_index >= NUM_AVAILABLE_APPS) {
-    SERIAL_PRINTLN("App id %02x not found, using default...", global_state.current_app_id);
-    global_state.current_app_id = DEFAULT_APP_INDEX;
-    current_app_index = DEFAULT_APP_INDEX;
+  bool use_default_app = true;
+  auto last_slot_index = global_state.last_slot_index;
+  if (last_slot_index < app_storage.num_slots()) {
+    if (!LoadAppFromSlot(last_slot_index, false)) {
+      SERIAL_PRINTLN("Failed to load app from slot %u, trying app id=%04x", last_slot_index, global_state.current_app_id);
+      int current_app_index = index_of(global_state.current_app_id);
+      if (current_app_index < 0 || current_app_index >= NUM_AVAILABLE_APPS) {
+        SERIAL_PRINTLN("App id %02x not found, using default...", global_state.current_app_id);
+      } else {
+        use_default_app = false;
+      }
+    } else {
+      use_default_app = false;
+    }
+  } else {
+    SERIAL_PRINTLN("global_state.last_slot_index=%u, num_slots=%u -- using default app", last_slot_index, app_storage.num_slots());
   }
 
-  SetCurrentApp(current_app_index);
-  current_app->HandleAppEvent(APP_EVENT_RESUME);
+  if (use_default_app) {
+    SetCurrentApp(DEFAULT_APP_INDEX);
+  }
+
+  current_app()->HandleAppEvent(APP_EVENT_RESUME);
 
   delay(100);
 }
 
-}; // namespace apps
+void AppSwitcher::SetCurrentApp(size_t index) {
+  current_app_ = &available_apps[index];
+  global_state.current_app_id = current_app_->id;
+}
 
-void Ui::RunAppMenu() {
+void AppSwitcher::SetCurrentApp(AppHandle app) {
+  current_app_ = app;
+  global_state.current_app_id = current_app_->id;
+}
+
+bool AppSwitcher::SaveCurrentAppToSlot(size_t slot_index)
+{
+  app_storage.SaveAppToSlot(current_app(), slot_index);
+  global_state.last_slot_index = slot_index;
+  SaveGlobalState();
+  return true;
+}
+
+bool AppSwitcher::LoadAppFromSlot(size_t slot_index, bool save_state)
+{
+  auto &slot_info = app_storage[slot_index];
+  if (!slot_info.loadable())
+    return false;
+
+  auto app = find(slot_info.id);
+  if (!app)
+    return false;
+
+  CORE::ISRGuard isr_guard{};
+  bool loaded = false;
+  if (app_storage.LoadAppFromSlot(app, slot_index)) {
+    SetCurrentApp(app);
+    if (save_state) {
+      global_state.last_slot_index = slot_index;
+      SaveGlobalState();
+    }
+    loaded = true;
+  } else {
+    // Defaults?
+  }
+  return loaded;
+}
+
+bool AppSwitcher::LoadAppFromDefaults(size_t app_index)
+{
+  CORE::ISRGuard isr_guard;
+  SetCurrentApp(app_index);
+  current_app()->Reset();
+  return true;
+}
+
+void Ui::RunAppMenu()
+{
 
   SetButtonIgnoreMask();
 
-  apps::current_app->HandleAppEvent(APP_EVENT_SUSPEND);
+  app_switcher.current_app()->HandleAppEvent(APP_EVENT_SUSPEND);
 
   app_menu_.Resume();
   bool exit_loop = false;
@@ -204,13 +250,13 @@ void Ui::RunAppMenu() {
         if (AppMenu::ACTION_EXIT == action.type) {
           exit_loop = true;
         } else if (AppMenu::ACTION_SAVE == action.type) {
-          if (SaveCurrentAppToSlot(action.index))
+          if (app_switcher.SaveCurrentAppToSlot(action.index))
             exit_loop = true;
         } else if(AppMenu::ACTION_LOAD == action.type) {
-          if (LoadAppFromSlot(action.index))
+          if (app_switcher.LoadAppFromSlot(action.index, true))
             exit_loop = true;
         } else if (AppMenu::ACTION_INIT == action.type) {
-          LoadAppFromDefaults(action.index);
+          app_switcher.LoadAppFromDefaults(action.index);
           exit_loop = true;
         }
       }
@@ -226,10 +272,11 @@ void Ui::RunAppMenu() {
   event_queue_.Flush();
   event_queue_.Poke();
 
-  apps::current_app->HandleAppEvent(APP_EVENT_RESUME);
+  app_switcher.current_app()->HandleAppEvent(APP_EVENT_RESUME);
 }
 
-bool Ui::ConfirmReset() {
+bool Ui::ConfirmReset()
+{
 
   SetButtonIgnoreMask();
 
@@ -267,56 +314,5 @@ bool Ui::ConfirmReset() {
 
   return confirm;
 }
-
-static bool SaveCurrentAppToSlot(size_t slot_index)
-{
-  app_storage.SaveAppToSlot(apps::current_app, slot_index);
-  global_state.last_slot_index = slot_index;
-  SaveGlobalState();
-  return true;
-}
-
-static bool LoadAppFromSlot(size_t slot_index)
-{
-  auto &slot_info = app_storage[slot_index];
-  if (!slot_info.loadable())
-    return false;
-
-  auto app = apps::find(slot_info.id);
-  if (!app)
-    return false;
-
-  CORE::app_isr_enabled = false;
-  delay(1);
-
-  bool loaded = false;
-  if (app_storage.LoadAppFromSlot(app, slot_index)) {
-    apps::SetCurrentApp(app);
-    global_state.last_slot_index = slot_index;
-    SaveGlobalState();
-    loaded = true;
-  } else {
-    // Defaults?
-  }
-
-  CORE::app_isr_enabled = true;
-  return loaded;
-}
-
-static bool LoadAppFromDefaults(size_t app_index)
-{
-  CORE::app_isr_enabled = false;
-  delay(1);
-
-  global_config.InitDefaults();
-  global_config.Apply();
-
-  apps::SetCurrentApp(app_index);
-  apps::current_app->Reset();
-
-  CORE::app_isr_enabled = true;
-  return true;
-}
-
 
 }; // namespace TU
