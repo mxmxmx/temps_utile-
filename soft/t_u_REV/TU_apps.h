@@ -26,6 +26,7 @@
 #include "TU_core.h"
 #include "UI/ui_events.h"
 #include "TU_app_storage.h"
+#include "src/util_stream_buffer.h"
 
 namespace TU {
 
@@ -53,8 +54,8 @@ struct App {
 
   void (*Init)(); // one-time init
   size_t (*storageSize)(); // binary size of storage requirements
-  size_t (*Save)(void *);
-  size_t (*Restore)(const void *);
+  size_t (*Save)(util::StreamBufferWriter &);
+  size_t (*Restore)(util::StreamBufferReader &);
   void (*Reset)();
 
   void (*HandleAppEvent)(AppEvent); // Generic event handler
@@ -73,8 +74,8 @@ using AppHandle = const App *;
 #define DECLARE_APP_INTERFACE(prefix) \
   extern void prefix ## _init(); \
   extern size_t prefix ## _storageSize(); \
-  extern size_t prefix ## _save(void *); \
-  extern size_t prefix ## _restore(const void *); \
+  extern size_t prefix ## _save(util::StreamBufferWriter &); \
+  extern size_t prefix ## _restore(util::StreamBufferReader &); \
   extern void prefix ## _reset(); \
   extern void prefix ## _handleAppEvent(TU::AppEvent); \
   extern void prefix ## _loop(); \

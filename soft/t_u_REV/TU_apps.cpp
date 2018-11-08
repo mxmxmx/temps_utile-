@@ -77,7 +77,7 @@ AppHandle AppSwitcher::find(uint16_t id) const {
 }
 
 int AppSwitcher::index_of(uint16_t id) const {
-  int i = -1;
+  int i = 0;
   for (const auto &app : available_apps) {
     if (app.id == id) return i;
     ++i;

@@ -83,9 +83,18 @@ bool AppStorage::SaveAppToSlot(const App *app, size_t slot_index)
   SERIAL_PRINTLN("Saving %04x '%s' to slot %u", app->id, app->name, slot_index);
   auto &slot = slot_storage_[slot_index];
 
+  slot.Reset();
+
+  util::StreamBufferWriter stream_buffer{ slot.data, slot.data_size() };
+  size_t valid_length = app->Save(stream_buffer);
+  if (!valid_length || stream_buffer.overflow()) {
+    SERIAL_PRINTLN("Saving %04x '%s' to slot %u failed, valid_length=%u", app->id, app->name, slot_index, valid_length);
+    return false;
+  }
+
   slot.header.id = app->id;
   slot.header.version = app->storage_version;
-  slot.header.valid_length = app->Save(slot.data);
+  slot.header.valid_length = valid_length;
   slot.header.crc = slot.CalcCRC();
   slot_storage_.Write(slot_index);
 
@@ -103,7 +112,8 @@ bool AppStorage::LoadAppFromSlot(const App *app, size_t slot_index) const
     return false;
 
   app->Reset();
-  size_t len = app->Restore(slot.data);
+  util::StreamBufferReader stream_buffer{ slot.data, slot.header.valid_length };
+  size_t len = app->Restore(stream_buffer);
   if (len != slot.header.valid_length) {
     SERIAL_PRINTLN("Load %04x from slot %u, restored %u but expected %u bytes", app->id, slot_index, len, slot.header.valid_length);
     return false;

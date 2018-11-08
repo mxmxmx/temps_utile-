@@ -35,6 +35,7 @@
 #include "util/util_trigger_delay.h"
 #include "TU_input_map.h"
 #include "TU_input_maps.h"
+#include <algorithm>
 
 namespace menu = TU::menu;
 
@@ -2375,35 +2376,30 @@ size_t CLOCKS_storageSize() {
     TU::GlobalConfig::storageSize();
 }
 
-size_t CLOCKS_save(void *storage) {
+size_t CLOCKS_save(util::StreamBufferWriter &stream_buffer) {
 
-  uint8_t *p = static_cast<uint8_t *>(storage);
-  size_t used = 0;
-  memcpy(p, TU::user_patterns, sizeof(TU::user_patterns));
-  used += sizeof(TU::user_patterns);
+  stream_buffer.Write(TU::user_patterns);
+  std::for_each(
+      std::begin(clock_channel),
+      std::end(clock_channel),
+      [&](const Clock_channel &c) {
+        c.Save(stream_buffer);
+      });
+  TU::global_config.Save(stream_buffer);
 
-  for (size_t i = 0; i < NUM_CHANNELS; ++i) {
-    used += clock_channel[i].Save(p + used);
-  }
-
-  used += TU::global_config.Save(p + used);
-  return used;
+  return stream_buffer.overflow() ? 0 : stream_buffer.written();
 }
 
-size_t CLOCKS_restore(const void *storage) {
+size_t CLOCKS_restore(util::StreamBufferReader &stream_buffer) {
 
-  const uint8_t *p = static_cast<const uint8_t *>(storage);
-  size_t used = 0;
-  memcpy(TU::user_patterns, p, sizeof(TU::user_patterns));
-  used += sizeof(TU::user_patterns);
-
-  for (size_t i = 0; i < NUM_CHANNELS; ++i) {
-    used += clock_channel[i].Restore(p + used);
-    clock_channel[i].update_enabled_settings();
+  stream_buffer.Read(TU::user_patterns);
+  for (auto &channel : clock_channel) {
+    channel.Restore(stream_buffer);
+    channel.update_enabled_settings();
     // update display sequence + mask:
-    clock_channel[i].set_display_sequence(clock_channel[i].get_sequence());
-    clock_channel[i].init_pattern(clock_channel[i].get_mask(clock_channel[i].get_sequence()));
-    clock_channel[i].reset_channel_frequency();
+    channel.set_display_sequence(channel.get_sequence());
+    channel.init_pattern(channel.get_mask(channel.get_sequence()));
+    channel.reset_channel_frequency();
   }
   clocks_state.cursor.AdjustEnd(clock_channel[0].num_enabled_settings() - 1);
 
@@ -2412,10 +2408,9 @@ size_t CLOCKS_restore(const void *storage) {
   // update channel 4:
   clock_channel[CLOCK_CHANNEL_4].cv_pattern_changed(clock_channel[CLOCK_CHANNEL_4].get_cv_mask(), true);
 
-  used += TU::global_config.Restore(p + used);
-  TU::global_config.Apply();
+  TU::global_config.Restore(stream_buffer);
 
-  return used;
+  return stream_buffer.underflow() ? 0 : stream_buffer.read();
 }
 
 void CLOCKS_handleAppEvent(TU::AppEvent event) {
