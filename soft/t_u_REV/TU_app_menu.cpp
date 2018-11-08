@@ -45,13 +45,8 @@ void AppMenu::Init()
   pages_[SAVE_PAGE].Init("Save", 0, app_storage.num_slots() - 1);
   pages_[APPS_PAGE].Init("Apps", 0, app_switcher.num_available_apps() - 1);
 
-  size_t last_slot_index = app_switcher.last_slot_index();
-  if (last_slot_index < app_storage.num_slots()) {
-    pages_[LOAD_PAGE].cursor.Scroll(last_slot_index);
-    pages_[SAVE_PAGE].cursor.Scroll(last_slot_index);
-  }
-
   debug_display_ = false;
+  first_ = true;
   slot_armed_ = 0;
   action_aborted_ = false;
 
@@ -62,6 +57,15 @@ void AppMenu::Init()
 
 void AppMenu::Resume()
 {
+  if (first_) {
+    size_t last_slot_index = app_switcher.last_slot_index();
+    if (last_slot_index < app_storage.num_slots()) {
+      pages_[LOAD_PAGE].cursor.Scroll(last_slot_index);
+      pages_[SAVE_PAGE].cursor.Scroll(last_slot_index);
+    }
+    first_ = false;
+  }
+
   pages_[CONF_PAGE].cursor.set_editing(false);
   debug_display_ = false;
   slot_armed_ = 0;

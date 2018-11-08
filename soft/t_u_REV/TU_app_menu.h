@@ -88,6 +88,7 @@ private:
   GLOBAL_CONFIG_SETTING enabled_settings_[GLOBAL_CONFIG_SETTING_LAST];
 
   bool debug_display_;
+  bool first_;
 
   uint32_t slot_armed_;
   uint32_t ticks_;
