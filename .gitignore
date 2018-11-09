@@ -2,3 +2,4 @@
 # System temporary files
 .DS_Store
 *~
+.pio*
