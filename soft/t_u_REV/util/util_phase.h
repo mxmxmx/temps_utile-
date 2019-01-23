@@ -56,21 +56,22 @@ namespace util {
       phase_offset_ = 0x0;
     }
 
-    bool set_phase(int32_t ticks, int32_t pulsewidth, uint8_t amount, uint8_t trigger) {
+    bool set_phase(int64_t ticks, uint8_t amount, uint8_t trigger) {
 
       bool swingy_swing = false;
 
       if (!amount || now_) {
-        swingy_swing = false;
         now_ = false;
       }
       else if (trigger) {
       // calculate next phase offset
 
-        int32_t swing_ticks, swing_amount;
+        int64_t swing_ticks, swing_amount;
 
         swing_ticks = ticks - 0xFF; // margin
-        swing_amount = signed_multiply_32x16b(multipliers[amount], swing_ticks);
+        //swing_amount = signed_multiply_32x16b(multipliers[amount], swing_ticks);
+        //swing_amount = signed_saturate_rshift(swing_amount, 16, 0);
+        swing_amount = multiply_u32xu32_rshift32(swing_ticks, (multipliers[amount] << 16));
         swing_amount = signed_saturate_rshift(swing_amount, 16, 0);
 
         swing_ticks_ = phase_offset_ = swing_amount;
@@ -79,8 +80,6 @@ namespace util {
           swing_ = true;
           swingy_swing = true;
         }
-        else 
-          swingy_swing = false;
       }
       return swingy_swing;
     }
@@ -119,8 +118,8 @@ namespace util {
     }
 
   private:
-    int32_t swing_ticks_;
-    int32_t phase_offset_;
+    int64_t swing_ticks_;
+    int64_t phase_offset_;
     bool swing_;
     bool now_;
   };
