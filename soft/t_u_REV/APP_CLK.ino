@@ -1204,7 +1204,7 @@ public:
         case CHANNEL_TRIGGER_INTERNAL:
         {
           _trigger_state = get_burst_source() == TR1 ? digitalReadFast(TR1) : digitalReadFast(TR2);
-          ping_f = ext_frequency[CHANNEL_TRIGGER_INTERNAL];
+          ping_f = ext_frequency[get_burst_source()];
         }
         break;
         default:
