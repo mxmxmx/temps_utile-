@@ -80,7 +80,7 @@ void FASTRUN CORE_timer_ISR() {
   // 100us: 10kHz / 4 / 4 ~ .6kHz
   // 60us: 16.666K / 4 / 4 ~ 1kHz
   // kAdcSmoothing == 4 has some (maybe 1-2LSB) jitter but seems "Good Enough".
-  TU::ADC::Scan();
+  TU::ADC::Scan_DMA();
   // Pin changes are tracked in separate ISRs, so depending on prio it might
   // need extra precautions.
   TU::DigitalInputs::Scan();
@@ -114,6 +114,7 @@ void setup() {
   delay(300);
   TU::DigitalInputs::Init();
   TU::ADC::Init(&TU::calibration_data.adc); // Yes, it's using the calibration_data before it's loaded...
+  TU::ADC::Init_DMA();
   TU::OUTPUTS::Init(&TU::calibration_data.dac);
    
   display::Init();
