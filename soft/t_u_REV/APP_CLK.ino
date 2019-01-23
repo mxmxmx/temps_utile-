@@ -951,7 +951,7 @@ public:
 
     if (burst_damp_cv_source()) {
       _damp += (TU::ADC::value(static_cast<ADC_CHANNEL>(burst_damp_cv_source() - 1)) + 32) >> 6;
-      CONSTRAIN(_damp, 0, 40);
+      CONSTRAIN(_damp, 0, 60);
     }
 
     bursts_.set_frequency(frequency_in_ticks_);
@@ -2393,7 +2393,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, 5, "playmode", TU::Strings::cv_seq_playmodes, settings::STORAGE_TYPE_U4 }, // CV playmode
   { 1, 1, 31, "density", NULL, settings::STORAGE_TYPE_U8 },
   { 20, 0, 40, "f (initial)", TU::Strings::initial_f, settings::STORAGE_TYPE_U8 },
-  { 20, 0, 40, "damping", TU::Strings::damping, settings::STORAGE_TYPE_U8 },
+  { 30, 0, 60, "damping", TU::Strings::damping, settings::STORAGE_TYPE_U8 },
   { CHANNEL_TRIGGER_TR1,  0, CHANNEL_TRIGGER_TR2, "burst src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
   // cv sources
   { 0, 0, 4, "mult/div    ->", cv_sources, settings::STORAGE_TYPE_U4 },

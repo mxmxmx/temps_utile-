@@ -28,80 +28,90 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "../extern/dspinst.h"
-#include <Arduino.h>
 
 namespace util {
 
-  const uint32_t CENTER = 20; // see parameters in APP_CLK
+  const uint32_t DAMP_CENTER = 30;    // see parameters in APP_CLK
+  const uint32_t INITIAL_CENTER = 20; // see parameters in APP_CLK
 
-  const uint64_t damp[CENTER + 0x1] 
+  const uint64_t damp[DAMP_CENTER + 0x1] 
   {
-    0x6666668, // 0.025 
-    0xCCCCCD0, // 0.050 
-    0x13333340, // 0.075 
-    0x199999A0, // 0.100 
+    0x6666666, // 0.025 
+    0xCCCCCCC, // 0.050 
+    0x13333333, // 0.075 
+    0x19999999, // 0.100 
     0x20000000, // 0.125 
-    0x26666680, // 0.150 
-    0x2CCCCD00, // 0.175 
-    0x33333380, // 0.200 
-    0x39999A00, // 0.225 
-    0x40000080, // 0.250 
-    0x46666700, // 0.275 
-    0x4CCCCD80, // 0.300 
-    0x53333400, // 0.325 
-    0x59999A80, // 0.350 
-    0x60000100, // 0.375 
-    0x66666780, // 0.400 
-    0x6CCCCE00, // 0.425 
-    0x73333480, // 0.450 
-    0x79999B00, // 0.475 
-    0x80000100, // 0.500 
-    0x86666700, // 0.525 
+    0x26666666, // 0.150 
+    0x2CCCCCCC, // 0.175 
+    0x33333333, // 0.200 
+    0x39999999, // 0.225 
+    0x40000000, // 0.250 
+    0x46666666, // 0.275 
+    0x4CCCCCCC, // 0.300 
+    0x53333333, // 0.325 
+    0x59999999, // 0.350 
+    0x60000000, // 0.375 
+    0x66666666, // 0.400 
+    0x6CCCCCCC, // 0.425 
+    0x73333333, // 0.450 
+    0x79999999, // 0.475 
+    0x80000000, // 0.500 
+    0x86666666, // 0.525
+    0x8CCCCCCC, // 0.550
+    0x93333333, // 0.575
+    0x99999999, // 0.600
+    0xA0000000, // 0.625
+    0xA6666666, // 0.650
+    0xACCCCCCC, // 0.675
+    0xB3333333, // 0.700
+    0xB9999999, // 0.725
+    0xC0000000, // 0.750
+    0xC6666666  // 0.775
   }; // = 2^32 * multiplier
   
-  static const uint64_t init[CENTER * 2 + 0x1] =
+  static const uint64_t init[INITIAL_CENTER * 2 + 0x1] =
   {
-    0x6666668, // 0.025 
-    0xCCCCCD0, // 0.050 
-    0x199999A0, // 0.100 
-    0x26666680, // 0.150 
-    0x33333340, // 0.200 
+    0x6666666, // 0.025 
+    0xCCCCCCC, // 0.050 
+    0x19999999, // 0.100 
+    0x26666666, // 0.150 
+    0x33333333, // 0.200 
     0x40000000, // 0.250 
-    0x4CCCCD00, // 0.300 
-    0x59999A00, // 0.350 
-    0x66666700, // 0.400 
-    0x73333400, // 0.450 
-    0x80000100, // 0.500 
-    0x8CCCCE00, // 0.550 
-    0x99999B00, // 0.600 
-    0xA6666800, // 0.650 
-    0xB3333500, // 0.700 
-    0xC0000200, // 0.750 
-    0xCCCCCF00, // 0.800 
-    0xD9999C00, // 0.850 
-    0xE6666900, // 0.900 
-    0xF3333600, // 0.950 
+    0x4CCCCCCC, // 0.300 
+    0x59999999, // 0.350 
+    0x66666666, // 0.400 
+    0x73333333, // 0.450 
+    0x80000000, // 0.500 
+    0x8CCCCCCC, // 0.550 
+    0x99999999, // 0.600 
+    0xA6666666, // 0.650 
+    0xB3333333, // 0.700 
+    0xC0000000, // 0.750 
+    0xCCCCCCCC, // 0.800 
+    0xD9999999, // 0.850 
+    0xE6666666, // 0.900 
+    0xF3333333, // 0.950 
     0x100000000, // 1.000 
-    0x10CCCCE00, // 1.050 
-    0x119999A00, // 1.100 
-    0x126666600, // 1.150 
-    0x133333200, // 1.200 
-    0x13FFFFE00, // 1.250 
-    0x14CCCCA00, // 1.300 
-    0x159999600, // 1.350 
-    0x166666200, // 1.400 
-    0x173332E00, // 1.450 
-    0x17FFFFA00, // 1.500 
-    0x18CCCC600, // 1.550 
-    0x199999200, // 1.600 
-    0x1A6665E00, // 1.650 
-    0x1B3332A00, // 1.700 
-    0x1BFFFF600, // 1.750 
-    0x1CCCCC200, // 1.800 
-    0x1D9998E00, // 1.850 
-    0x1E6665A00, // 1.900 
-    0x1F3332600, // 1.950 
-    0x1FFFFF200, // 2.000 
+    0x10CCCCCCC, // 1.050 
+    0x119999999, // 1.100 
+    0x126666666, // 1.150 
+    0x133333333, // 1.200 
+    0x13FFFFFFF, // 1.250 
+    0x14CCCCCCC, // 1.300 
+    0x159999999, // 1.350 
+    0x166666666, // 1.400 
+    0x173333333, // 1.450 
+    0x17FFFFFFF, // 1.500 
+    0x18CCCCCCC, // 1.550 
+    0x199999999, // 1.600 
+    0x1A6666666, // 1.650 
+    0x1B3333333, // 1.700 
+    0x1BFFFFFFF, // 1.750 
+    0x1CCCCCCCC, // 1.800 
+    0x1D9999999, // 1.850 
+    0x1E6666666, // 1.900 
+    0x1F3333333, // 1.950 
+    0x1FFFFFFFF, // 2.000 
   }; // = 2^32 * multiplier
 
   class Bursts {
@@ -185,10 +195,10 @@ namespace util {
 
       if (_new) {
         // initial frequency:
-        if (initial_ == CENTER)
+        if (initial_ == INITIAL_CENTER)
           ticks_to_next_burst_ = frequency_;
         else {
-          if (damping_ < CENTER) {
+          if (initial_ < INITIAL_CENTER) {
             ticks_to_next_burst_ = multiply_u32xu32_rshift32(frequency_, init[initial_]);
           }
           else {
@@ -201,19 +211,24 @@ namespace util {
       // subsequent pulses, apply 'damping' (of sorts...)
       else if (burst_count_ < burst_size_) {
 
-        if (damping_ == CENTER)
+        if (damping_ == DAMP_CENTER) {
             return;
-        else if (ticks_to_next_burst_ > 0 && (ticks_to_next_burst_ > 0)) {
-
-          if (damping_ > CENTER) {
+        }
+        else if (ticks_to_next_burst_ > 0x40) {
+          // limit ~ 4ms @ 16k
+          if (damping_ > DAMP_CENTER) {
             // decay .. 
-            ticks_to_next_burst_ -= multiply_u32xu32_rshift32(ticks_to_next_burst_, damp[damping_ - CENTER]);
+            ticks_to_next_burst_ -= multiply_u32xu32_rshift32(ticks_to_next_burst_, damp[damping_ - DAMP_CENTER]);
           }
-          else if (damping_ < CENTER) {
+          else if (damping_ < DAMP_CENTER) {
             // grow ..
-            ticks_to_next_burst_ += multiply_u32xu32_rshift32(ticks_to_next_burst_, damp[CENTER - damping_]);
+            ticks_to_next_burst_ += multiply_u32xu32_rshift32(ticks_to_next_burst_, damp[DAMP_CENTER - damping_]);
           }
-        }   
+        }
+        else { 
+          // stop
+          burst_count_ = burst_size_; 
+        }
       }
     };
   };
