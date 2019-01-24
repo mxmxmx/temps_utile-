@@ -2219,7 +2219,7 @@ public:
         if (get_clock_source() == CHANNEL_TRIGGER_INTERNAL)
           *settings++ = CHANNEL_SETTING_BURST_TRIG_SOURCE_INT;
         else
-          *settings++ = CHANNEL_SETTING_DUMMY_EMPTY;
+          *settings++ = CHANNEL_SETTING_TRIGGER_DELAY;
       }
     }
     else if (menu_page_ == TEMPO) {
