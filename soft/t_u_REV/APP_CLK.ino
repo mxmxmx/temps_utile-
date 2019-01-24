@@ -1211,7 +1211,6 @@ public:
       
       // if triggered, new burst ... 
       if (_trigger_state < last_trigger_state_) {
-         update_burst_parameters(channel_frequency_in_ticks_);
         _new_burst = bursts_.new_burst();
       }
       // store trigger state:
@@ -1256,7 +1255,11 @@ public:
         TU::OUTPUTS::setState(channel_, _output);
         wait_burst_ = false;
         bursts_.increment();
-      }  
+      }
+      // stop?
+      if (!bursts_.count() && (subticks_ > (bursts_.get_frequency() >> 1))) {
+        gpio_state_ = false; display_state_ = _OFF;
+      }
     }
     
     // all other modes:

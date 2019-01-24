@@ -169,8 +169,16 @@ namespace util {
       frequency_ = frequency;
     }
 
+    uint32_t get_frequency() {
+      return frequency_;
+    }
+
     void set_damping(uint32_t damping) {
       damping_ = damping;
+    }
+
+    bool count() {
+      return burst_count_ < burst_size_ ? true : false;
     }
 
     void increment() {
