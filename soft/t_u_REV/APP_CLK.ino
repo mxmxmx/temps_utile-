@@ -1039,6 +1039,8 @@ public:
     bool _none, _triggered, _tock, _sync;
     uint16_t _output = gpio_state_;
     uint32_t prev_channel_frequency_in_ticks_ = 0x0;
+    
+    CLOCKMODE _mode = get_mode();
 
     // core channel parameters --
     // 1. clock source:
@@ -1053,7 +1055,7 @@ public:
     // 2. multiplication:
     _multiplier = get_multiplier();
 
-    if ((_mode != BURST) && (_multiplier > MULT_BY_ONE) && (subticks_ > (channel_frequency_in_ticks_ << 2)))
+    if ((_mode != CLOCKMODE::BURST) && (_multiplier > MULT_BY_ONE) && (subticks_ > (channel_frequency_in_ticks_ << 2)))
       reset_channel_frequency();
 
     if (get_mult_cv_source()) {
@@ -1061,8 +1063,6 @@ public:
       CONSTRAIN(_multiplier, 0, MULT_MAX);
     }
  
-    // 3. channel mode?
-    CLOCKMODE _mode = get_mode();
     // clocked ?
     _none = CHANNEL_TRIGGER_NONE == _clock_source;
     _triggered = !_none && (triggers & (0x1 << _clock_source));
@@ -1070,7 +1070,7 @@ public:
     _sync = false;
 
     // 4. swing?
-    if (_mode != BURST && !pending_sync_) {
+    if (_mode != CLOCKMODE::BURST && !pending_sync_) {
 
       _phase = get_phase();
 
@@ -1165,18 +1165,9 @@ public:
     
     // special treatment for bursts, if interrupted by new trigger (see below)
     if (pending_new_burst_ && (burst_complete_++ > pulse_width_in_ticks_)) {
-      _output = gpio_state_ = false; TU::OUTPUTS::set(clock_channel, _output);
+      _output = gpio_state_ = false; TU::OUTPUTS::set(channel_, _output);
       burst_complete_ = 0x0;
       pending_new_burst_ = false;
-    // in sequencer mode, do we advance sequences by TR2?
-    if (_mode == CLOCKMODE::SEQ && get_playmode() > 3) {
-
-      uint8_t _advance_trig = digitalReadFast(TR2);
-      // ?
-      if (_advance_trig < sequence_advance_state_)
-        sequence_advance_ = true;
-
-      sequence_advance_state_ = _advance_trig;
     }
     
     // phase adjust? 
@@ -1185,7 +1176,7 @@ public:
     subticks_++;
 
     // burst mode ?
-    if (_mode == BURST) {
+    if (_mode == CLOCKMODE::BURST) {
       
       bool _new_burst = false;
       uint8_t _trigger_state = 0x1;
@@ -1262,7 +1253,7 @@ public:
         display_state_ = _ACTIVE;
         // reset
         subticks_ = 0x0;
-        TU::OUTPUTS::setState(clock_channel, _output);
+        TU::OUTPUTS::setState(channel_, _output);
         wait_burst_ = false;
         bursts_.increment();
       }  
@@ -1271,9 +1262,8 @@ public:
     // all other modes:
     else  {
 
-      
       // in sequencer mode, do we advance sequences by TR2?
-      if (_mode == SEQ && get_playmode() > 3) {
+      if (_mode == CLOCKMODE::SEQ && get_playmode() > 3) {
   
         uint8_t _advance_trig = digitalReadFast(TR2);
         // ?
@@ -1281,7 +1271,6 @@ public:
           sequence_advance_ = true;
   
         sequence_advance_state_ = _advance_trig;
-  
       }
     
       /*
@@ -1303,7 +1292,7 @@ public:
       }
       else if (_multiplier <= MULT_BY_ONE && _triggered) {
         // division, mute output:
-        TU::OUTPUTS::setState(clock_channel, OFF);
+        TU::OUTPUTS::setState(channel_, OFF);
         display_state_ = _OFF; // for display
       }
       else if (_multiplier > MULT_BY_ONE && _triggered)  {
@@ -1362,7 +1351,7 @@ public:
           _output = gpio_state_ = process_clock_channel(_mode); // = either ON, OFF, or anything (DAC)
           display_state_ = _ACTIVE;
           if (_triggered) {
-            TU::OUTPUTS::setState(clock_channel, _output);
+            TU::OUTPUTS::setState(channel_, _output);
           }
         }
         skip_reset_ = false;
@@ -1425,7 +1414,7 @@ public:
         if (_phase_offset && (_phase_offset + pulse_width_in_ticks_ >= channel_frequency_in_ticks_))
           pulse_width_in_ticks_ = ((channel_frequency_in_ticks_ - _phase_offset) >> 1) | 1u;
         // burst mode needs special treatment, because pw might have to diminish ...   
-        if (_mode == BURST) {
+        if (_mode == CLOCKMODE::BURST) {
           if (pulse_width_in_ticks_ >= bursts_.duty())
             pulse_width_in_ticks_ = bursts_.duty() | 1u;
         }
@@ -2401,7 +2390,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // CV seq
   { 0, 0, 5, "playmode", TU::Strings::cv_seq_playmodes, settings::STORAGE_TYPE_U4 }, // CV playmode
   { 1, 1, 31, "density", NULL, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::BURST) },
-  { 20, 0, 40, "f (initial)", TU::Strings::initial_f, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::BURST) },,
+  { 20, 0, 40, "f (initial)", TU::Strings::initial_f, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::BURST) },
   { 30, 0, 60, "damping", TU::Strings::damping, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::BURST) },
   { CHANNEL_TRIGGER_TR1,  0, CHANNEL_TRIGGER_TR2, "burst src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
   // cv sources
@@ -2875,9 +2864,9 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
           }
             break;
           case CHANNEL_SETTING_CLOCK: {
-            if (selected.get_mode() == BURST) {
+            if (selected.get_mode() == CLOCKMODE::BURST) {
               // show burst src
-              selected.update_enabled_settings(clocks_state.selected_channel);
+              selected.update_enabled_settings();
               clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
             }
           }
