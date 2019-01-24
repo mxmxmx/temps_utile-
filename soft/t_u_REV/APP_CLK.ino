@@ -35,6 +35,7 @@
 #include "util/util_trigger_delay.h"
 #include "TU_input_map.h"
 #include "TU_input_maps.h"
+#include <algorithm>
 
 namespace menu = TU::menu;
 
@@ -146,7 +147,6 @@ static const uint8_t multipliers_values_[] = {
 enum ChannelSetting {
   // shared
   CHANNEL_SETTING_MODE,
-  CHANNEL_SETTING_MODE4,
   CHANNEL_SETTING_CLOCK,
   CHANNEL_SETTING_TRIGGER_DELAY,
   CHANNEL_SETTING_RESET,
@@ -223,7 +223,7 @@ enum ChannelSetting {
   CHANNEL_SETTING_BURST_DENSITY_CV_SOURCE,
   CHANNEL_SETTING_BURST_INITIAL_CV_SOURCE,
   CHANNEL_SETTING_BURST_DAMP_CV_SOURCE,
-  CHANNEL_SETTING_DUMMY,
+  CHANNEL_SETTING_SEPARATOR,
   CHANNEL_SETTING_DUMMY_EMPTY,
   CHANNEL_SETTING_SCREENSAVER,
   CHANNEL_SETTING_LAST
@@ -247,7 +247,7 @@ enum ChannelCV_Mapping {
   CHANNEL_CV_MAPPING_LAST
 };
 
-enum CLOCKMODES {
+enum class CLOCKMODE : int {
   MULT,
   LFSR,
   RANDOM,
@@ -256,16 +256,16 @@ enum CLOCKMODES {
   SEQ,
   BURST,
   DAC,
-  CLOCK_MODES_LAST
+  LAST
 };
 
-enum DACMODES {
-  _BINARY,
-  _RANDOM,
-  _TURING,
-  _LOGISTIC,
-  _SEQ_CV,
-  _DAC_MODES_LAST
+enum class DACMODE : int {
+  BINARY,
+  RANDOM,
+  TURING,
+  LOGISTIC,
+  SEQ_CV,
+  LAST
 };
 
 enum CV_SEQ_MODES {
@@ -332,12 +332,8 @@ uint64_t pending_int_frequency;
 class Clock_channel : public settings::SettingsBase<Clock_channel, CHANNEL_SETTING_LAST> {
 public:
 
-  uint8_t get_mode() const {
-    return values_[CHANNEL_SETTING_MODE];
-  }
-
-  uint8_t get_mode4() const {
-    return values_[CHANNEL_SETTING_MODE4];
+  CLOCKMODE get_mode() const {
+    return static_cast<CLOCKMODE>(values_[CHANNEL_SETTING_MODE]);
   }
 
   uint8_t get_clock_source() const {
@@ -444,8 +440,8 @@ public:
     return values_[CHANNEL_SETTING_DAC_OFFSET];
   }
 
-  uint8_t dac_mode() const {
-    return values_[CHANNEL_SETTING_DAC_MODE];
+  DACMODE dac_mode() const {
+    return static_cast<DACMODE>(values_[CHANNEL_SETTING_DAC_MODE]);
   }
 
   uint8_t binary_tracking() const {
@@ -960,12 +956,13 @@ public:
     bursts_.set_damping(_damp);
   }
 
-  void Init(ChannelTriggerSource trigger_source) {
+  void Init(CLOCK_CHANNEL channel, ChannelTriggerSource trigger_source) {
 
     InitDefaults();
     trigger_delay_.Init();
     apply_value(CHANNEL_SETTING_CLOCK, trigger_source);
 
+    channel_ = channel;
     force_update_ = true;
     sync_ = false;
     skip_reset_ = false;
@@ -1026,7 +1023,7 @@ public:
     turing_machine_.set_shift_register(_seed);
     clock_display_.Init();
     Phase_.Init();
-    update_enabled_settings(0);
+    update_enabled_settings();
   }
 
   void force_update() {
@@ -1035,10 +1032,9 @@ public:
 
   /* main channel update below: */
 
-  inline void Update(uint32_t triggers, CLOCK_CHANNEL clock_channel, uint8_t mute) {
+  inline void Update(uint32_t triggers, uint8_t mute) {
 
     int16_t _clock_source, _reset_source, _phase;
-    int16_t _mode = (clock_channel != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
     int8_t _multiplier;
     bool _none, _triggered, _tock, _sync;
     uint16_t _output = gpio_state_;
@@ -1064,7 +1060,9 @@ public:
       _multiplier += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_mult_cv_source() - 1)) + 63) >> 7;
       CONSTRAIN(_multiplier, 0, MULT_MAX);
     }
-  
+ 
+    // 3. channel mode?
+    CLOCKMODE _mode = get_mode();
     // clocked ?
     _none = CHANNEL_TRIGGER_NONE == _clock_source;
     _triggered = !_none && (triggers & (0x1 << _clock_source));
@@ -1164,12 +1162,21 @@ public:
       // skip_reset_ = (div_cnt_ > 0) ? true : false; // "still und leise im Hintergrund" ?
       div_cnt_ = 0x0;
     }
-
+    
     // special treatment for bursts, if interrupted by new trigger (see below)
     if (pending_new_burst_ && (burst_complete_++ > pulse_width_in_ticks_)) {
       _output = gpio_state_ = false; TU::OUTPUTS::set(clock_channel, _output);
       burst_complete_ = 0x0;
       pending_new_burst_ = false;
+    // in sequencer mode, do we advance sequences by TR2?
+    if (_mode == CLOCKMODE::SEQ && get_playmode() > 3) {
+
+      uint8_t _advance_trig = digitalReadFast(TR2);
+      // ?
+      if (_advance_trig < sequence_advance_state_)
+        sequence_advance_ = true;
+
+      sequence_advance_state_ = _advance_trig;
     }
     
     // phase adjust? 
@@ -1257,7 +1264,6 @@ public:
         subticks_ = 0x0;
         TU::OUTPUTS::setState(clock_channel, _output);
         wait_burst_ = false;
-        
         bursts_.increment();
       }  
     }
@@ -1334,7 +1340,7 @@ public:
           else if (_reset_source == CHANNEL_TRIGGER_FREEZE_LOW && digitalReadFast(TR2))
             return;
         }
-  
+ 
         // only then count clocks:
         clk_cnt_++; mult_cnt_++;
   
@@ -1367,7 +1373,7 @@ public:
      *  below: pulsewidth stuff
      */
 
-    if (gpio_state_ && _mode != DAC) {
+    if (gpio_state_ && _mode != CLOCKMODE::DAC) {
 
       // pulsewidth setting --
       int16_t _pulsewidth = get_pulsewidth();
@@ -1442,29 +1448,29 @@ public:
       }
     }
     // DAC channel needs extra treatment / zero offset:
-    if (clock_channel == CLOCK_CHANNEL_4 && _mode != DAC && gpio_state_ == OFF)
+    if (is_dac_channel() && _mode != CLOCKMODE::DAC && gpio_state_ == OFF)
       _output += _ZERO;
 
     // update (physical) outputs:
-    TU::OUTPUTS::set(clock_channel, _output);
+    TU::OUTPUTS::set(channel_, _output);
   } // end update
 
   /* details re: trigger processing happens (mostly) here: */
-  inline uint16_t process_clock_channel(uint8_t mode) {
+  inline uint16_t process_clock_channel(CLOCKMODE mode) {
 
     int16_t _out = ON;
     logic_ = false;
 
     switch (mode) {
-
-      case MULT:
-      case BURST:
+        
+      case CLOCKMODE::MULT:
+      case CLOCKMODE::BURST:
         break;
-      case LOGIC:
+      case CLOCKMODE::LOGIC:
         // logic happens elsewhere.
         logic_ = true;
         break;
-      case LFSR: {
+      case CLOCKMODE::LFSR: {
         // LFSR, sort of. mash-up of o_C and old TU firmware:
         int16_t _length, _probability, _myfirstbit;
 
@@ -1509,7 +1515,7 @@ public:
         turing_machine_.set_shift_register(_shift_register);
       }
         break;
-      case RANDOM: {
+      case CLOCKMODE::RANDOM: {
         // get threshold setting:
         int16_t _n = rand_n();
         if (get_rand_n_cv_source()) {
@@ -1521,7 +1527,7 @@ public:
         _out = _rand_new > _n ? ON : OFF; // DAC needs special care ...
       }
         break;
-      case EUCLID: {
+      case CLOCKMODE::EUCLID: {
         // simple euclidian algorithm, found on pd hurleur:
         int16_t _n, _k, _offset;
         // the three parameters:
@@ -1548,7 +1554,7 @@ public:
         _out = (_out < _k) ? ON : OFF;
       }
         break;
-      case SEQ: {
+      case CLOCKMODE::SEQ: {
         // sequencer mode, adapted from o_C scale edit:
         int16_t _seq = get_sequence();
 
@@ -1636,14 +1642,14 @@ public:
         _out = _out ? ON : OFF;
       }
         break;
-      case DAC: {
+      case CLOCKMODE::DAC: {
         // only available in channel 4:
         int16_t _range = dac_range(); // 1-255
-        int8_t _mode = dac_mode();
+        int mode = values_[CHANNEL_SETTING_DAC_MODE];
 
         if (get_DAC_mode_cv_source()) {
-          _mode += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_mode_cv_source() - 1)) + 256) >> 9;
-          CONSTRAIN(_mode, 0, _DAC_MODES_LAST - 1);
+          mode += (TU::ADC::value(static_cast<ADC_CHANNEL>(get_DAC_mode_cv_source() - 1)) + 256) >> 9;
+          CONSTRAIN(mode, 0, static_cast<int>(DACMODE::LAST) - 1);
         }
 
         if (get_DAC_range_cv_source()) {
@@ -1651,9 +1657,8 @@ public:
           CONSTRAIN(_range, 1, 255);
         }
 
-        switch (_mode) {
-
-          case _BINARY: {
+        switch (static_cast<DACMODE>(mode)) {
+          case DACMODE::BINARY: {
 
             uint8_t _binary = 0;
             // MSB .. LSB
@@ -1680,7 +1685,7 @@ public:
             _out = _ZERO - _dac_code;
           }
             break;
-          case _RANDOM: {
+          case DACMODE::RANDOM: {
 
             uint16_t _history[TU::OUTPUTS::kHistoryDepth];
             int16_t _rand_history, _rand_new, _depth, _weight;
@@ -1709,7 +1714,7 @@ public:
             _out = _ZERO - (_rand_new + _rand_history);
           }
             break;
-          case _TURING: {
+          case DACMODE::TURING: {
 
             int16_t _length = get_turing_length();
             int16_t _probability = get_turing_probability();
@@ -1739,7 +1744,7 @@ public:
             _out = _ZERO - _shift_register;
           }
             break;
-          case _LOGISTIC: {
+          case DACMODE::LOGISTIC: {
 
             logistic_map_.set_seed(123);
             int32_t logistic_map_r = get_logistic_map_r();
@@ -1757,7 +1762,7 @@ public:
             _out = _ZERO - _logistic_map_x;
           }
             break;
-          case _SEQ_CV: {
+          case DACMODE::SEQ_CV: {
 
             uint8_t _length = get_cv_sequence_length();
             int8_t _playmode_cv = get_cv_playmode();
@@ -1910,7 +1915,7 @@ public:
         break; // end mode switch
     }
 
-    if (mode == DAC) {
+    if (mode == CLOCKMODE::DAC) {
       // offset
       uint16_t v_oct = TU::OUTPUTS::get_v_oct();
       int8_t _offset = dac_offset();
@@ -2022,18 +2027,13 @@ public:
     return enabled_settings_[index];
   }
 
-  void update_enabled_settings(uint8_t channel_id) {
+  void update_enabled_settings() {
 
     ChannelSetting *settings = enabled_settings_;
-    uint8_t mode = (channel_id != CLOCK_CHANNEL_4) ? get_mode() : get_mode4();
+    CLOCKMODE mode = !is_dac_channel() ? get_mode() : get_mode();
 
-    if (menu_page_ != TEMPO) {
-
-      if (channel_id != CLOCK_CHANNEL_4)
-        *settings++ = CHANNEL_SETTING_MODE;
-      else
-        *settings++ = CHANNEL_SETTING_MODE4;
-    }
+    if (menu_page_ != TEMPO)
+      *settings++ = CHANNEL_SETTING_MODE;
     else
       *settings++ = CHANNEL_SETTING_INTERNAL_CLK;
 
@@ -2043,65 +2043,65 @@ public:
       *settings++ = CHANNEL_SETTING_MULT_CV_SOURCE;
       *settings++ = CHANNEL_SETTING_SWING_CV_SOURCE;
       
-      if (mode != DAC)
+      if (mode != CLOCKMODE::DAC)
         *settings++ = CHANNEL_SETTING_PULSEWIDTH_CV_SOURCE;
 
       switch (mode) {
 
-        case LFSR:
+        case CLOCKMODE::LFSR:
           *settings++ = CHANNEL_SETTING_TURING_LENGTH_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_TURING_PROB_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_LFSR_TAP1_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_LFSR_TAP2_CV_SOURCE;
           break;
-        case EUCLID:
+        case CLOCKMODE::EUCLID:
           *settings++ = CHANNEL_SETTING_EUCLID_N_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_EUCLID_K_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_EUCLID_OFFSET_CV_SOURCE;
           break;
-        case RANDOM:
+        case CLOCKMODE::RANDOM:
           *settings++ = CHANNEL_SETTING_RAND_N_CV_SOURCE;
           break;
-        case LOGIC:
+        case CLOCKMODE::LOGIC:
           *settings++ = CHANNEL_SETTING_LOGIC_TYPE_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_LOGIC_OP1_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_LOGIC_OP2_CV_SOURCE;
-          *settings++ = CHANNEL_SETTING_DUMMY;
+          *settings++ = CHANNEL_SETTING_SEPARATOR;
           break;
-        case SEQ:
+        case CLOCKMODE::SEQ:
           *settings++ = CHANNEL_SETTING_SEQ_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_MASK_CV_SOURCE;
-          *settings++ = CHANNEL_SETTING_DUMMY; // playmode CV
+          *settings++ = CHANNEL_SETTING_SEPARATOR; // playmode CV
           break;
-        case BURST:
+        case CLOCKMODE::BURST:
           *settings++ = CHANNEL_SETTING_BURST_DENSITY_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_BURST_INITIAL_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_BURST_DAMP_CV_SOURCE;
           break;
-        case DAC:
+        case CLOCKMODE::DAC:
           *settings++ = CHANNEL_SETTING_DAC_MODE_CV_SOURCE;
           *settings++ = CHANNEL_SETTING_DAC_OFFSET_CV_SOURCE;
 
-          if (dac_mode() < _SEQ_CV)
+          if (dac_mode() != DACMODE::SEQ_CV)
             *settings++ = CHANNEL_SETTING_DAC_RANGE_CV_SOURCE;
 
-          switch (dac_mode())  {
-            case _BINARY:
-              *settings++ = CHANNEL_SETTING_DUMMY;
+          switch (dac_mode()) {
+            case DACMODE::BINARY:
+              *settings++ = CHANNEL_SETTING_SEPARATOR;
               break;
-            case _RANDOM:
+            case DACMODE::RANDOM:
               *settings++ = CHANNEL_SETTING_DAC_RANGE_CV_SOURCE;
               *settings++ = CHANNEL_SETTING_HISTORY_WEIGHT_CV_SOURCE;
               *settings++ = CHANNEL_SETTING_HISTORY_DEPTH_CV_SOURCE;
               break;
-            case _TURING:
+            case DACMODE::TURING:
               *settings++ = CHANNEL_SETTING_TURING_LENGTH_CV_SOURCE;
               *settings++ = CHANNEL_SETTING_TURING_PROB_CV_SOURCE;
               break;
-            case _LOGISTIC:
+            case DACMODE::LOGISTIC:
               *settings++ = CHANNEL_SETTING_LOGISTIC_MAP_R_CV_SOURCE;
               break;
-            case _SEQ_CV:
+            case DACMODE::SEQ_CV:
               if (get_cv_playmode() == _ARP)
                 *settings++ = CHANNEL_SETTING_SEQ_MASK_CV_SOURCE;
               else
@@ -2129,32 +2129,32 @@ public:
       *settings++ = CHANNEL_SETTING_MULT;
       *settings++ = CHANNEL_SETTING_SWING;
       
-      if (mode != DAC)
+      if (mode != CLOCKMODE::DAC)
         *settings++ = CHANNEL_SETTING_PULSEWIDTH;
 
       switch (mode) {
 
-        case LFSR:
+        case CLOCKMODE::LFSR:
           *settings++ = CHANNEL_SETTING_TURING_LENGTH;
           *settings++ = CHANNEL_SETTING_TURING_PROB;
           *settings++ = CHANNEL_SETTING_LFSR_TAP1;
           *settings++ = CHANNEL_SETTING_LFSR_TAP2;
           break;
-        case EUCLID:
+        case CLOCKMODE::EUCLID:
           *settings++ = CHANNEL_SETTING_EUCLID_N;
           *settings++ = CHANNEL_SETTING_EUCLID_K;
           *settings++ = CHANNEL_SETTING_EUCLID_OFFSET;
           break;
-        case RANDOM:
+        case CLOCKMODE::RANDOM:
           *settings++ = CHANNEL_SETTING_RAND_N;
           break;
-        case LOGIC:
+        case CLOCKMODE::LOGIC:
           *settings++ = CHANNEL_SETTING_LOGIC_TYPE;
           *settings++ = CHANNEL_SETTING_LOGIC_OP1;
           *settings++ = CHANNEL_SETTING_LOGIC_OP2;
           *settings++ = CHANNEL_SETTING_LOGIC_TRACK_WHAT;
           break;
-        case SEQ:
+        case CLOCKMODE::SEQ:
           *settings++ = CHANNEL_SETTING_SEQUENCE;
 
           switch (get_sequence()) {
@@ -2175,36 +2175,36 @@ public:
           }
           *settings++ = CHANNEL_SETTING_SEQUENCE_PLAYMODE;
           break;
-        case BURST:
+        case CLOCKMODE::BURST:
           *settings++ = CHANNEL_SETTING_BURST_DENSITY;
           *settings++ = CHANNEL_SETTING_BURST_INITIAL;
           *settings++ = CHANNEL_SETTING_BURST_DAMP;
           break;
-        case DAC:
+        case CLOCKMODE::DAC:
           *settings++ = CHANNEL_SETTING_DAC_MODE;
           *settings++ = CHANNEL_SETTING_DAC_OFFSET;
 
-          if (dac_mode() < _SEQ_CV)
+          if (dac_mode() != DACMODE::SEQ_CV)
             *settings++ = CHANNEL_SETTING_DAC_RANGE;
 
           switch (dac_mode())  {
 
-            case _BINARY:
+            case DACMODE::BINARY:
 
               *settings++ = CHANNEL_SETTING_DAC_TRACK_WHAT;
               break;
-            case _RANDOM:
+            case DACMODE::RANDOM:
               *settings++ = CHANNEL_SETTING_HISTORY_WEIGHT;
               *settings++ = CHANNEL_SETTING_HISTORY_DEPTH;
               break;
-            case _TURING:
+            case DACMODE::TURING:
               *settings++ = CHANNEL_SETTING_TURING_LENGTH;
               *settings++ = CHANNEL_SETTING_TURING_PROB;
               break;
-            case _LOGISTIC:
+            case DACMODE::LOGISTIC:
               *settings++ = CHANNEL_SETTING_LOGISTIC_MAP_R;
               break;
-            case _SEQ_CV:
+            case DACMODE::SEQ_CV:
               *settings++ = CHANNEL_SETTING_MASK_CV;
               *settings++ = CHANNEL_SETTING_CV_SEQUENCE_PLAYMODE;
               if (get_cv_playmode() == _ARP)  {
@@ -2221,7 +2221,7 @@ public:
       } // end mode switch
 
       *settings++ = CHANNEL_SETTING_CLOCK;
-      if (mode != BURST)
+      if (mode != CLOCKMODE::BURST)
         *settings++ = CHANNEL_SETTING_RESET;
       else {
         if (get_clock_source() == CHANNEL_TRIGGER_INTERNAL)
@@ -2250,9 +2250,15 @@ public:
     return mask;
   }
 
-  void RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clock_channel) const;
+  void RenderScreensaver(weegfx::coord_t start_x) const;
+
+  inline bool is_dac_channel() const {
+    return channel_ == CLOCK_CHANNEL_4;
+  }
 
 private:
+  CLOCK_CHANNEL channel_;
+
   bool sync_;
   bool phase_;
   uint8_t prev_phase_;
@@ -2337,52 +2343,55 @@ const char* const arp_directions[4] = {
 
 SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
 
-  { 0, 0, CLOCK_MODES_LAST - 2, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
-  { 0, 0, CLOCK_MODES_LAST - 1, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
+  // NOTE special-cased during editing/display to enable/disable DAC mode
+  { 0, 0, static_cast<int>(CLOCKMODE::LAST) - 1, "mode", TU::Strings::mode, settings::STORAGE_TYPE_U4 },
+
   { CHANNEL_TRIGGER_TR1,  0, CHANNEL_TRIGGER_LAST - 1, "clock src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, TU::kNumDelayTimes - 1, "latency", TU::Strings::trigger_delay_times, settings::STORAGE_TYPE_U8 },
   { CHANNEL_TRIGGER_NONE, 0, CHANNEL_TRIGGER_LAST, "reset/mute", reset_trigger_sources, settings::STORAGE_TYPE_U8 },
   { MULT_BY_ONE, 0, MULT_MAX, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
-  { 25, 0, PULSEW_MAX, "pulsewidth", TU::Strings::pulsewidth_ms, settings::STORAGE_TYPE_U8 },
+  { 25, 0, PULSEW_MAX, "pulsewidth", TU::Strings::pulsewidth_ms, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::DAC) },
   { 0, 0, PHASEOFFSET_MAX, "phase %", NULL, settings::STORAGE_TYPE_U8 },
   // note that BPM is a channel setting, although it's a global value.
   // when recalling, we just grab the value for channel 0
   { 100, BPM_MIN, BPM_MAX, "BPM:", NULL, settings::STORAGE_TYPE_U16 },
   //
-  { 0, 0, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8 },
-  { 0, 0, 31, "LFSR tap2",NULL, settings::STORAGE_TYPE_U8 },
-  { 0, 0, RND_MAX, "rand > n", NULL, settings::STORAGE_TYPE_U8 },
-  { 3, 3, EUCLID_N_MAX, "euclid: N", NULL, settings::STORAGE_TYPE_U8 },
-  { 1, 1, EUCLID_N_MAX, "euclid: K", NULL, settings::STORAGE_TYPE_U8 },
-  { 0, 0, EUCLID_N_MAX-1, "euclid: OFFSET", NULL, settings::STORAGE_TYPE_U8 },
-  { 0, 0, LOGICMODE_LAST-1, "logic type", TU::Strings::operators, settings::STORAGE_TYPE_U8 },
-  { 0, 0, NUM_CHANNELS - 1, "op_1", TU::Strings::channel_id, settings::STORAGE_TYPE_U8 },
-  { 1, 0, NUM_CHANNELS - 1, "op_2", TU::Strings::channel_id, settings::STORAGE_TYPE_U8 },
-  { 0, 0, 1, "track -->", TU::Strings::logic_tracking, settings::STORAGE_TYPE_U4 },
-  { 128, 1, 255, "DAC: range", NULL, settings::STORAGE_TYPE_U8 },
+  { 0, 0, 31, "LFSR tap1",NULL, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::LFSR) },
+  { 0, 0, 31, "LFSR tap2",NULL, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::LFSR) },
+  { 0, 0, RND_MAX, "rand > n", NULL, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::RANDOM) },
+  { 3, 3, EUCLID_N_MAX, "euclid: N", NULL, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::EUCLID) },
+  { 1, 1, EUCLID_N_MAX, "euclid: K", NULL, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::EUCLID) },
+  { 0, 0, EUCLID_N_MAX-1, "euclid: OFFSET", NULL, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::EUCLID) },
+  { 0, 0, LOGICMODE_LAST-1, "logic type", TU::Strings::operators, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::LOGIC) },
+  { 0, 0, NUM_CHANNELS - 1, "op_1", TU::Strings::channel_id, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::LOGIC) },
+  { 1, 0, NUM_CHANNELS - 1, "op_2", TU::Strings::channel_id, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::LOGIC) },
+  { 0, 0, 1, "track -->", TU::Strings::logic_tracking, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::LOGIC) },
+  { 128, 1, 255, "DAC: range", NULL, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::DAC) },
   #ifdef MOD_OFFSET
-  { 0, -1, 5, "DAC: offset", NULL, settings::STORAGE_TYPE_I8 },
+  { 0, -1, 5, "DAC: offset", NULL, settings::STORAGE_TYPE_I8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::DAC) },
   #else
     #ifdef MODEL_2TT
-    {  0, 0, 6, "DAC: offset", NULL, settings::STORAGE_TYPE_I8 },
+    {  0, 0, 6, "DAC: offset", NULL, settings::STORAGE_TYPE_I8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::DAC) },
     #else
-    { 0, -3, 3, "DAC: offset", NULL, settings::STORAGE_TYPE_I8 },
+    { 0, -3, 3, "DAC: offset", NULL, settings::STORAGE_TYPE_I8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::DAC) },
     #endif
   #endif
-  { 0, 0, _DAC_MODES_LAST - 1, "DAC: mode", TU::Strings::dac_modes, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 1, "track -->", TU::Strings::binary_tracking, settings::STORAGE_TYPE_U4 },
+  { 0, 0, static_cast<int>(DACMODE::LAST) - 1, "DAC: mode", TU::Strings::dac_modes, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::DAC) },
+  { 0, 0, 1, "track -->", TU::Strings::binary_tracking, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::DAC) },
   { 0, 0, 255, "rnd hist.", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
   { 0, 0, TU::OUTPUTS::kHistoryDepth - 1, "hist. depth", NULL, settings::STORAGE_TYPE_U8 }, /// "history"
-  { LFSR_MIN << 1, LFSR_MIN, LFSR_MAX, "LFSR length", NULL, settings::STORAGE_TYPE_U8 },
-  { 128, 0, 255, "LFSR p(x)", NULL, settings::STORAGE_TYPE_U8 },
-  { 1, 1, 255, "LGST(R)", NULL, settings::STORAGE_TYPE_U8 },
+  { LFSR_MIN << 1, LFSR_MIN, LFSR_MAX, "LFSR length", NULL, settings::STORAGE_TYPE_U8, /*, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::LFSR)*/ }, // used by DAC and LFSR modes
+  { 128, 0, 255, "LFSR p(x)", NULL, settings::STORAGE_TYPE_U8, /*, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::LFSR)*/ }, // used by DAC and LFSR modes
+  { 1, 1, 255, "LGST(R)", NULL, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::DAC) },
   { 1, 0, 4, "arp.range", NULL, settings::STORAGE_TYPE_U4 },
   { 0, 0, 3, "arp.direction", arp_directions, settings::STORAGE_TYPE_U4 },
+
   { 65535, 0, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 1
   { 65535, 0, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 2
   { 65535, 0, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 3
   { 65535, 0, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq 4
   { 65535, 0, 65535, "--> edit", NULL, settings::STORAGE_TYPE_U16 }, // seq CV
+
   { TU::Patterns::PATTERN_USER_0, 0, TU::Patterns::PATTERN_USER_LAST-1, "sequence #", TU::pattern_names_short, settings::STORAGE_TYPE_U8 },
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 1
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // seq 2
@@ -2391,43 +2400,43 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, PM_LAST - 1, "playmode", TU::Strings::seq_playmodes, settings::STORAGE_TYPE_U8 },
   { TU::Patterns::kMax, TU::Patterns::kMin, TU::Patterns::kMax, "sequence length", NULL, settings::STORAGE_TYPE_U8 }, // CV seq
   { 0, 0, 5, "playmode", TU::Strings::cv_seq_playmodes, settings::STORAGE_TYPE_U4 }, // CV playmode
-  { 1, 1, 31, "density", NULL, settings::STORAGE_TYPE_U8 },
-  { 20, 0, 40, "f (initial)", TU::Strings::initial_f, settings::STORAGE_TYPE_U8 },
-  { 30, 0, 60, "damping", TU::Strings::damping, settings::STORAGE_TYPE_U8 },
+  { 1, 1, 31, "density", NULL, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::BURST) },
+  { 20, 0, 40, "f (initial)", TU::Strings::initial_f, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::BURST) },,
+  { 30, 0, 60, "damping", TU::Strings::damping, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::BURST) },
   { CHANNEL_TRIGGER_TR1,  0, CHANNEL_TRIGGER_TR2, "burst src", channel_trigger_sources, settings::STORAGE_TYPE_U4 },
   // cv sources
   { 0, 0, 4, "mult/div    ->", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "pulsewidth  ->", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "phase %     ->", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "clock src   ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR tap1   ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR tap2   ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "rand > n    ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "euclid: N   ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "euclid: K   ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "euclid: OFF ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "logic type  ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "op_1        ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "op_2        ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR p(x)   ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LFSR length ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "LGST(R)     ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "LFSR tap1   ->", cv_sources, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::LFSR) },
+  { 0, 0, 4, "LFSR tap2   ->", cv_sources, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::LFSR) },
+  { 0, 0, 4, "rand > n    ->", cv_sources, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::RANDOM) },
+  { 0, 0, 4, "euclid: N   ->", cv_sources, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::EUCLID) },
+  { 0, 0, 4, "euclid: K   ->", cv_sources, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::EUCLID) },
+  { 0, 0, 4, "euclid: OFF ->", cv_sources, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::EUCLID) },
+  { 0, 0, 4, "logic type  ->", cv_sources, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::LOGIC) },
+  { 0, 0, 4, "op_1        ->", cv_sources, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::LOGIC) },
+  { 0, 0, 4, "op_2        ->", cv_sources, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::LOGIC) },
+  { 0, 0, 4, "LFSR p(x)   ->", cv_sources, settings::STORAGE_TYPE_U4 /*, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::LFSR)*/ }, // used by DAC and LFSR modes
+  { 0, 0, 4, "LFSR length ->", cv_sources, settings::STORAGE_TYPE_U4 /*, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::LFSR)*/ },
+  { 0, 0, 4, "LGST(R)     ->", cv_sources, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::DAC) },
   { 0, 0, 4, "sequence #  ->", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "mask        ->", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "mask        ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "DAC: range  ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "DAC: mode   ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "DAC: offset ->", cv_sources, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 4, "DAC: range  ->", cv_sources, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::DAC) },
+  { 0, 0, 4, "DAC: mode   ->", cv_sources, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::DAC) },
+  { 0, 0, 4, "DAC: offset ->", cv_sources, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::DAC) },
   { 0, 0, 4, "rnd hist.   ->", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "hist. depth ->", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "arp.range   ->", cv_sources, settings::STORAGE_TYPE_U4 },
   { 0, 0, 4, "arp.direc.  ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "density     ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "f (initial) ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 4, "damping     ->", cv_sources, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 0, "---------------------", NULL, settings::STORAGE_TYPE_U4 }, // DUMMY
-  { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_U4 }, // DUMMY empty
-  { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_U4 }  // screensaver
+  { 0, 0, 4, "density     ->", cv_sources, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::BURST) },
+  { 0, 0, 4, "f (initial) ->", cv_sources, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::BURST) },
+  { 0, 0, 4, "damping     ->", cv_sources, settings::STORAGE_TYPE_U4, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::BURST) },
+  { 0, 0, 0, "---------------------", NULL, settings::STORAGE_TYPE_NOP }, // SEPARATOR
+  { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_NOP }, // DUMMY empty
+  { 0, 0, 0, "  ", NULL, settings::STORAGE_TYPE_NOP }  // screensaver
 };
 
 
@@ -2470,34 +2479,47 @@ void CLOCKS_init() {
   int_frequency = pending_int_frequency = 0xFFFFFFFF;
 
   clocks_state.Init();
-  for (size_t i = 0; i < NUM_CHANNELS; ++i)
-    clock_channel[i].Init(static_cast<ChannelTriggerSource>(CHANNEL_TRIGGER_TR1));
+  for (int i = 0; i < CLOCK_CHANNEL_LAST; ++i)
+    clock_channel[i].Init(static_cast<CLOCK_CHANNEL>(i), static_cast<ChannelTriggerSource>(CHANNEL_TRIGGER_TR1));
   clocks_state.cursor.AdjustEnd(clock_channel[0].num_enabled_settings() - 1);
 }
 
+void CLOCKS_reset() {
+  TU::global_config.Reset();
+  CLOCKS_init();
+}
+
 size_t CLOCKS_storageSize() {
-  return NUM_CHANNELS * Clock_channel::storageSize();
+  return 
+    sizeof(TU::user_patterns) +
+    NUM_CHANNELS * Clock_channel::storageSize() + 
+    TU::GlobalConfig::storageSize();
 }
 
-size_t CLOCKS_save(void *storage) {
+size_t CLOCKS_save(util::StreamBufferWriter &stream_buffer) {
 
-  size_t used = 0;
-  for (size_t i = 0; i < NUM_CHANNELS; ++i) {
-    used += clock_channel[i].Save(static_cast<char*>(storage) + used);
-  }
-  return used;
+  stream_buffer.Write(TU::user_patterns);
+  std::for_each(
+      std::begin(clock_channel),
+      std::end(clock_channel),
+      [&](const Clock_channel &c) {
+        c.Save(stream_buffer);
+      });
+  TU::global_config.Save(stream_buffer);
+
+  return stream_buffer.overflow() ? 0 : stream_buffer.written();
 }
 
-size_t CLOCKS_restore(const void *storage) {
+size_t CLOCKS_restore(util::StreamBufferReader &stream_buffer) {
 
-  size_t used = 0;
-  for (size_t i = 0; i < NUM_CHANNELS; ++i) {
-    used += clock_channel[i].Restore(static_cast<const char*>(storage) + used);
-    clock_channel[i].update_enabled_settings(i);
+  stream_buffer.Read(TU::user_patterns);
+  for (auto &channel : clock_channel) {
+    channel.Restore(stream_buffer);
+    channel.update_enabled_settings();
     // update display sequence + mask:
-    clock_channel[i].set_display_sequence(clock_channel[i].get_sequence());
-    clock_channel[i].init_pattern(clock_channel[i].get_mask(clock_channel[i].get_sequence()));
-    clock_channel[i].reset_channel_frequency();
+    channel.set_display_sequence(channel.get_sequence());
+    channel.init_pattern(channel.get_mask(channel.get_sequence()));
+    channel.reset_channel_frequency();
   }
   clocks_state.cursor.AdjustEnd(clock_channel[0].num_enabled_settings() - 1);
 
@@ -2505,7 +2527,10 @@ size_t CLOCKS_restore(const void *storage) {
   ext_frequency[CHANNEL_TRIGGER_INTERNAL] = BPM_microseconds_4th[clock_channel[0].get_internal_timer() - BPM_MIN];
   // update channel 4:
   clock_channel[CLOCK_CHANNEL_4].cv_pattern_changed(clock_channel[CLOCK_CHANNEL_4].get_cv_mask(), true);
-  return used;
+
+  TU::global_config.Restore(stream_buffer);
+
+  return stream_buffer.underflow() ? 0 : stream_buffer.read();
 }
 
 void CLOCKS_handleAppEvent(TU::AppEvent event) {
@@ -2528,7 +2553,7 @@ void CLOCKS_handleAppEvent(TU::AppEvent event) {
       Clock_channel &selected = clock_channel[clocks_state.selected_channel];
       if (selected.get_page() > PARAMETERS) {
         selected.set_page(PARAMETERS);
-        selected.update_enabled_settings(clocks_state.selected_channel);
+        selected.update_enabled_settings();
         clocks_state.cursor.Init(CHANNEL_SETTING_MODE, 0);
         clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
       }
@@ -2647,12 +2672,12 @@ void CLOCKS_isr() {
   }
 
   // update channels:
-  clock_channel[CLOCK_CHANNEL_1].Update(triggers, CLOCK_CHANNEL_1, mute);
-  clock_channel[CLOCK_CHANNEL_2].Update(triggers, CLOCK_CHANNEL_2, mute);
-  clock_channel[CLOCK_CHANNEL_3].Update(triggers, CLOCK_CHANNEL_3, mute);
-  clock_channel[CLOCK_CHANNEL_5].Update(triggers, CLOCK_CHANNEL_5, mute);
-  clock_channel[CLOCK_CHANNEL_6].Update(triggers, CLOCK_CHANNEL_6, mute);
-  clock_channel[CLOCK_CHANNEL_4].Update(triggers, CLOCK_CHANNEL_4, mute); // = DAC channel; update last, because of the binary Sequencer thing.
+  clock_channel[CLOCK_CHANNEL_1].Update(triggers, mute);
+  clock_channel[CLOCK_CHANNEL_2].Update(triggers, mute);
+  clock_channel[CLOCK_CHANNEL_3].Update(triggers, mute);
+  clock_channel[CLOCK_CHANNEL_5].Update(triggers, mute);
+  clock_channel[CLOCK_CHANNEL_6].Update(triggers, mute);
+  clock_channel[CLOCK_CHANNEL_4].Update(triggers, mute); // = DAC channel; update last, because of the binary Sequencer thing.
 
   // apply logic ?
   clock_channel[0].logic(CLOCK_CHANNEL_1);
@@ -2720,7 +2745,7 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
     if (previous.get_page() == TEMPO) {
       previous.set_page(PARAMETERS);
       clocks_state.cursor.set_editing(false);
-      previous.update_enabled_settings(previous_channel);
+      previous.update_enabled_settings();
       clocks_state.cursor.AdjustEnd(previous.num_enabled_settings() - 1);
       return;
     }
@@ -2735,7 +2760,7 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
     else if (previous.get_page() == PARAMETERS)
       selected.set_page(PARAMETERS);
 
-    selected.update_enabled_settings(clocks_state.selected_channel);
+    selected.update_enabled_settings();
 
     if (previous.num_enabled_settings() > selected.num_enabled_settings()) {
       int _cursor = clocks_state.cursor.cursor_pos();
@@ -2761,7 +2786,7 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
       if (!int_clock_used_) {
         selected.set_page(PARAMETERS);
         clocks_state.cursor = clocks_state.cursor_state;
-        selected.update_enabled_settings(clocks_state.selected_channel);
+        selected.update_enabled_settings();
         return;
       }
     }
@@ -2772,7 +2797,16 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
 
       if (CHANNEL_SETTING_MASK1 != setting || CHANNEL_SETTING_MASK2 != setting || CHANNEL_SETTING_MASK3 != setting || CHANNEL_SETTING_MASK4 != setting || CHANNEL_SETTING_MASK_CV != setting) {
 
-        if (selected.change_value(setting, event.value))
+        bool changed;
+        if (CHANNEL_SETTING_MODE != setting) {
+          changed = selected.change_value(setting, event.value);
+        } else {
+          changed = selected.change_value_max(
+                        setting,
+                        event.value,
+                        selected.is_dac_channel() ? static_cast<int>(CLOCKMODE::DAC) : static_cast<int>(CLOCKMODE::BURST));
+        }
+        if (changed)
           selected.force_update();
 
         switch (setting) {
@@ -2789,14 +2823,13 @@ void CLOCKS_handleEncoderEvent(const UI::Event &event) {
           }
             break;
           case CHANNEL_SETTING_MODE:
-          case CHANNEL_SETTING_MODE4:
           case CHANNEL_SETTING_DAC_MODE:
-            selected.update_enabled_settings(clocks_state.selected_channel);
+            selected.update_enabled_settings();
             clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
             break;
           case CHANNEL_SETTING_CV_SEQUENCE_PLAYMODE: 
           // update ARP if need be
-            selected.update_enabled_settings(clocks_state.selected_channel);
+            selected.update_enabled_settings();
             clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
             selected.cv_pattern_changed(selected.get_cv_mask(), false);
             break;
@@ -2885,7 +2918,7 @@ void CLOCKS_upButton() {
         clocks_state.cursor.toggle_editing();
         break;
     }
-    selected.update_enabled_settings(clocks_state.selected_channel);
+    selected.update_enabled_settings();
     clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
   }
 }
@@ -2917,7 +2950,7 @@ void CLOCKS_downButton() {
       selected.set_page(CV_SOURCES);
       break;
   }
-  selected.update_enabled_settings(clocks_state.selected_channel);
+  selected.update_enabled_settings();
   clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
 }
 
@@ -2928,7 +2961,7 @@ void CLOCKS_rightButton() {
   if (selected.get_page() == TEMPO) {
     selected.set_page(PARAMETERS);
     clocks_state.cursor = clocks_state.cursor_state;
-    selected.update_enabled_settings(clocks_state.selected_channel);
+    selected.update_enabled_settings();
     clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
     return;
   }
@@ -2953,7 +2986,7 @@ void CLOCKS_rightButton() {
       clocks_state.pattern_editor.Edit(&selected, pattern, PITCH);
     }
      break;
-    case CHANNEL_SETTING_DUMMY:
+    case CHANNEL_SETTING_SEPARATOR:
     case CHANNEL_SETTING_DUMMY_EMPTY:
       break;
     default:
@@ -2978,7 +3011,7 @@ void CLOCKS_leftButtonLong() {
 
     Clock_channel &selected = clock_channel[clocks_state.selected_channel];
     selected.set_page(PARAMETERS);
-    selected.update_enabled_settings(clocks_state.selected_channel);
+    selected.update_enabled_settings();
     clocks_state.cursor.set_editing(false);
     clocks_state.cursor.AdjustEnd(selected.num_enabled_settings() - 1);
   }
@@ -3052,7 +3085,7 @@ void CLOCKS_menu() {
     if (channel.get_clock_source() == CHANNEL_TRIGGER_INTERNAL)
       graphics.drawBitmap8(x + 17, 2, 4, TU::bitmap_indicator_4x8);
     //
-    if (clocks_state.selected_channel == i && channel.get_mode4() != DAC && channel.get_page() != TEMPO && channel.get_display_clock() == _ONBEAT)
+    if (clocks_state.selected_channel == i && channel.get_mode() != CLOCKMODE::DAC && channel.get_page() != TEMPO && channel.get_display_clock() == _ONBEAT)
       menu::SixTitleBar::DrawGateIndicator(i, 0x10);
     // global division?
     if (global_div_ && !i)
@@ -3074,6 +3107,9 @@ void CLOCKS_menu() {
     const settings::value_attr &attr = Clock_channel::value_attr(setting);
 
     switch (setting) {
+      case CHANNEL_SETTING_MODE:
+        list_item.DrawValueMax(value, attr, channel.is_dac_channel() ? static_cast<int>(CLOCKMODE::DAC) : static_cast<int>(CLOCKMODE::BURST));
+      break;
 
       case CHANNEL_SETTING_MASK1:
       case CHANNEL_SETTING_MASK2:
@@ -3086,7 +3122,7 @@ void CLOCKS_menu() {
         menu::DrawMask<false, 16, 8, 1>(menu::kDisplayWidth, list_item.y, channel.get_cv_display_mask(), channel.get_cv_sequence_length(), channel.get_clock_cnt());
         list_item.DrawNoValue<false>(value, attr);
         break;
-      case CHANNEL_SETTING_DUMMY:
+      case CHANNEL_SETTING_SEPARATOR:
       case CHANNEL_SETTING_DUMMY_EMPTY:
         list_item.DrawNoValue<false>(value, attr);
         break;
@@ -3116,12 +3152,12 @@ void CLOCKS_menu() {
     clocks_state.pattern_editor.Draw();
 }
 
-void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clock_channel) const {
+void Clock_channel::RenderScreensaver(weegfx::coord_t start_x) const {
 
   // DAC needs special treatment:
-  if (clock_channel == CLOCK_CHANNEL_4 && get_mode4() == DAC) { // display DAC values, ish; x/y coordinates slightly off ...
+  if (is_dac_channel() && get_mode() == CLOCKMODE::DAC) { // display DAC values, ish; x/y coordinates slightly off ...
 
-    uint16_t _dac_value = TU::OUTPUTS::value(clock_channel);
+    uint16_t _dac_value = TU::OUTPUTS::value(channel_);
 
     if (_dac_value < 2047) {
       // output negative
@@ -3150,11 +3186,10 @@ void Clock_channel::RenderScreensaver(weegfx::coord_t start_x, CLOCK_CHANNEL clo
 }
 
 void CLOCKS_screensaver() {
-
-  clock_channel[0].RenderScreensaver(4,  CLOCK_CHANNEL_1);
-  clock_channel[1].RenderScreensaver(26, CLOCK_CHANNEL_2);
-  clock_channel[2].RenderScreensaver(48, CLOCK_CHANNEL_3);
-  clock_channel[3].RenderScreensaver(70, CLOCK_CHANNEL_4);
-  clock_channel[4].RenderScreensaver(92, CLOCK_CHANNEL_5);
-  clock_channel[5].RenderScreensaver(114,CLOCK_CHANNEL_6);
+  clock_channel[0].RenderScreensaver(4);
+  clock_channel[1].RenderScreensaver(26);
+  clock_channel[2].RenderScreensaver(48);
+  clock_channel[3].RenderScreensaver(70);
+  clock_channel[4].RenderScreensaver(92);
+  clock_channel[5].RenderScreensaver(114);
 }

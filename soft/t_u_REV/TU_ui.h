@@ -6,6 +6,7 @@
 #include "UI/ui_button.h"
 #include "UI/ui_encoder.h"
 #include "UI/ui_event_queue.h"
+#include "TU_app_menu.h"
 
 namespace TU {
 
@@ -52,13 +53,24 @@ public:
   bool ConfirmReset();
   void DebugStats();
   void Calibrate();
-  void AppSettings();
-  UiMode DispatchEvents(TU::App *app);
+  void RunAppMenu();
+  UiMode DispatchEvents(const TU::App *app);
 
   void Poll();
 
   inline bool read_immediate(UiControl control) {
     return button_state_ & control;
+  }
+
+  inline uint32_t button_press_time(UiControl control) {
+    switch (control) {
+    case CONTROL_BUTTON_UP: return button_press_time_[0];
+    case CONTROL_BUTTON_DOWN: return button_press_time_[1];
+    case CONTROL_BUTTON_L: return button_press_time_[2];
+    case CONTROL_BUTTON_R: return button_press_time_[3];
+    default:
+    return 0;
+    }
   }
 
   inline void encoders_enable_acceleration(bool enable) {
@@ -110,6 +122,8 @@ private:
   UI::Encoder<encL1, encL2> encoder_left_;
 
   UI::EventQueue<kEventQueueDepth> event_queue_;
+
+  AppMenu app_menu_;
 
   inline void PushEvent(UI::EventType t, uint16_t c, int16_t v, uint16_t m) {
 #ifdef TU_UI_DEBUG

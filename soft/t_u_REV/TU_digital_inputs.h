@@ -58,7 +58,7 @@ public:
     return global_divisor_TR1_;
   }
   
-  void set_global_div_TR1(uint8_t divisor) {
+  static inline void set_global_div_TR1(uint8_t divisor) {
     global_divisor_TR1_ = divisor;
   }
 
@@ -66,7 +66,7 @@ public:
     return master_clock_TR1_;
   }
 
-  void set_master_clock(bool v) {
+  static inline void set_master_clock(bool v) {
     master_clock_TR1_ = v;
   }
 
