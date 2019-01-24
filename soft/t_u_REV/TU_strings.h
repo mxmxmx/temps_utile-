@@ -23,6 +23,8 @@ namespace TU {
     extern const char * const encoder_config_strings[];
     extern const char * const pulsewidth_ms[];
     extern const char * const trigger_delay_times[kNumDelayTimes];
+    extern const char * const initial_f[];
+    extern const char * const damping[];
   };
 
   extern const uint8_t trigger_delay_ticks[];

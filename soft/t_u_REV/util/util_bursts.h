@@ -27,122 +27,210 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "../extern/dspinst.h"
 
 namespace util {
 
-  const int32_t MAX_SOURCES = 16;
+  const uint32_t DAMP_CENTER = 30;    // see parameters in APP_CLK
+  const uint32_t INITIAL_CENTER = 20; // see parameters in APP_CLK
 
-  struct Packet
+  const uint64_t damp[DAMP_CENTER + 0x1] 
   {
-    uint32_t ON_interval;
-    uint32_t OFF_interval;
-    int8_t PcktSize;
-    uint32_t coeff;
-    bool state;
-  };
+    0x6666666, // 0.025 
+    0xCCCCCCC, // 0.050 
+    0x13333333, // 0.075 
+    0x19999999, // 0.100 
+    0x20000000, // 0.125 
+    0x26666666, // 0.150 
+    0x2CCCCCCC, // 0.175 
+    0x33333333, // 0.200 
+    0x39999999, // 0.225 
+    0x40000000, // 0.250 
+    0x46666666, // 0.275 
+    0x4CCCCCCC, // 0.300 
+    0x53333333, // 0.325 
+    0x59999999, // 0.350 
+    0x60000000, // 0.375 
+    0x66666666, // 0.400 
+    0x6CCCCCCC, // 0.425 
+    0x73333333, // 0.450 
+    0x79999999, // 0.475 
+    0x80000000, // 0.500 
+    0x86666666, // 0.525
+    0x8CCCCCCC, // 0.550
+    0x93333333, // 0.575
+    0x99999999, // 0.600
+    0xA0000000, // 0.625
+    0xA6666666, // 0.650
+    0xACCCCCCC, // 0.675
+    0xB3333333, // 0.700
+    0xB9999999, // 0.725
+    0xC0000000, // 0.750
+    0xC6666666  // 0.775
+  }; // = 2^32 * multiplier
+  
+  static const uint64_t init[INITIAL_CENTER * 2 + 0x1] =
+  {
+    0x6666666, // 0.025 
+    0xCCCCCCC, // 0.050 
+    0x19999999, // 0.100 
+    0x26666666, // 0.150 
+    0x33333333, // 0.200 
+    0x40000000, // 0.250 
+    0x4CCCCCCC, // 0.300 
+    0x59999999, // 0.350 
+    0x66666666, // 0.400 
+    0x73333333, // 0.450 
+    0x80000000, // 0.500 
+    0x8CCCCCCC, // 0.550 
+    0x99999999, // 0.600 
+    0xA6666666, // 0.650 
+    0xB3333333, // 0.700 
+    0xC0000000, // 0.750 
+    0xCCCCCCCC, // 0.800 
+    0xD9999999, // 0.850 
+    0xE6666666, // 0.900 
+    0xF3333333, // 0.950 
+    0x100000000, // 1.000 
+    0x10CCCCCCC, // 1.050 
+    0x119999999, // 1.100 
+    0x126666666, // 1.150 
+    0x133333333, // 1.200 
+    0x13FFFFFFF, // 1.250 
+    0x14CCCCCCC, // 1.300 
+    0x159999999, // 1.350 
+    0x166666666, // 1.400 
+    0x173333333, // 1.450 
+    0x17FFFFFFF, // 1.500 
+    0x18CCCCCCC, // 1.550 
+    0x199999999, // 1.600 
+    0x1A6666666, // 1.650 
+    0x1B3333333, // 1.700 
+    0x1BFFFFFFF, // 1.750 
+    0x1CCCCCCCC, // 1.800 
+    0x1D9999999, // 1.850 
+    0x1E6666666, // 1.900 
+    0x1F3333333, // 1.950 
+    0x1FFFFFFFF, // 2.000 
+  }; // = 2^32 * multiplier
 
   class Bursts {
 
   public:
 
     void Init() {
-      sources_ = 0x1;
-      available_sources_ = sources_;
-      max_interval_ = 0xFFFF;
-      density_ = 0xFF;
+
+      burst_size_ = 0x0;
+      burst_count_ = burst_size_;
+      initial_ = 0x0;
+      damping_ = 0x0;
       frequency_ = 0xFFFF;
+      ticks_ = 0x0;
     }
 
-    bool Clock(uint32_t ticks) {
+    bool new_burst() {
 
-      bool on_state = false;
-      uint8_t cnt = 0x0;
+      ticks_ = 0x0;
+      // calculate ticks to next burst:
+      ticks_to_next_burst(true);
+      return true;
+    }
 
-      for (int i = 0; i < available_sources_; i++) {
+    void reset() {
+      burst_count_ = 0x0;
+    }
 
-        Packet *packet;
-        packet = &burst_[i];
+    bool process() {
 
-        int8_t _available_packets = packet->PcktSize;
+      ticks_++;
+      bool next_burst = false;
 
-        if (_available_packets > 0) {
+      if (burst_count_ < burst_size_) {
 
-          if (!packet->state && packet->OFF_interval < ticks) {
-            packet->PcktSize--;
-            next_burst(i);
-          }
+        if (ticks_ > ticks_to_next_burst_) {
 
-          if (packet->state && packet->ON_interval < ticks) {
-            on_state = true;
-            packet->state = false;
-          }
-        }
-        else {
-          cnt++;
-        }
-      }
-
-      available_sources_ -= cnt;
-
-      if (available_sources_ <= 0x0) {
-
-        available_sources_ = sources_;
-
-        for (int i = 0;  i < available_sources_; i++) {
-          burst_[i].PcktSize = 0x1 + random(density_ + 0x1);
-          burst_[i].coeff = 0x1 + i;
-          burst_[i].state = true;
-          burst_[i].ON_interval = random(frequency_ << 2);
+          next_burst = true;
+          // calculate ticks to next burst:
+          ticks_to_next_burst(false);
         }
       }
-
-      return on_state;
+      return next_burst;
     }
 
-    void set_max_interval(uint32_t max_interval) {
-      max_interval_ = max_interval;
+    void set_density(int32_t density) {
+      burst_size_ = density;
     }
 
-    void set_density(uint32_t density) {
-      density_ = density;
-    }
-
-    void set_sources(uint8_t sources) {
-      sources_ = sources > MAX_SOURCES ? MAX_SOURCES : sources;
+    void set_initial(int32_t initial) {
+      initial_ = initial;
     }
 
     void set_frequency(uint32_t frequency) {
       frequency_ = frequency;
     }
 
-    void reset() {
-      available_sources_ = 0x0;
+    void set_damping(uint32_t damping) {
+      damping_ = damping;
     }
 
-    void next_burst(uint8_t q) {
+    void increment() {
+      burst_count_++;
+      ticks_ = 0x0;
+    }
 
-      Packet *packet;
-      packet = &burst_[q];
-     
-      if (packet->PcktSize) {
-        
-        uint32_t _coeff;
-        packet->coeff += (packet->coeff);
-        
-        _coeff = random(packet->coeff) + q;
-        packet->ON_interval =  (frequency_ * _coeff) >> 2; // multiply_u32xu32_rshift32(_coeff << 28, frequency_);
-        packet->OFF_interval = (frequency_ * random(max_interval_)) >> 4;
-        packet->state = true;
-      }
+    uint32_t duty() {
+      return (ticks_to_next_burst_ >> 1);
     }
 
   private:
-    int16_t sources_;
-    int16_t available_sources_;
-    uint32_t max_interval_;
-    uint32_t density_;
+    int16_t burst_size_;
+    int16_t burst_count_;
+    uint32_t initial_;
+    uint32_t damping_;
     uint32_t frequency_;
-    Packet burst_[MAX_SOURCES];
+    uint32_t ticks_;
+    uint32_t ticks_to_next_burst_;
+
+    void ticks_to_next_burst(bool _new) {
+
+      if (_new) {
+        // initial frequency:
+        if (initial_ == INITIAL_CENTER)
+          ticks_to_next_burst_ = frequency_;
+        else {
+          if (initial_ < INITIAL_CENTER) {
+            ticks_to_next_burst_ = multiply_u32xu32_rshift32(frequency_, init[initial_]);
+          }
+          else {
+            // things overflow for x > 1.0 
+            uint32_t x = init[initial_] >> 5;
+            ticks_to_next_burst_ = multiply_u32xu32_rshift32(frequency_, x) << 5; 
+          }
+        }
+      }
+      // subsequent pulses, apply 'damping' (of sorts...)
+      else if (burst_count_ < burst_size_) {
+
+        if (damping_ == DAMP_CENTER) {
+            return;
+        }
+        else if (ticks_to_next_burst_ > 0x40) {
+          // limit ~ 4ms @ 16k
+          if (damping_ > DAMP_CENTER) {
+            // decay .. 
+            ticks_to_next_burst_ -= multiply_u32xu32_rshift32(ticks_to_next_burst_, damp[damping_ - DAMP_CENTER]);
+          }
+          else if (damping_ < DAMP_CENTER) {
+            // grow ..
+            ticks_to_next_burst_ += multiply_u32xu32_rshift32(ticks_to_next_burst_, damp[DAMP_CENTER - damping_]);
+          }
+        }
+        else { 
+          // stop
+          burst_count_ = burst_size_; 
+        }
+      }
+    };
   };
 
 }; // namespace util
