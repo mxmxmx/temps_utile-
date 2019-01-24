@@ -24,6 +24,9 @@
 #define SETTINGS_H_
 
 #include <stdint.h>
+#include <string.h>
+#include "../src/util_stream_buffer.h"
+#include "../src/util_misc.h"
 
 namespace settings {
 
@@ -32,6 +35,7 @@ enum StorageType {
   STORAGE_TYPE_I8, STORAGE_TYPE_U8,
   STORAGE_TYPE_I16, STORAGE_TYPE_U16,
   STORAGE_TYPE_I32, STORAGE_TYPE_U32,
+  STORAGE_TYPE_NOP,
 };
 
 struct value_attr {
@@ -41,6 +45,13 @@ struct value_attr {
   const char *name;
   const char * const *value_names;
   StorageType storage_type;
+
+  // These can be used to introduce some dependent variables that are only
+  // saved if parent_index > 0 and parent_value == get_value(parent_index - 1)
+  // Obviously the parent has to live earlier in the settings list than the
+  // dependent variable...
+  int parent_index;
+  int parent_value;
 
   int default_value() const {
     return default_;
@@ -98,6 +109,19 @@ public:
     return apply_value(index, values_[index] + delta);
   }
 
+  bool change_value_max(size_t index, int delta, int max) {
+    if (index < num_settings) {
+      int clamped = value_attr_[index].clamp(values_[index] + delta);
+      if (clamped > max)
+        clamped = max;
+      if (values_[index] != clamped) {
+        values_[index] = clamped;
+        return true;
+      }
+    }
+    return false;
+  }
+
   static const settings::value_attr &value_attr(size_t i) {
     return value_attr_[i];
   }
@@ -107,41 +131,47 @@ public:
       values_[s] = value_attr_[s].default_value();
   }
 
-  size_t Save(void *storage) const {
+  size_t Save(util::StreamBufferWriter &stream_writer) const {
     nibbles_ = 0;
-    uint8_t *write_ptr = static_cast<uint8_t *>(storage);
     for (size_t s = 0; s < num_settings; ++s) {
-      switch(value_attr_[s].storage_type) {
-        case STORAGE_TYPE_U4: write_ptr = write_nibble(write_ptr, s); break;
-        case STORAGE_TYPE_I8: write_ptr = write_setting<int8_t>(write_ptr, s); break;
-        case STORAGE_TYPE_U8: write_ptr = write_setting<uint8_t>(write_ptr, s); break;
-        case STORAGE_TYPE_I16: write_ptr = write_setting<int16_t>(write_ptr, s); break;
-        case STORAGE_TYPE_U16: write_ptr = write_setting<uint16_t>(write_ptr, s); break;
-        case STORAGE_TYPE_I32: write_ptr = write_setting<int32_t>(write_ptr, s); break;
-        case STORAGE_TYPE_U32: write_ptr = write_setting<uint32_t>(write_ptr, s); break;
+      auto attr = value_attr_[s];
+      if (!check_parent_value(attr))
+        continue;
+      switch(attr.storage_type) {
+        case STORAGE_TYPE_U4: write_nibble(stream_writer, s); break;
+        case STORAGE_TYPE_I8: write_setting<int8_t>(stream_writer, s); break;
+        case STORAGE_TYPE_U8: write_setting<uint8_t>(stream_writer, s); break;
+        case STORAGE_TYPE_I16: write_setting<int16_t>(stream_writer, s); break;
+        case STORAGE_TYPE_U16: write_setting<uint16_t>(stream_writer, s); break;
+        case STORAGE_TYPE_I32: write_setting<int32_t>(stream_writer, s); break;
+        case STORAGE_TYPE_U32: write_setting<uint32_t>(stream_writer, s); break;
+        case STORAGE_TYPE_NOP: break;
       }
     }
-    if (nibbles_)
-      write_ptr = flush_nibbles(write_ptr);
+    flush_nibbles(stream_writer);
 
-    return (size_t)(write_ptr - static_cast<uint8_t *>(storage));
+    return stream_writer.overflow() ? 0 : stream_writer.written();
   }
 
-  size_t Restore(const void *storage) {
+  size_t Restore(util::StreamBufferReader &stream_reader) {
     nibbles_ = 0;
-    const uint8_t *read_ptr = static_cast<const uint8_t *>(storage);
     for (size_t s = 0; s < num_settings; ++s) {
-      switch(value_attr_[s].storage_type) {
-        case STORAGE_TYPE_U4: read_ptr = read_nibble(read_ptr, s); break;
-        case STORAGE_TYPE_I8: read_ptr = read_setting<int8_t>(read_ptr, s); break;
-        case STORAGE_TYPE_U8: read_ptr = read_setting<uint8_t>(read_ptr, s); break;
-        case STORAGE_TYPE_I16: read_ptr = read_setting<int16_t>(read_ptr, s); break;
-        case STORAGE_TYPE_U16: read_ptr = read_setting<uint16_t>(read_ptr, s); break;
-        case STORAGE_TYPE_I32: read_ptr = read_setting<int32_t>(read_ptr, s); break;
-        case STORAGE_TYPE_U32: read_ptr = read_setting<uint32_t>(read_ptr, s); break;
+      auto attr = value_attr_[s];
+      if (!check_parent_value(attr))
+        continue;
+      switch(attr.storage_type) {
+        case STORAGE_TYPE_U4: read_nibble(stream_reader, s); break;
+        case STORAGE_TYPE_I8: read_setting<int8_t>(stream_reader, s); break;
+        case STORAGE_TYPE_U8: read_setting<uint8_t>(stream_reader, s); break;
+        case STORAGE_TYPE_I16: read_setting<int16_t>(stream_reader, s); break;
+        case STORAGE_TYPE_U16: read_setting<uint16_t>(stream_reader, s); break;
+        case STORAGE_TYPE_I32: read_setting<int32_t>(stream_reader, s); break;
+        case STORAGE_TYPE_U32: read_setting<uint32_t>(stream_reader, s); break;
+        case STORAGE_TYPE_NOP: break;
       }
     }
-    return (size_t)(read_ptr - static_cast<const uint8_t *>(storage));
+
+    return stream_reader.underflow() ? 0 : stream_reader.underflow();
   }
 
   static size_t storageSize() {
@@ -157,53 +187,48 @@ protected:
 
   mutable uint16_t nibbles_;
 
-  uint8_t *flush_nibbles(uint8_t *dest) const {
-    *dest++ = (nibbles_ & 0xff);
-    nibbles_ = 0;
-    return dest;
+  void flush_nibbles(util::StreamBufferWriter &stream_writer) const {
+    if (nibbles_) {
+      stream_writer.Write<uint8_t>(nibbles_ & 0xff);
+      nibbles_ = 0;
+    }
   }
 
-  uint8_t *write_nibble(uint8_t *dest, size_t index) const {
+  void write_nibble(util::StreamBufferWriter &stream_writer, size_t index) const {
     if (nibbles_) {
       nibbles_ |= (values_[index] & 0x0f);
-      dest = flush_nibbles(dest);
+      flush_nibbles(stream_writer);
     } else {
       // Ensure correct packing for reads even if there's an odd number of nibbles;
       // the first nibble is assumed to be in the msbits.
       nibbles_ = kNibbleValid | ((values_[index] & 0x0f) << 4);
     }
-    return dest;
   }
 
   template <typename storage_type>
-  uint8_t *write_setting(uint8_t *dest, size_t index) const {
-    if (nibbles_)
-      dest = flush_nibbles(dest);
-    storage_type *storage = reinterpret_cast<storage_type *>(dest);
-    *storage++ = values_[index];
-    return reinterpret_cast<uint8_t *>(storage);
+  void write_setting(util::StreamBufferWriter &stream_writer, size_t index) const {
+    flush_nibbles(stream_writer);
+    stream_writer.Write(static_cast<storage_type>(values_[index]));
   }
 
-  const uint8_t *read_nibble(const uint8_t *src, size_t index) {
+  void read_nibble(util::StreamBufferReader &stream_reader, size_t index) {
     uint8_t value;
     if (nibbles_) {
       value = nibbles_ & 0x0f;
       nibbles_ = 0;
     } else {
-      value = *src++;
+      value = stream_reader.Read<uint8_t>();
       nibbles_ = kNibbleValid | value;
       value >>= 4;
     }
     apply_value(index, value);
-    return src;
   }
 
   template <typename storage_type>
-  const uint8_t *read_setting(const uint8_t *src, size_t index) {
+  void read_setting(util::StreamBufferReader &stream_reader, size_t index) {
     nibbles_ = 0;
-    const storage_type *storage = reinterpret_cast<const storage_type*>(src);
-    apply_value(index, *storage++);
-    return reinterpret_cast<const uint8_t *>(storage);
+    storage_type value = stream_reader.Read<storage_type>();
+    apply_value(index, value);
   }
 
   static size_t calc_storage_size() {
@@ -229,11 +254,20 @@ protected:
     s += nibbles >> 1;
     return s;
   }
+
+  bool check_parent_value(const settings::value_attr &attr) const {
+    if (!attr.parent_index)
+      return true;
+    return attr.parent_value == get_value(attr.parent_index - 1);
+  }
 };
 
 #define SETTINGS_DECLARE(clazz, last) \
 template <> const size_t settings::SettingsBase<clazz, last>::storage_size_ = settings::SettingsBase<clazz, last>::calc_storage_size(); \
 template <> const settings::value_attr settings::SettingsBase<clazz, last>::value_attr_[] =
+
+#define VALID_IF(parent, value) \
+parent + 1, static_cast<int>(value)
 
 }; // namespace settings
 

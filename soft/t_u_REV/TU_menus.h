@@ -96,7 +96,7 @@ public:
     cursor_pos_ = pos;
 
     int screen_line = screen_line_ + amount;
-    if (fancy) {
+    if (fancy && (end_ - start_ >= screen_lines)) {
       if (amount < 0) {
         if (screen_line < 2) {
           if (pos >= start_ + 1)
@@ -113,7 +113,10 @@ public:
         }
       }
     } else {
-      CONSTRAIN(screen_line, 0, screen_lines - 1);
+      if (end_ - start_ < screen_lines)
+        CONSTRAIN(screen_line, 0, (end_ - start_));
+      else
+        CONSTRAIN(screen_line, 0, screen_lines - 1);
     }
     screen_line_ = screen_line;
   }
@@ -127,7 +130,10 @@ public:
   }
 
   inline int last_visible() const {
-    return cursor_pos_ - screen_line_ + screen_lines - 1;
+    if (end_ - start_ < 4)
+      return end_ - start_;
+    else
+      return cursor_pos_ - screen_line_ + screen_lines - 1;
   }
 
   inline bool editing() const {

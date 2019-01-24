@@ -33,6 +33,7 @@ void Ui::Init() {
   encoder_right_.Init(TU_GPIO_ENC_PINMODE);
   encoder_left_.Init(TU_GPIO_ENC_PINMODE);
   event_queue_.Init();
+  app_menu_.Init();
 }
 
 void Ui::configure_encoders(EncoderConfig encoder_config) {
@@ -78,7 +79,7 @@ void FASTRUN Ui::Poll() {
   button_state_ = button_state;
 }
 
-UiMode Ui::DispatchEvents(App *app) {
+UiMode Ui::DispatchEvents(const App *app) {
 
   while (event_queue_.available()) {
     const UI::Event event = event_queue_.PullEvent();
