@@ -218,7 +218,7 @@ AppMenu::Action AppMenu::HandleEvent(const UI::Event &event)
       int page = current_page_ + event.value;
       CONSTRAIN(page, 0, PAGE_LAST - 1);
       current_page_ = static_cast<PAGE>(page);
-      current_page_cursor.Scroll(-0x4); // cursor is bit erratic, so jump back to line 0
+      current_page_cursor.Scroll(-app_storage.num_slots()); // cursor is a bit erratic, so jump back to line 0
     } else if (CONTROL_ENCODER_R == event.control) {
       if (CONF_PAGE == current_page_ && current_page_cursor.editing()) {
         GLOBAL_CONFIG_SETTING setting = enabled_setting_at(current_page_cursor.cursor_pos());
