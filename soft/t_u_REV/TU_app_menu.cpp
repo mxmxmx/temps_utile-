@@ -154,7 +154,7 @@ void AppMenu::DrawSlotsPage(PAGE page) const
        ++current, item.y += menu::kMenuLineH) {
 
     auto &slot_info = app_storage[current];
-    auto app = app_switcher.find(slot_info.id);
+    //auto app = app_switcher.find(slot_info.id);
 
     if (current == cursor.cursor_pos()) {
       if (LOAD_PAGE == page && !slot_info.loadable())
@@ -176,9 +176,10 @@ void AppMenu::DrawSlotsPage(PAGE page) const
 
     if (!debug_display_) {
       if (SLOT_STATE::EMPTY != slot_info.state)
-        graphics.printf(app ? app->name : "???? (%02x)", app->id);
+      // for the time being ...
+        graphics.printf("PRESET   >      #%d", current + 0x1); //graphics.printf(app ? app->name : "???? (%02x)", app->id);
       else
-        graphics.print("empty");
+        graphics.print("(empty)");
     } else {
       auto &slot = app_storage.storage_slot(current);
       graphics.printf("%04x %04x %u", slot_info.id, slot.header.version, slot.header.valid_length);
@@ -217,6 +218,7 @@ AppMenu::Action AppMenu::HandleEvent(const UI::Event &event)
       int page = current_page_ + event.value;
       CONSTRAIN(page, 0, PAGE_LAST - 1);
       current_page_ = static_cast<PAGE>(page);
+      current_page_cursor.Scroll(-0x4); // cursor is bit erratic, so jump back to line 0
     } else if (CONTROL_ENCODER_R == event.control) {
       if (CONF_PAGE == current_page_ && current_page_cursor.editing()) {
         GLOBAL_CONFIG_SETTING setting = enabled_setting_at(current_page_cursor.cursor_pos());
@@ -244,7 +246,7 @@ AppMenu::Action AppMenu::HandleEvent(const UI::Event &event)
       } else {
         switch (current_page_) {
         case LOAD_PAGE:
-        case SAVE_PAGE: debug_display_ = !debug_display_; break;
+        case SAVE_PAGE: break; // debug_display_ = !debug_display_; break;
         case APPS_PAGE: return { current_page_, ACTION_SWITCH, current_page_cursor.cursor_pos() }; break;
         case CONF_PAGE: current_page_cursor.toggle_editing(); break;
         default: break;
