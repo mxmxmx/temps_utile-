@@ -80,7 +80,7 @@ void FASTRUN CORE_timer_ISR() {
   // 100us: 10kHz / 4 / 4 ~ .6kHz
   // 60us: 16.666K / 4 / 4 ~ 1kHz
   // kAdcSmoothing == 4 has some (maybe 1-2LSB) jitter but seems "Good Enough".
-  TU::ADC::Scan();
+  TU::ADC::Scan_DMA();
   // Pin changes are tracked in separate ISRs, so depending on prio it might
   // need extra precautions.
   TU::DigitalInputs::Scan();
@@ -92,7 +92,7 @@ void FASTRUN CORE_timer_ISR() {
 
   ++TU::CORE::ticks;
   if (TU::CORE::app_isr_enabled)
-    TU::apps::ISR();
+    TU::app_switcher.ISR();
 
   TU_DEBUG_RESET_CYCLES(TU::CORE::ticks, 16384, TU::DEBUG::ISR_cycles);
 }
@@ -114,6 +114,7 @@ void setup() {
   delay(300);
   TU::DigitalInputs::Init();
   TU::ADC::Init(&TU::calibration_data.adc); // Yes, it's using the calibration_data before it's loaded...
+  TU::ADC::Init_DMA();
   TU::OUTPUTS::Init(&TU::calibration_data.dac);
    
   display::Init();
@@ -149,7 +150,7 @@ void setup() {
   // set approx. v/oct value (from calibration data)
   TU::OUTPUTS::set_v_oct();
   // initialize apps
-  TU::apps::Init(reset_settings);
+  TU::app_switcher.Init(reset_settings);
   TU::DigitalInputs::Clear();
 }
 
@@ -163,7 +164,7 @@ void FASTRUN loop() {
 
     // don't change current_app while it's running
     if (TU::UI_MODE_APP_SETTINGS == ui_mode) {
-      TU::ui.AppSettings();
+      TU::ui.RunAppMenu();
       ui_mode = TU::UI_MODE_MENU;
     }
 
@@ -173,10 +174,10 @@ void FASTRUN loop() {
         if (TU::UI_MODE_MENU == ui_mode) {
           TU_DEBUG_RESET_CYCLES(menu_redraws, 512, TU::DEBUG::MENU_draw_cycles);
           TU_DEBUG_PROFILE_SCOPE(TU::DEBUG::MENU_draw_cycles);
-          TU::apps::current_app->DrawMenu();
+          TU::app_switcher.current_app()->DrawMenu();
           ++menu_redraws;
         } else {
-          TU::apps::current_app->DrawScreensaver();
+          TU::app_switcher.current_app()->DrawScreensaver();
         }
         MENU_REDRAW = 0;
         LAST_REDRAW_TIME = millis();
@@ -184,17 +185,17 @@ void FASTRUN loop() {
     }
 
     // Run current app
-    TU::apps::current_app->loop();
+    TU::app_switcher.current_app()->loop();
 
     // UI events
-    TU::UiMode mode = TU::ui.DispatchEvents(TU::apps::current_app);
+    TU::UiMode mode = TU::ui.DispatchEvents(TU::app_switcher.current_app());
 
     // State transition for app
     if (mode != ui_mode) {
       if (TU::UI_MODE_SCREENSAVER == mode)
-        TU::apps::current_app->HandleAppEvent(TU::APP_EVENT_SCREENSAVER_ON);
+        TU::app_switcher.current_app()->HandleAppEvent(TU::APP_EVENT_SCREENSAVER_ON);
       else if (TU::UI_MODE_SCREENSAVER == ui_mode)
-        TU::apps::current_app->HandleAppEvent(TU::APP_EVENT_SCREENSAVER_OFF);
+        TU::app_switcher.current_app()->HandleAppEvent(TU::APP_EVENT_SCREENSAVER_OFF);
       ui_mode = mode;
     }
 
