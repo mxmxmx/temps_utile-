@@ -1281,24 +1281,24 @@ public:
        *  this, presumably, is needlessly complicated.
        *  but seems to work ok-ish, w/o too much jitter and missing clocks...
        */
-  
+      
       uint32_t _subticks = subticks_;
   
       // sync ? (manual)
       div_cnt_ = pending_sync_ ? 0x0 : div_cnt_;
   
-      if (_multiplier <= MULT_BY_ONE && _triggered && div_cnt_ <= 0) {
+      if (_triggered && _multiplier <= MULT_BY_ONE && div_cnt_ <= 0) {
         // division, so we track
         _sync = true;
         div_cnt_ = divisors_[_multiplier];
         subticks_ = channel_frequency_in_ticks_; // force sync
       }
-      else if (_multiplier <= MULT_BY_ONE && _triggered) {
+      else if (_triggered && _multiplier <= MULT_BY_ONE) {
         // division, mute output:
         TU::OUTPUTS::setState(channel_, OFF);
         display_state_ = _OFF; // for display
       }
-      else if (_multiplier > MULT_BY_ONE && _triggered)  {
+      else if (_triggered && _multiplier > MULT_BY_ONE)  {
         // multiplication, force sync, if clocked:
         _sync = true;
         subticks_ = channel_frequency_in_ticks_;
@@ -1310,19 +1310,16 @@ public:
       // end of ugly hack
       
       // time to output ?
-    
       if ((subticks_ >= channel_frequency_in_ticks_ && _sync) || Phase_.now()) {
-  
+        
         if (Phase_.set_phase(channel_frequency_in_ticks_, _phase, _triggered))
           return;
         // reset ticks:
         subticks_ = 0x0;
-  
         //reject, if clock is too jittery or skip quasi-double triggers when ext. frequency increases:
-        if (!get_trigger_delay()) {
-          if ((_subticks < tickjitter_) || (_subticks < prev_channel_frequency_in_ticks_ && !pending_reset_))
+        // todo ... deal with trigger delay; tss. can't remember why that was needed
+        if ((_subticks < tickjitter_) || (_subticks < prev_channel_frequency_in_ticks_ && !pending_reset_))
             return;
-        }
   
         // mute output ?
         if (_reset_source > CHANNEL_TRIGGER_NONE) {
@@ -1339,6 +1336,7 @@ public:
         // reset counter ? (SEQ/Euclidian)
         // resync/clear pending sync
         if (_triggered && (pending_reset_ > 0 || pending_sync_)) {
+          
           if (pending_reset_) {
             pending_reset_ = -1;
           }
@@ -2533,7 +2531,7 @@ void CLOCKS_handleAppEvent(TU::AppEvent event) {
       clocks_state.cursor.set_editing(false);
       clocks_state.pattern_editor.Close();
       for (int i = 0; i < NUM_CHANNELS; ++i) {
-        clock_channel[i].sync();
+        //clock_channel[i].sync();
         clock_channel[i].set_page(PARAMETERS);
       }
     }
