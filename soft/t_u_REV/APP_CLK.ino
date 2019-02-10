@@ -1130,14 +1130,15 @@ public:
         prev_channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_SCALE);
         // new frequency:
         channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, multipliers_[_multiplier - MULT_BY_ONE]);
+        // tick jitter / reject
+        tickjitter_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_JITTER);
       }
       else {
         prev_channel_frequency_in_ticks_ = 0x0;
+        tickjitter_ = 0x0;
         // new frequency (used for pulsewidth):
         channel_frequency_in_ticks_ = multiply_u32xu32_rshift32(ext_frequency_in_ticks_, pw_scale_[_multiplier]) << 6;
       }
-
-      tickjitter_ = multiply_u32xu32_rshift32(channel_frequency_in_ticks_, TICK_JITTER);
     }
   
     // limit frequency to > 0
@@ -1316,7 +1317,7 @@ public:
           return;
         // reset ticks:
         subticks_ = 0x0;
-        //reject, if clock is too jittery or skip quasi-double triggers when ext. frequency increases:
+        // when multiplying, reject clock if incoming clock is too jittery or skip quasi-double triggers when ext. frequency increases:
         // todo ... deal with trigger delay; tss. can't remember why that was needed
         if ((_subticks < tickjitter_) || (_subticks < prev_channel_frequency_in_ticks_ && !pending_reset_))
             return;
@@ -2531,7 +2532,7 @@ void CLOCKS_handleAppEvent(TU::AppEvent event) {
       clocks_state.cursor.set_editing(false);
       clocks_state.pattern_editor.Close();
       for (int i = 0; i < NUM_CHANNELS; ++i) {
-        //clock_channel[i].sync();
+        clock_channel[i].sync();
         clock_channel[i].set_page(PARAMETERS);
       }
     }
