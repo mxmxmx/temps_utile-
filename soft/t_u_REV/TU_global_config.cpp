@@ -41,7 +41,7 @@ const char* const global_divisors_strings[] = {
 
 SETTINGS_DECLARE(TU::GlobalConfig, TU::GLOBAL_CONFIG_SETTING_LAST) {
   { 0, 0, 3, "TR1 global div", global_divisors_strings, settings::STORAGE_TYPE_U4 },
-  { 0, 0, 1, "TR1 master", TU::Strings::no_yes, settings::STORAGE_TYPE_U4 },
+  { 0, 0, 1, "slave channels", TU::Strings::no_yes, settings::STORAGE_TYPE_U4 },
 };
 
 namespace TU {
@@ -62,7 +62,7 @@ void GlobalConfig::Apply()
   }
 
   if (DigitalInputs::master_clock() != TR1_master()) {
-    SERIAL_PRINTLN("TR1 master clock, TR1: %i", TR1_master());
+    SERIAL_PRINTLN("slave channels / master clock: %i", TR1_master());
     DigitalInputs::set_master_clock(TR1_master());
   }
 }

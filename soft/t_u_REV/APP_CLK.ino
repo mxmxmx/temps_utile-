@@ -328,6 +328,7 @@ enum MENUPAGES {
 uint64_t ext_frequency[CHANNEL_TRIGGER_LAST];
 uint64_t int_frequency;
 uint64_t pending_int_frequency;
+volatile uint8_t master_channel[CHANNEL_TRIGGER_LAST] = { 0, 0, 0, 0 };
 
 class Clock_channel : public settings::SettingsBase<Clock_channel, CHANNEL_SETTING_LAST> {
 public:
@@ -891,13 +892,9 @@ public:
     pending_sync_ = true;
   }
 
-  void resync(uint32_t clk_cnt, uint32_t div_cnt ) {
-    // don't resync channels running off TR2
-    if (clk_src_ != CHANNEL_TRIGGER_TR2) {
-      clk_cnt_ = clk_cnt;
-      div_cnt_ = div_cnt;
+  void resync() {
       sync_ = false;
-    }
+      pending_sync_ = true;
   }
 
   bool slave() {
@@ -2520,7 +2517,8 @@ size_t CLOCKS_restore(util::StreamBufferReader &stream_buffer) {
   clock_channel[CLOCK_CHANNEL_4].cv_pattern_changed(clock_channel[CLOCK_CHANNEL_4].get_cv_mask(), true);
 
   TU::global_config.Restore(stream_buffer);
-
+  TU::global_config.Apply();
+  //TU::DigitalInputs::set_master_clock(TU::global_config.TR1_master());
   return stream_buffer.underflow() ? 0 : stream_buffer.read();
 }
 
@@ -2620,42 +2618,67 @@ void CLOCKS_isr() {
   if (ticks_src2 > (ext_frequency[CHANNEL_TRIGGER_TR2] << 2))
     mute = CHANNEL_TRIGGER_TR2;
 
-  if (TU::DigitalInputs::master_clock()) {
+  if (triggers && TU::DigitalInputs::master_clock()) {
 
-    if (triggers & (1 << CHANNEL_TRIGGER_TR1)) {
+    bool resync = false;
+    for (size_t i = 0; i < NUM_CHANNELS; ++i) { if (clock_channel[i].slave()) resync = true; }
 
-      // track master clock:
-      uint8_t min_mult = MULT_MAX;
-      uint8_t master_channel = 0x0;
-
+    if (resync) {
+      
+      // find/set master channel(s)
+      uint8_t min_mult[CHANNEL_TRIGGER_LAST] = { MULT_MAX, MULT_MAX, MULT_MAX, MULT_MAX } ;
+      
       for (size_t i = 0; i < NUM_CHANNELS; ++i) {
+        
         uint8_t mult = clock_channel[i].get_effective_multiplier();
-        if (mult <= min_mult) {
-          min_mult = mult;
-          master_channel = i;
+        uint8_t src = clock_channel[i].get_clock_source();
+        
+        if (mult <= min_mult[src]) { 
+          master_channel[src] = i;
+          min_mult[src] = mult; 
         }
       }
-      // channel is about to reset, so reset slave channels --
-      if (min_mult <= MULT_BY_ONE && clock_channel[master_channel].get_div_cnt() <= 0x1) {
+      
+      // ... and resync TR1, TR2, Internal
+      
+      if (triggers & (1 << CHANNEL_TRIGGER_TR1)) {
+        
+        uint8_t master_channel_ = master_channel[CHANNEL_TRIGGER_TR1];
+        uint8_t min_mult = clock_channel[master_channel_].get_effective_multiplier();
+    
+        // channel is about to reset, so reset slave channels -- 
+        if (min_mult <= MULT_BY_ONE && clock_channel[master_channel_].get_div_cnt() <= 0x1) {
 
-        for (size_t i = 0; i < NUM_CHANNELS; ++i)  {
+          for (size_t i = 0; i < NUM_CHANNELS; ++i) {
+            if (clock_channel[i].get_clock_source() == CHANNEL_TRIGGER_TR1) { clock_channel[i].resync(); }      
+          }
+        }
+      }
 
-          if (clock_channel[i].slave()) {
+      if (triggers & (1 << CHANNEL_TRIGGER_TR2)) {
+        
+        uint8_t master_channel_ = master_channel[CHANNEL_TRIGGER_TR2];
+        uint8_t min_mult = clock_channel[master_channel_].get_effective_multiplier();
 
-              uint8_t mult = clock_channel[i].get_effective_multiplier();
-              uint32_t clock_count = 0; uint32_t div_count = 0;
+        // channel is about to reset, so reset slave channels -- 
+        if (min_mult <= MULT_BY_ONE && clock_channel[master_channel_].get_div_cnt() <= 0x1) {
 
-              for (size_t j = 0; j < NUM_CHANNELS; ++j) {
-                if (i != j) {
-                    if (clock_channel[j].get_effective_multiplier() == mult)
-                    {
-                       clock_count = clock_channel[j].get_clock_cnt();
-                       div_count = clock_channel[j].get_div_cnt();
-                    }
-                }
-              }
-              // resync channel
-              clock_channel[i].resync(clock_count, div_count);
+          for (size_t i = 0; i < NUM_CHANNELS; ++i) {
+            if (clock_channel[i].get_clock_source() == CHANNEL_TRIGGER_TR2) { clock_channel[i].resync(); }    
+          }
+        }
+      }
+
+      if (triggers & (1 << CHANNEL_TRIGGER_INTERNAL)) {
+        
+        uint8_t master_channel_ = master_channel[CHANNEL_TRIGGER_INTERNAL];
+        uint8_t min_mult = clock_channel[master_channel_].get_effective_multiplier();
+
+        // channel is about to reset, so reset slave channels -- 
+        if (min_mult <= MULT_BY_ONE && clock_channel[master_channel_].get_div_cnt() <= 0x1) {
+
+          for (size_t i = 0; i < NUM_CHANNELS; ++i) {
+            if (clock_channel[i].get_clock_source() == CHANNEL_TRIGGER_INTERNAL) { clock_channel[i].resync(); }    
           }
         }
       }
