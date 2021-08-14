@@ -118,13 +118,29 @@ void SH1106_128x64_Driver::Init() {
 /*static*/
 void SH1106_128x64_Driver::Flush() {
 #ifdef DMA_PAGE_TRANSFER
-  // Assume DMA transfer has completed, else we're doomed
-  digitalWriteFast(OLED_CS, OLED_CS_INACTIVE); // U8G_ESC_CS(0)
-  page_dma.clearComplete();
-  page_dma.disable();
-  // DmaSpi.h::post_finishCurrentTransfer_impl
-  SPI0_RSER = 0;
-  SPI0_SR = 0xFF0F0000;
+  // Famous last words: "Assume DMA transfer has completed, else we're doomed"
+  // Because it turns out there are conditions(*) where the timing is shifted
+  // such that it hasn't completed here, which causes weird display glitches
+  // from which there's no recovery.
+  //
+  // (*) If app processing in frame N takes too long, the next frame starts
+  // late; this leaves less time for frame N+1, and in N+2 the display CS line
+  // would be pulled high too soon. Why this effect is more pronounced with
+  // gcc >= 5.4.1 is a different mystery.
+
+  if (page_dma_active) {
+    while (!page_dma.complete()) { }
+    while (0 != (SPI0_SR & 0x0000f000)); // SPIx_SR TXCTR
+    while (!(SPI0_SR & SPI_SR_TCF));
+    page_dma_active = false;
+
+    digitalWriteFast(OLED_CS, OLED_CS_INACTIVE); // U8G_ESC_CS(0)
+    page_dma.clearComplete();
+    page_dma.disable();
+    // DmaSpi.h::post_finishCurrentTransfer_impl
+    SPI0_RSER = 0;
+    SPI0_SR = 0xFF0F0000;
+  }
 #endif
 }
 
