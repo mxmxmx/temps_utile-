@@ -33,7 +33,7 @@
 #include "util/util_macros.h"
 
 static constexpr TU::App available_apps[] = {
-  INSTANTIATE_APP("CL", 0x0101, "6xclocks", CLOCKS),
+  INSTANTIATE_APP("CL", 0x0102, "6xclocks", CLOCKS),
 };
 
 static constexpr int NUM_AVAILABLE_APPS = ARRAY_SIZE(available_apps);

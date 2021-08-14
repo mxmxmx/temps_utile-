@@ -65,6 +65,7 @@ void AppStorage::CheckSlot(size_t slot_index)
 
   if (slot.header.version != app->storage_version) {
     SERIAL_PRINTLN("Slot %u: id=%04x -- version mismatch, expected %04x, got %04x", slot_index, slot.header.id, app->storage_version, slot.header.version);
+    return;
   }
 
   // Some apps might have variable length settings, so there might not be a

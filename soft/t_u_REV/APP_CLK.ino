@@ -2342,7 +2342,7 @@ SETTINGS_DECLARE(Clock_channel, CHANNEL_SETTING_LAST) {
   { 0, 0, TU::kNumDelayTimes - 1, "latency", TU::Strings::trigger_delay_times, settings::STORAGE_TYPE_U8 },
   { CHANNEL_TRIGGER_NONE, 0, CHANNEL_TRIGGER_LAST, "reset/mute", reset_trigger_sources, settings::STORAGE_TYPE_U8 },
   { MULT_BY_ONE, 0, MULT_MAX, "mult/div", multipliers, settings::STORAGE_TYPE_U8 },
-  { 25, 0, PULSEW_MAX, "pulsewidth", TU::Strings::pulsewidth_ms, settings::STORAGE_TYPE_U8, VALID_IF(CHANNEL_SETTING_MODE, CLOCKMODE::DAC) },
+  { 25, 0, PULSEW_MAX, "pulsewidth", TU::Strings::pulsewidth_ms, settings::STORAGE_TYPE_U8 },
   { 0, 0, PHASEOFFSET_MAX, "phase %", NULL, settings::STORAGE_TYPE_U8 },
   // note that BPM is a channel setting, although it's a global value.
   // when recalling, we just grab the value for channel 0
