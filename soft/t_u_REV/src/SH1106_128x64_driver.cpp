@@ -33,6 +33,7 @@
 #ifdef DMA_PAGE_TRANSFER
 #include <DMAChannel.h>
 static DMAChannel page_dma;
+static bool page_dma_active = false;
 #endif
 #ifndef SPI_SR_RXCTR
 #define SPI_SR_RXCTR 0XF0
