@@ -33,7 +33,7 @@
 #include "util/util_macros.h"
 
 static constexpr TU::App available_apps[] = {
-  INSTANTIATE_APP("CL", 0x0101, "6xclocks", CLOCKS),
+  INSTANTIATE_APP("CL", 0x0102, "6xclocks", CLOCKS),
 };
 
 static constexpr int NUM_AVAILABLE_APPS = ARRAY_SIZE(available_apps);
@@ -208,6 +208,7 @@ bool AppSwitcher::LoadAppFromSlot(size_t slot_index, bool save_state)
   bool loaded = false;
   if (app_storage.LoadAppFromSlot(app, slot_index)) {
     set_current_app(app);
+    global_config.Apply();
     if (save_state) {
       global_state.last_slot_index = slot_index;
       SaveGlobalState();
