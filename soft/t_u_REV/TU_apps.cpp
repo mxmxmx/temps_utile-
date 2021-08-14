@@ -208,6 +208,7 @@ bool AppSwitcher::LoadAppFromSlot(size_t slot_index, bool save_state)
   bool loaded = false;
   if (app_storage.LoadAppFromSlot(app, slot_index)) {
     set_current_app(app);
+    global_config.Apply();
     if (save_state) {
       global_state.last_slot_index = slot_index;
       SaveGlobalState();
