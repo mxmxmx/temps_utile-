@@ -2990,8 +2990,29 @@ void CLOCKS_rightButton() {
 
 void CLOCKS_leftButton() {
   // sync:
-  for (int i = 0; i < NUM_CHANNELS; ++i)
+  Clock_channel &selected = clock_channel[clocks_state.selected_channel];
+
+  for (int i = 0; i < NUM_CHANNELS; ++i) {
+    if (selected.get_page() == TEMPO) {
+      if (clock_channel[i].get_clock_source() == CHANNEL_TRIGGER_INTERNAL)
+        clock_channel[i].set_clock_source(CHANNEL_TRIGGER_TR1);
+      else
+        clock_channel[i].set_clock_source(CHANNEL_TRIGGER_INTERNAL);
+      TU::OUTPUTS::set(CLOCK_CHANNEL_1, OFF);
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_1, OFF);
+      TU::OUTPUTS::set(CLOCK_CHANNEL_2, OFF);
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_2, OFF);
+      TU::OUTPUTS::set(CLOCK_CHANNEL_3, OFF);
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_3, OFF);
+      TU::OUTPUTS::set(CLOCK_CHANNEL_4, selected.get_zero(CLOCK_CHANNEL_4));
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_4, OFF);
+      TU::OUTPUTS::set(CLOCK_CHANNEL_5, OFF);
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_5, OFF);
+      TU::OUTPUTS::set(CLOCK_CHANNEL_6, OFF);
+      TU::OUTPUTS::setState(CLOCK_CHANNEL_6, OFF);
+    }
     clock_channel[i].sync();
+  }
 }
 
 void CLOCKS_leftButtonLong() {
